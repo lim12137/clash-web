@@ -2,15 +2,22 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Dropdown, Badge } from "antd";
+import { Dropdown, Badge, Modal, Button } from "antd";
 import { DownOutlined } from "@ant-design/icons";
+import { WarningFilled } from "@ant-design/icons";
 import { BrainCircuit, Globe } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button as ButtonUI } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
 import { useMemoryIndicator } from "@/hooks/useMemory";
+import { loadMemoryConfig, setMemorySwitch } from "@/services/memoryService";
+import { configStore } from "@/lib/config";
+import log from "@/lib/logger";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { USER_ROLES } from "@/const/modelConfig";
 
 import MemoryManageModal from "../internal/memory/memoryManageModal";
 
@@ -32,13 +39,23 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ title, onRename }: ChatHeaderProps) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [memoryModalVisible, setMemoryModalVisible] = useState(false);
+  const [embeddingConfigured, setEmbeddingConfigured] = useState<boolean>(true);
+  const [showConfigPrompt, setShowConfigPrompt] = useState(false);
+  const [showAutoOffPrompt, setShowAutoOffPrompt] = useState(false);
   const hasNewMemory = useMemoryIndicator(memoryModalVisible);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation("common");
   const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === USER_ROLES.ADMIN;
+
+  const goToModelSetup = () => {
+    router.push(`/${currentLanguage}/setup/models`);
+  };
 
   // Update editTitle when the title attribute changes
   useEffect(() => {
@@ -56,6 +73,40 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
       }
     }, 10);
   };
+
+  // Check embedding configuration and memory switch once when entering the page
+  useEffect(() => {
+    try {
+      const modelConfig = configStore.getModelConfig();
+      const configured = Boolean(
+        modelConfig?.embedding?.modelName ||
+          modelConfig?.multiEmbedding?.modelName
+      );
+      setEmbeddingConfigured(configured);
+
+      if (!configured) {
+        // If memory switch is on, turn it off automatically and notify the user
+        loadMemoryConfig()
+          .then(async (cfg) => {
+            if (cfg.memoryEnabled) {
+              const ok = await setMemorySwitch(false);
+              if (!ok) {
+                log.warn(
+                  "Failed to auto turn off memory switch when embedding is not configured"
+                );
+              }
+              setShowAutoOffPrompt(true);
+            }
+          })
+          .catch((e) => {
+            log.error("Failed to check memory config on page enter", e);
+          });
+      }
+    } catch (e) {
+      setEmbeddingConfigured(false);
+      log.error("Failed to read model config for embedding check", e);
+    }
+  }, []);
 
   // Handle submit editing
   const handleSubmit = () => {
@@ -131,22 +182,107 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
                 </a>
               </Dropdown>
               {/* Memory Setting */}
-              <Badge dot={hasNewMemory} offset={[-4, 4]}>
-                <Button
+              <Badge dot={embeddingConfigured && hasNewMemory} offset={[-4, 4]}>
+                <ButtonUI
                   variant="ghost"
-                  className="h-6 w-5 mr-4 rounded-full"
-                  onClick={() => setMemoryModalVisible(true)}
+                  className={`h-6 w-5 mr-4 rounded-full ${
+                    !embeddingConfigured ? "opacity-50" : ""
+                  }`}
+                  onClick={() => {
+                    if (!embeddingConfigured) {
+                      setShowConfigPrompt(true);
+                      return;
+                    }
+                    setMemoryModalVisible(true);
+                  }}
                 >
                   <BrainCircuit
                     className="size-5"
                     stroke="url(#brainCogGradient)"
                   />
-                </Button>
+                </ButtonUI>
               </Badge>
             </div>
           </div>
         </div>
       </header>
+      {/* Embedding not configured prompt */}
+      <Modal
+        title={t("embedding.chatMemoryWarningModal.title")}
+        open={showConfigPrompt}
+        onCancel={() => setShowConfigPrompt(false)}
+        centered
+        footer={
+          <div className="flex justify-end mt-3 gap-4">
+            {isAdmin && (
+              <Button type="primary" onClick={goToModelSetup}>
+                {t("embedding.chatMemoryWarningModal.ok_config")}
+              </Button>
+            )}
+            <Button onClick={() => setShowConfigPrompt(false)}>
+              {t("embedding.chatMemoryWarningModal.ok")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="py-2">
+          <div className="flex items-center">
+            <WarningFilled
+              className="text-yellow-500 mt-1 mr-2"
+              style={{ fontSize: "48px" }}
+            />
+            <div className="ml-3 mt-2">
+              <div className="text-sm leading-6">
+                {t("embedding.chatMemoryWarningModal.content")}
+              </div>
+              {!isAdmin && (
+                <div className="mt-2 text-xs opacity-70">
+                  {t("embedding.chatMemoryWarningModal.tip")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Auto-off memory prompt when embedding missing */}
+      <Modal
+        title={t("embedding.chatMemoryAutoDeselectModal.title")}
+        open={showAutoOffPrompt}
+        onCancel={() => setShowAutoOffPrompt(false)}
+        centered
+        footer={
+          <div className="flex justify-end mt-3 gap-4">
+            {isAdmin && (
+              <Button type="primary" onClick={goToModelSetup}>
+                {t("embedding.chatMemoryAutoDeselectModal.ok_config")}
+              </Button>
+            )}
+            <Button onClick={() => setShowAutoOffPrompt(false)}>
+              {t("embedding.chatMemoryAutoDeselectModal.ok")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="py-2">
+          <div className="flex items-center">
+            <WarningFilled
+              className="text-yellow-500 mt-1 mr-2"
+              style={{ fontSize: "48px" }}
+            />
+            <div className="ml-3 mt-2">
+              <div className="text-sm leading-6">
+                {t("embedding.chatMemoryAutoDeselectModal.content")}
+              </div>
+              {!isAdmin && (
+                <div className="mt-2 text-xs opacity-70">
+                  {t("embedding.chatMemoryAutoDeselectModal.tip")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
       <MemoryManageModal
         visible={memoryModalVisible}
         onClose={() => setMemoryModalVisible(false)}

@@ -118,6 +118,7 @@ export interface AgentSetupOrchestratorProps {
   onDeleteAgent?: () => void;
   editingAgent?: any;
   onExitCreation?: () => void;
+  isEmbeddingConfigured?: boolean;
 }
 
 // SubAgentPool component props interface
@@ -145,6 +146,7 @@ export interface ToolPoolProps {
   onToolsRefresh?: () => void;
   isEditingMode?: boolean;
   isGeneratingAgent?: boolean;
+  isEmbeddingConfigured?: boolean;
 }
 
 // Simple prompt editor props interface

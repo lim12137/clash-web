@@ -29,6 +29,11 @@ def build_memory_config(tenant_id: str) -> Dict[str, Any]:
         raise ValueError("ES_HOST must include scheme, host and port, e.g. http://host:9200")
     es_host = f"{parsed.scheme}://{parsed.hostname}"
     es_port = parsed.port
+    index_name = (
+        f"mem0_{embed_raw['model_repo'].lower()}_{embed_raw['model_name'].lower()}_{embed_raw['max_tokens']}"
+        if embed_raw["model_repo"]
+        else f"mem0_{embed_raw['model_name'].lower()}_{embed_raw['max_tokens']}"
+    )
 
     # 3. Assemble final configuration
     memory_config: Dict[str, Any] = {
@@ -52,7 +57,7 @@ def build_memory_config(tenant_id: str) -> Dict[str, Any]:
         "vector_store": {
             "provider": "elasticsearch",
             "config": {
-                "collection_name": "mem0",
+                "collection_name": index_name,
                 "host": es_host,
                 "port": es_port,
                 "embedding_model_dims": embed_raw["max_tokens"],

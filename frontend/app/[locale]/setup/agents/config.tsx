@@ -24,6 +24,7 @@ import {
 import { generatePromptStream } from "@/services/promptService";
 import { updateToolList } from "@/services/mcpService";
 import log from "@/lib/logger";
+import { configStore } from "@/lib/config";
 
 import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
 import DebugConfig from "./components/DebugConfig";
@@ -69,6 +70,7 @@ export default function AgentConfig() {
 
   // Add state for business logic and action buttons
   const [isGeneratingAgent, setIsGeneratingAgent] = useState(false);
+  const [isEmbeddingConfigured, setIsEmbeddingConfigured] = useState(false);
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false);
@@ -232,6 +234,14 @@ export default function AgentConfig() {
 
   // Load tools when page is loaded
   useEffect(() => {
+    // Check embedding configuration once when entering the page
+    try {
+      const modelConfig = configStore.getModelConfig();
+      setIsEmbeddingConfigured(!!modelConfig?.embedding?.modelName);
+    } catch (e) {
+      setIsEmbeddingConfigured(false);
+    }
+
     const loadTools = async () => {
       try {
         const result = await fetchTools();
@@ -488,6 +498,7 @@ export default function AgentConfig() {
               onDeleteAgent={handleDeleteAgent}
               editingAgent={editingAgent}
               onExitCreation={handleExitCreation}
+              isEmbeddingConfigured={isEmbeddingConfigured}
             />
           </div>
         </div>
