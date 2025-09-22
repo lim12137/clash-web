@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from consts.const import (
     APP_DESCRIPTION,
@@ -25,7 +26,14 @@ from utils.config_utils import (
 logger = logging.getLogger("config_sync_service")
 
 
-def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
+def _parse_optional_int(value) -> Optional[int]:
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: Optional[int], tenant_config_dict: dict) -> None:
     """
     Handle model configuration updates, deletions, and settings operations
 
@@ -36,30 +44,28 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
         model_id: Model ID
         tenant_config_dict: Tenant configuration dictionary
     """
-    if not model_id and config_key in tenant_config_dict:
-        tenant_config_manager.delete_single_config(tenant_id, config_key)
-    elif config_key in tenant_config_dict:
-        try:
-            existing_model_id = int(
-                tenant_config_dict[config_key]) if tenant_config_dict[config_key] else None
-            if existing_model_id == model_id:
-                tenant_config_manager.update_single_config(
-                    tenant_id, config_key)
-            else:
-                tenant_config_manager.delete_single_config(
-                    tenant_id, config_key)
-                if model_id:
-                    tenant_config_manager.set_single_config(
-                        user_id, tenant_id, config_key, model_id)
-        except (ValueError, TypeError):
+    # Delete the config if the model_id is None
+    if model_id is None:
+        if config_key in tenant_config_dict:
             tenant_config_manager.delete_single_config(tenant_id, config_key)
-            if model_id:
-                tenant_config_manager.set_single_config(
-                    user_id, tenant_id, config_key, model_id)
-    else:
-        if model_id:
-            tenant_config_manager.set_single_config(
-                user_id, tenant_id, config_key, model_id)
+        return
+
+    # If the config key does not exist, set directly
+    if config_key not in tenant_config_dict:
+        tenant_config_manager.set_single_config(
+            user_id, tenant_id, config_key, model_id)
+        return
+
+    current_model_id = _parse_optional_int(tenant_config_dict.get(config_key))
+
+    if current_model_id == model_id:
+        tenant_config_manager.update_single_config(tenant_id, config_key)
+        return
+
+    # Delete the config first, then set the new value
+    tenant_config_manager.delete_single_config(tenant_id, config_key)
+    tenant_config_manager.set_single_config(
+        user_id, tenant_id, config_key, model_id)
 
 
 async def save_config_impl(config, tenant_id, user_id):
@@ -90,15 +96,11 @@ async def save_config_impl(config, tenant_id, user_id):
         if not model_config:
             continue
 
-        model_name = model_config.get("modelName")
         model_display_name = model_config.get("displayName")
 
         config_key = get_env_key(model_type) + "_ID"
         model_id = get_model_id_by_display_name(
             model_display_name, tenant_id)
-
-        if not model_name:
-            continue
 
         handle_model_config(tenant_id, user_id, config_key,
                             model_id, tenant_config_dict)

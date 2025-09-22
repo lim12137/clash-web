@@ -6,7 +6,7 @@ import threading
 from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
-from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE, THINK_END_PATTERN, THINK_START_PATTERN
 from consts.model import AgentInfoRequest
 from database.agent_db import update_agent, query_sub_agents_id_list, search_agent_info_by_agent_id
 from database.model_management_db import get_model_by_model_id
@@ -14,10 +14,38 @@ from database.tool_db import query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.prompt_template_utils import get_prompt_generate_prompt_template
-from utils.str_utils import remove_think_tags, add_no_think_token
 
 # Configure logging
 logger = logging.getLogger("prompt_service")
+
+
+def _process_thinking_tokens(new_token: str, is_thinking: bool, token_join: list, callback=None) -> bool:
+    """
+    Process tokens to filter out thinking content between <think> and </think> tags
+
+    Args:
+        new_token: Current token from LLM stream
+        is_thinking: Current thinking state
+        token_join: List to accumulate non-thinking tokens
+        callback: Callback function for streaming output
+
+    Returns:
+        bool: updated_is_thinking
+    """
+    # Handle thinking mode
+    if is_thinking:
+        return not (THINK_END_PATTERN in new_token)
+
+    # Handle start of thinking
+    if THINK_START_PATTERN in new_token:
+        return True
+
+    # Normal token processing
+    token_join.append(new_token)
+    if callback:
+        callback("".join(token_join))
+
+    return False
 
 
 def call_llm_for_system_prompt(model_id: int, user_prompt: str, system_prompt: str, callback=None, tenant_id: str = None) -> str:
@@ -47,7 +75,6 @@ def call_llm_for_system_prompt(model_id: int, user_prompt: str, system_prompt: s
     )
     messages = [{"role": MESSAGE_ROLE["SYSTEM"], "content": system_prompt},
                 {"role": MESSAGE_ROLE["USER"], "content": user_prompt}]
-    add_no_think_token(messages)
     try:
         completion_kwargs = llm._prepare_completion_kwargs(
             messages=messages,
@@ -58,14 +85,13 @@ def call_llm_for_system_prompt(model_id: int, user_prompt: str, system_prompt: s
         current_request = llm.client.chat.completions.create(
             stream=True, **completion_kwargs)
         token_join = []
+        is_thinking = False
         for chunk in current_request:
             new_token = chunk.choices[0].delta.content
             if new_token is not None:
-                new_token = remove_think_tags(new_token)
-                token_join.append(new_token)
-                current_text = "".join(token_join)
-                if callback is not None:
-                    callback(current_text)
+                is_thinking = _process_thinking_tokens(
+                    new_token, is_thinking, token_join, callback
+                )
         return "".join(token_join)
     except Exception as e:
         logger.error(f"Failed to generate prompt from LLM: {str(e)}")

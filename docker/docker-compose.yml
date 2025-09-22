@@ -214,12 +214,12 @@ services:
     container_name: nexent-openssh-server
     hostname: nexent-openssh-server
     environment:
-      - DEV_USER=linuxserver.io
+      - DEV_USER=${SSH_USERNAME:-linuxserver.io}
+      - DEV_PASSWORD=${SSH_PASSWORD:-nexent123}
     ports:
       - "2222:22"  # SSH port
     volumes:
       - ${TERMINAL_MOUNT_DIR:-./workspace}:/opt/terminal
-      - ${ROOT_DIR}/openssh-server/ssh-keys:/tmp/ssh_keys:ro
     networks:
       - nexent
     restart: always

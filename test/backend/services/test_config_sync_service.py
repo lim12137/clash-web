@@ -42,13 +42,13 @@ def service_mocks():
 class TestHandleModelConfig:
     """Test cases for handle_model_config function"""
 
-    def test_handle_model_config_delete(self, service_mocks):
-        """Test handle_model_config when model_id is 0 and config exists"""
+    def test_handle_model_config_zero_sets(self, service_mocks):
+        """Test handle_model_config when model_id is 0 and config exists (delete then set)"""
         # Setup
         tenant_id = "test_tenant_id"
         user_id = "test_user_id"
         config_key = "LLM_ID"
-        model_id = 0  # 0 means delete
+        model_id = 0
         tenant_config_dict = {"LLM_ID": "123"}
 
         # Execute
@@ -58,7 +58,9 @@ class TestHandleModelConfig:
         # Assert
         service_mocks['tenant_config_manager'].delete_single_config.assert_called_once_with(
             tenant_id, config_key)
-        service_mocks['tenant_config_manager'].set_single_config.assert_not_called()
+        service_mocks['tenant_config_manager'].set_single_config.assert_called_once_with(
+            user_id, tenant_id, config_key, model_id
+        )
 
     def test_handle_model_config_update_same_value(self, service_mocks):
         """Test handle_model_config when model_id is same as existing"""

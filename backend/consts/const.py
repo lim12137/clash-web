@@ -238,3 +238,7 @@ TASK_STATUS = {
     "PROCESS_FAILED": "PROCESS_FAILED",
     "FORWARD_FAILED": "FORWARD_FAILED",
 }
+
+# Deep Thinking Constants
+THINK_START_PATTERN = "<think>"
+THINK_END_PATTERN = "</think>"
