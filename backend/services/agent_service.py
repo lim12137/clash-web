@@ -54,6 +54,9 @@ from utils.auth_utils import get_current_user_info, get_user_language
 from utils.memory_utils import build_memory_config
 from utils.thread_utils import submit
 
+# Import monitoring utilities
+from utils.monitoring import monitoring_manager
+
 logger = logging.getLogger(__name__)
 
 
@@ -125,7 +128,8 @@ async def _stream_agent_chunks(
                 user_id=user_id,
             )
         # Always unregister the run to release resources
-        agent_run_manager.unregister_agent_run(agent_request.conversation_id, user_id)
+        agent_run_manager.unregister_agent_run(
+            agent_request.conversation_id, user_id)
 
         # Schedule memory addition in background to avoid blocking SSE termination
         async def _add_memory_background():
@@ -150,8 +154,10 @@ async def _stream_agent_chunks(
                     return
 
                 mem_messages_local = [
-                    {"role": MESSAGE_ROLE["USER"], "content": agent_run_info.query},
-                    {"role": MESSAGE_ROLE["ASSISTANT"], "content": final_answer_local},
+                    {"role": MESSAGE_ROLE["USER"],
+                        "content": agent_run_info.query},
+                    {"role": MESSAGE_ROLE["ASSISTANT"],
+                        "content": final_answer_local},
                 ]
 
                 add_result_local = await add_memory_in_levels(
@@ -661,7 +667,7 @@ async def prepare_agent_run(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str=LANGUAGE["ZH"],
+    language: str = LANGUAGE["ZH"],
     allow_memory_search: bool = True,
 ):
     """
@@ -783,7 +789,8 @@ async def generate_stream_with_memory(
             ):
                 yield data_chunk
         except Exception as run_exc:
-            logger.error(f"Agent run error after memory failure: {str(run_exc)}")
+            logger.error(
+                f"Agent run error after memory failure: {str(run_exc)}")
             # Emit an error chunk and terminate the stream immediately
             error_payload = json.dumps(
                 {"type": "error", "content": str(run_exc)}, ensure_ascii=False)
@@ -802,15 +809,17 @@ async def generate_stream_with_memory(
 
 
 # Helper function for run_agent_stream, used when user memory is disabled (no memory tokens)
+@monitoring_manager.monitor_endpoint("agent_service.generate_stream_no_memory", exclude_params=["authorization"])
 async def generate_stream_no_memory(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str=LANGUAGE["ZH"],
+    language: str = LANGUAGE["ZH"],
 ):
     """Stream agent responses without any memory preprocessing tokens or fallback logic."""
 
     # Prepare run info respecting memory disabled (honor provided user_id/tenant_id)
+    monitoring_manager.add_span_event("generate_stream_no_memory.started")
     agent_run_info, memory_context = await prepare_agent_run(
         agent_request=agent_request,
         user_id=user_id,
@@ -818,7 +827,10 @@ async def generate_stream_no_memory(
         language=language,
         allow_memory_search=False,
     )
+    monitoring_manager.add_span_event("generate_stream_no_memory.completed")
 
+    monitoring_manager.add_span_event(
+        "generate_stream_no_memory.streaming.started")
     async for data_chunk in _stream_agent_chunks(
         agent_request=agent_request,
         user_id=user_id,
@@ -827,8 +839,11 @@ async def generate_stream_no_memory(
         memory_ctx=memory_context,
     ):
         yield data_chunk
+    monitoring_manager.add_span_event(
+        "generate_stream_no_memory.streaming.completed")
 
 
+@monitoring_manager.monitor_endpoint("agent_service.run_agent_stream", exclude_params=["authorization"])
 async def run_agent_stream(
     agent_request: AgentRequest,
     http_request: Request,
@@ -841,29 +856,109 @@ async def run_agent_stream(
     Start an agent run and stream responses.
     If user_id or tenant_id is provided, authorization will be overridden. (Useful in northbound apis)
     """
+    import time
 
-    # Choose streaming strategy based on user's memory switch
+    # Add initial span attributes for tracking
+    monitoring_manager.set_span_attributes(
+        agent_id=agent_request.agent_id,
+        conversation_id=agent_request.conversation_id,
+        is_debug=agent_request.is_debug,
+        skip_user_save=skip_user_save,
+        has_override_user_id=user_id is not None,
+        has_override_tenant_id=tenant_id is not None,
+        query_length=len(agent_request.query) if agent_request.query else 0,
+        history_count=len(
+            agent_request.history) if agent_request.history else 0,
+        minio_files_count=len(
+            agent_request.minio_files) if agent_request.minio_files else 0
+    )
+
+    # Step 1: Resolve user tenant language
+    resolve_start_time = time.time()
+    monitoring_manager.add_span_event("user_resolution.started")
+
     resolved_user_id, resolved_tenant_id, language = _resolve_user_tenant_language(
         authorization=authorization,
         http_request=http_request,
         user_id=user_id,
         tenant_id=tenant_id,
     )
-    
-    # Save user message only if not in debug mode (before streaming starts)
+
+    resolve_duration = time.time() - resolve_start_time
+    monitoring_manager.add_span_event("user_resolution.completed", {
+        "duration": resolve_duration,
+        "user_id": resolved_user_id,
+        "tenant_id": resolved_tenant_id,
+        "language": language
+    })
+    monitoring_manager.set_span_attributes(
+        resolved_user_id=resolved_user_id,
+        resolved_tenant_id=resolved_tenant_id,
+        language=language,
+        user_resolution_duration=resolve_duration
+    )
+
+    # Step 2: Save user message (if needed)
     if not agent_request.is_debug and not skip_user_save:
+        save_start_time = time.time()
+        monitoring_manager.add_span_event("user_message_save.started")
+
         save_messages(
             agent_request,
             target=MESSAGE_ROLE["USER"],
             user_id=resolved_user_id,
             tenant_id=resolved_tenant_id,
         )
-    
+
+        save_duration = time.time() - save_start_time
+        monitoring_manager.add_span_event("user_message_save.completed", {
+            "duration": save_duration
+        })
+        monitoring_manager.set_span_attributes(
+            user_message_saved=True,
+            user_message_save_duration=save_duration
+        )
+    else:
+        monitoring_manager.add_span_event("user_message_save.skipped", {
+            "reason": "debug_mode" if agent_request.is_debug else "skip_user_save_flag"
+        })
+        monitoring_manager.set_span_attributes(user_message_saved=False)
+
+    # Step 3: Build memory context
+    memory_start_time = time.time()
+    monitoring_manager.add_span_event("memory_context_build.started")
+
     memory_ctx_preview = build_memory_context(
         resolved_user_id, resolved_tenant_id, agent_request.agent_id
     )
 
-    if memory_ctx_preview.user_config.memory_switch and not agent_request.is_debug:
+    memory_duration = time.time() - memory_start_time
+    memory_enabled = memory_ctx_preview.user_config.memory_switch
+    monitoring_manager.add_span_event("memory_context_build.completed", {
+        "duration": memory_duration,
+        "memory_enabled": memory_enabled,
+        "agent_share_option": getattr(memory_ctx_preview.user_config, "agent_share_option", "unknown")
+    })
+    monitoring_manager.set_span_attributes(
+        memory_enabled=memory_enabled,
+        memory_context_build_duration=memory_duration,
+        agent_share_option=getattr(
+            memory_ctx_preview.user_config, "agent_share_option", "unknown")
+    )
+
+    # Step 4: Choose streaming strategy
+    strategy_start_time = time.time()
+    use_memory_stream = memory_enabled and not agent_request.is_debug
+
+    monitoring_manager.add_span_event("streaming_strategy.selected", {
+        "strategy": "with_memory" if use_memory_stream else "no_memory",
+        "memory_enabled": memory_enabled,
+        "is_debug": agent_request.is_debug
+    })
+
+    if use_memory_stream:
+        monitoring_manager.add_span_event(
+            "stream_generator.memory_stream.creating")
         stream_gen = generate_stream_with_memory(
             agent_request,
             user_id=resolved_user_id,
@@ -871,6 +966,8 @@ async def run_agent_stream(
             language=language,
         )
     else:
+        monitoring_manager.add_span_event(
+            "stream_generator.no_memory_stream.creating")
         stream_gen = generate_stream_no_memory(
             agent_request,
             user_id=resolved_user_id,
@@ -878,11 +975,42 @@ async def run_agent_stream(
             language=language,
         )
 
-    return StreamingResponse(
+    strategy_duration = time.time() - strategy_start_time
+    monitoring_manager.add_span_event("streaming_strategy.completed", {
+        "duration": strategy_duration,
+        "selected_strategy": "with_memory" if use_memory_stream else "no_memory"
+    })
+    monitoring_manager.set_span_attributes(
+        streaming_strategy=(
+            "with_memory" if use_memory_stream else "no_memory"),
+        strategy_selection_duration=strategy_duration
+    )
+
+    # Step 5: Create streaming response
+    response_start_time = time.time()
+    monitoring_manager.add_span_event("streaming_response.creating")
+
+    response = StreamingResponse(
         stream_gen,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+
+    response_duration = time.time() - response_start_time
+    monitoring_manager.add_span_event("streaming_response.created", {
+        "duration": response_duration,
+        "media_type": "text/event-stream"
+    })
+    monitoring_manager.set_span_attributes(
+        response_creation_duration=response_duration,
+        total_preparation_duration=(time.time() - resolve_start_time)
+    )
+
+    monitoring_manager.add_span_event("run_agent_stream.preparation_completed", {
+        "total_preparation_time": time.time() - resolve_start_time
+    })
+
+    return response
 
 
 def stop_agent_tasks(conversation_id: int, user_id: str):

@@ -242,3 +242,18 @@ TASK_STATUS = {
 # Deep Thinking Constants
 THINK_START_PATTERN = "<think>"
 THINK_END_PATTERN = "</think>"
+
+
+# Telemetry and Monitoring Configuration
+ENABLE_TELEMETRY = os.getenv("ENABLE_TELEMETRY", "false").lower() == "true"
+SERVICE_NAME = os.getenv("SERVICE_NAME", "nexent-backend")
+JAEGER_ENDPOINT = os.getenv(
+    "JAEGER_ENDPOINT", "http://localhost:14268/api/traces")
+PROMETHEUS_PORT = int(os.getenv("PROMETHEUS_PORT", "8000"))
+TELEMETRY_SAMPLE_RATE = float(os.getenv("TELEMETRY_SAMPLE_RATE", "1.0"))
+
+# Performance monitoring thresholds
+LLM_SLOW_REQUEST_THRESHOLD_SECONDS = float(
+    os.getenv("LLM_SLOW_REQUEST_THRESHOLD_SECONDS", "5.0"))
+LLM_SLOW_TOKEN_RATE_THRESHOLD = float(
+    os.getenv("LLM_SLOW_TOKEN_RATE_THRESHOLD", "10.0"))  # tokens per second
