@@ -160,7 +160,7 @@ export default function KnowledgeSetupPage() {
       isCheckingConnection={isCheckingConnection}
       onCheckConnection={checkModelEngineConnection}
       title={t("setup.header.title")}
-      description={t("setup.knowledge.description")}
+      description={t("setup.header.description")}
       onBack={handleBack}
       onNext={isAdmin ? handleNext : undefined}
       onComplete={isAdmin ? undefined : handleComplete}

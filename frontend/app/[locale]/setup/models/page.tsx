@@ -195,7 +195,7 @@ export default function ModelSetupPage() {
       isCheckingConnection={isCheckingConnection}
       onCheckConnection={checkModelEngineConnection}
       title={t("setup.header.title")}
-      description={t("setup.model.description")}
+      description={t("setup.header.description")}
       onNext={handleNext}
       showNext={true}
       nextText={t("setup.navigation.button.next")}
