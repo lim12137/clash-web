@@ -76,6 +76,20 @@ quality = [
 data_process = [
     "unstructured[all-docs]"
 ]
+performance = [
+    # OpenTelemetry Core Components
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    # OpenTelemetry Instrumentation
+    "opentelemetry-instrumentation",
+    "opentelemetry-instrumentation-fastapi",
+    "opentelemetry-instrumentation-requests",
+    # OpenTelemetry Exporters
+    "opentelemetry-exporter-jaeger",
+    "opentelemetry-exporter-prometheus",
+    # Additional monitoring dependencies
+    "prometheus-client"
+]
 dev = [
     "nexent[dev, data_process]"
 ]
