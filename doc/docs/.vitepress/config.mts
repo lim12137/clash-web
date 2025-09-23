@@ -13,8 +13,13 @@ export default defineConfig({
   
   // Ignore localhost links as they are meant for local deployment access
   ignoreDeadLinks: [
-    // Ignore localhost links
-    /^http:\/\/localhost:3000/
+    // Ignore localhost links for main app
+    /^http:\/\/localhost:3000/,
+    // Ignore localhost links for monitoring services
+    /^http:\/\/localhost:3005/,  // Grafana
+    /^http:\/\/localhost:9090/,  // Prometheus
+    /^http:\/\/localhost:16686/, // Jaeger
+    /^http:\/\/localhost:8000/   // Metrics endpoint
   ],
   
   locales: {
@@ -73,6 +78,7 @@ export default defineConfig({
                   { text: 'Models', link: '/en/sdk/core/models' }
                 ]
               },
+              { text: 'Performance Monitoring', link: '/en/sdk/monitoring' },
               { text: 'Vector Database', link: '/en/sdk/vector-database' },
               { text: 'Data Processing', link: '/en/sdk/data-process' }
             ]
@@ -200,6 +206,7 @@ export default defineConfig({
                   { text: '模型模块', link: '/zh/sdk/core/models' }
                 ]
               },
+              { text: '性能监控', link: '/zh/sdk/monitoring' },
               { text: '向量数据库', link: '/zh/sdk/vector-database' },
               { text: '数据处理', link: '/zh/sdk/data-process' }
             ]
