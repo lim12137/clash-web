@@ -193,3 +193,14 @@
   padding: 0 !important;
   line-height: 1.2 !important;
 }
+
+/* Styles for Embedding warning modal */
+.kb-embedding-warning .ant-modal-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.kb-embedding-warning .ant-modal {
+  width: max-content;
+  min-width: 0;
+}
