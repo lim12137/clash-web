@@ -380,15 +380,6 @@ function ToolPool({
             ? "bg-blue-100 border-blue-400 shadow-md"
             : "border-gray-200 hover:border-blue-300 hover:shadow-md"
         } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-        title={
-          !isAvailable
-            ? isSelected
-              ? t("toolPool.tooltip.disabledTool")
-              : t("toolPool.tooltip.unavailableTool")
-            : !isEditingMode
-            ? t("toolPool.tooltip.viewOnlyMode")
-            : tool.name
-        }
         onClick={(e) => {
           if (isDisabled) return;
           if (!isAvailable && !isSelected) {
@@ -400,9 +391,7 @@ function ToolPool({
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <CustomTooltip>
-            <TooltipTrigger asChild>
-              <div
+        <div
                 className={`font-medium text-sm truncate transition-colors duration-300 ${
                   !isAvailable && !isSelected ? "text-gray-400" : ""
                 }`}
@@ -417,9 +406,7 @@ function ToolPool({
               >
                 {tool.name}
               </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">{tool.name}</TooltipContent>
-          </CustomTooltip>
+          
         </div>
         {/* Settings button right - Tag removed */}
         <div className="flex items-center gap-2 ml-2">
