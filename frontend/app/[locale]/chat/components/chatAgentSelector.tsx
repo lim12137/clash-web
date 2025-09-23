@@ -352,13 +352,13 @@ export function ChatAgentSelector({
                           }`}
                         >
                           {agent.display_name && (
-                            <span className="text-base leading-none">
+                            <span className="text-sm leading-none">
                               {agent.display_name}
                             </span>
                           )}
                           <span
                             className={`text-sm leading-none align-baseline ${
-                              agent.display_name ? "ml-2" : "text-base"
+                              agent.display_name ? "ml-2" : "text-sm"
                             }`}
                           >
                             {agent.name}
