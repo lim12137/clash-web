@@ -29,6 +29,8 @@
   "chatInterface.fileParsingCompleteWithTruncation": "文件解析完成：{{truncationInfo}}",
   "chatInterface.truncationSeparator": "；",
   "chatInterface.fileProcessingFailed": "文件处理失败: {{error}}",
+  "chatInterface.fileParsingFailed": "文件解析失败",
+  "chatInterface.fileSizeExceeded": "文件大小超出限制，请上传更小的文件",
   "chatInterface.filePreprocessingStopped": "文件解析已停止",
   "chatInterface.userCancelledRequest": "用户取消了请求",
   "chatInterface.conversationStopped": "对话已停止",

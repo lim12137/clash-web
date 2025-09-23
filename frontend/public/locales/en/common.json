@@ -29,6 +29,8 @@
   "chatInterface.fileParsingCompleteWithTruncation": "File parsing complete: {{truncationInfo}}",
   "chatInterface.truncationSeparator": "; ",
   "chatInterface.fileProcessingFailed": "File processing failed: {{error}}",
+  "chatInterface.fileParsingFailed": "File parsing failed",
+  "chatInterface.fileSizeExceeded": "File size exceeds the limit, please upload smaller files",
   "chatInterface.filePreprocessingStopped": "File parsing stopped",
   "chatInterface.userCancelledRequest": "User canceled the request",
   "chatInterface.conversationStopped": "Conversation stopped",
