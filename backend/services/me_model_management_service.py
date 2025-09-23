@@ -50,3 +50,12 @@ async def get_me_models_impl(timeout: int = 2, type: str = "") -> List:
         raise TimeoutException("Request timeout.")
     except Exception as e:
         raise Exception(f"Failed to get model list: {str(e)}.")
+
+
+async def check_me_variable_set() -> bool:
+    """
+    Check if the ME environment variables are correctly set.
+    Returns:
+        bool: True if both MODEL_ENGINE_APIKEY and MODEL_ENGINE_HOST are set and non-empty, False otherwise.
+    """
+    return bool(MODEL_ENGINE_APIKEY and MODEL_ENGINE_HOST)
