@@ -180,6 +180,11 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
         throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "Connection disconnected, session may have expired");
       }
 
+      // Handle request entity too large error (413)
+      if (response.status === 413) {
+        throw new ApiError(STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, "REQUEST_ENTITY_TOO_LARGE");
+      }
+
       // Other HTTP errors
       const errorText = await response.text();
       throw new ApiError(response.status, errorText || `Request failed: ${response.status}`);
