@@ -5,8 +5,7 @@ from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import JSONResponse
 
 from consts.exceptions import TimeoutException, NotFoundException, MEConnectionException
-from consts.model import ModelConnectStatusEnum
-from services.me_model_management_service import get_me_models_impl
+from services.me_model_management_service import get_me_models_impl, check_me_variable_set
 from services.model_health_service import check_me_connectivity_impl
 
 router = APIRouter(prefix="/me")
@@ -23,6 +22,15 @@ async def get_me_models(
     Get list of models from model engine API
     """
     try:
+        # Pre-check ME environment variables; return empty list if not configured
+        if not await check_me_variable_set():
+            return JSONResponse(
+                status_code=HTTPStatus.OK,
+                content={
+                    "message": "Retrieve skipped",
+                    "data": []
+                }
+            )
         filtered_result = await get_me_models_impl(timeout=timeout, type=type)
         return JSONResponse(
             status_code=HTTPStatus.OK,
@@ -48,12 +56,21 @@ async def check_me_connectivity(timeout: int = Query(default=2, description="Tim
     Health check from model engine API
     """
     try:
+        # Pre-check ME environment variables; return not connected if not configured
+        if not await check_me_variable_set():
+            return JSONResponse(
+                status_code=HTTPStatus.OK,
+                content={
+                    "connectivity": False,
+                    "message": "ModelEngine platform necessary environment variables not configured. Healthcheck skipped.",
+                }
+            )
         await check_me_connectivity_impl(timeout)
         return JSONResponse(
             status_code=HTTPStatus.OK,
             content={
                 "connectivity": True,
-                "message": "ModelEngine model connect successfully.",
+                "message": "ModelEngine platform connect successfully.",
             }
         )
     except MEConnectionException as e:
