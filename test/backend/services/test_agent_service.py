@@ -14,8 +14,9 @@ from nexent.core.agents.agent_model import ToolConfig
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Mock MinioClient before importing backend modules that might initialize it
-with patch('backend.database.client.MinioClient') as minio_mock:
+# Mock external dependencies before importing backend modules that might initialize them
+with patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
     minio_mock.return_value = MagicMock()
     
     import backend.services.agent_service as agent_service
@@ -43,17 +44,8 @@ with patch('backend.database.client.MinioClient') as minio_mock:
     )
     from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
-# Mock Elasticsearch
+# Mock Elasticsearch (already done in the import section above, but keeping for reference)
 elasticsearch_client_mock = MagicMock()
-patch('elasticsearch._sync.client.Elasticsearch',
-      return_value=elasticsearch_client_mock).start()
-patch('elasticsearch.Elasticsearch',
-      return_value=elasticsearch_client_mock).start()
-
-# Mock ElasticSearchCore
-elasticsearch_core_mock = MagicMock()
-patch('sdk.nexent.vector_database.elasticsearch_core.ElasticSearchCore',
-      return_value=elasticsearch_core_mock).start()
 
 
 # Mock memory-related modules
