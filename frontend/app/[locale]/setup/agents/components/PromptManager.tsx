@@ -47,8 +47,12 @@ export function SimplePromptEditor({
         setInternalValue(e.target.value);
         onChange(e.target.value);
       }}
-      style={height ? { height, resize: "none" } : { resize: "none" }}
-      autoSize={height ? false : { minRows: 8, maxRows: 100  }}
+      style={
+        height
+          ? { height, resize: "none", overflow: "auto" }
+          : { resize: "none", overflow: "hidden" }
+      }
+      autoSize={height ? false : { minRows: 8 }}
       bordered={bordered}
     />
   );
