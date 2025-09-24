@@ -7,6 +7,7 @@ import { ChevronDown, MousePointerClick } from "lucide-react";
 
 import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
+import log from "@/lib/logger";
 import { Agent, ChatAgentSelectorProps } from "@/types/chat";
 
 export function ChatAgentSelector({
@@ -28,9 +29,6 @@ export function ChatAgentSelector({
   const { t } = useTranslation("common");
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  // Customizable dropdown width (unit: px)
-  // You can modify this value to adjust the width of the selector as needed
-  const dropdownWidth = 550;
 
   const selectedAgent = agents.find(
     (agent) => agent.agent_id === selectedAgentId
@@ -152,7 +150,7 @@ export function ChatAgentSelector({
         setAgents(result.data);
       }
     } catch (error) {
-      console.error("Failed to load Agent list:", error);
+      log.error("Failed to load Agent list:", error);
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +185,7 @@ export function ChatAgentSelector({
         // Send postMessage to the parent page
         window.parent.postMessage(message, "*");
       } catch (error) {
-        console.error("Failed to send postMessage:", error);
+        log.error("Failed to send postMessage:", error);
       }
     }
   };
@@ -279,7 +277,7 @@ export function ChatAgentSelector({
                     ? `${dropdownPosition.top}px`
                     : `${dropdownPosition.top}px`,
                 left: `${dropdownPosition.left}px`,
-                width: `${dropdownWidth}px`,
+                width: `550px`,
                 transform:
                   dropdownPosition.direction === "up"
                     ? "translateY(-100%)"

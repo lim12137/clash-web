@@ -15,10 +15,11 @@ import { ChatMessageType } from "@/types/chat";
 import { chatConfig, Opinion } from "@/const/chatConfig";
 import { conversationService } from "@/services/conversationService";
 import { copyToClipboard } from "@/lib/clipboard";
-
-import { ChatAttachment } from "../internal/chatAttachment";
+import log from "@/lib/logger";
 import { AttachmentItem } from "@/types/chat";
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
+
+import { ChatAttachment } from "../internal/chatAttachment";
 
 interface FinalMessageProps {
   message: ChatMessageType;
@@ -100,7 +101,7 @@ export function ChatStreamFinalMessage({
         setTimeout(() => setCopied(false), 2000);
       })
       .catch((err) => {
-        console.error(t("chatStreamFinalMessage.copyFailed"), err);
+        log.error(t("chatStreamFinalMessage.copyFailed"), err);
       });
   };
 
@@ -123,7 +124,7 @@ export function ChatStreamFinalMessage({
           index
         );
       } catch (error) {
-        console.error(t("chatStreamFinalMessage.getMessageIdFailed"), error);
+        log.error(t("chatStreamFinalMessage.getMessageIdFailed"), error);
         return;
       }
     }

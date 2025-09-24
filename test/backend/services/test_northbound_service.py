@@ -78,6 +78,7 @@ agent_service_mod = types.ModuleType('services.agent_service')
 conv_mgmt_mod.get_conversation_list_service = MagicMock(return_value=[{"conversation_id": 1}])
 conv_mgmt_mod.create_new_conversation = MagicMock(return_value={"conversation_id": 2})
 conv_mgmt_mod.update_conversation_title = MagicMock()
+conv_mgmt_mod.save_conversation_user = MagicMock()
 
 agent_service_mod.run_agent_stream = AsyncMock()
 agent_service_mod.stop_agent_tasks = MagicMock(return_value={"message": "success"})
@@ -262,6 +263,8 @@ async def test_stop_chat_success(ctx):
     assert result["message"] == "success"
     assert result["data"] == "ext-777"
     assert result["requestId"] == "req-1"
+
+    agent_service_mod.stop_agent_tasks.assert_called_once_with(777, "user-1")
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ import { STATUS_CODES } from "@/const/auth";
 
 import { generateAvatarUrl, removeSessionFromStorage } from "@/lib/auth"
 import { fetchWithAuth, getSessionFromStorage, saveSessionToStorage } from "@/lib/auth";
+import log from "@/lib/logger";
 
 
 // Authentication service
@@ -24,7 +25,7 @@ export const authService = {
       // Check if the token is about to expire, if so, try to refresh
       const isTokenValid = await sessionService.checkAndRefreshToken();
       if (!isTokenValid) {
-        console.warn("Token is invalid or refresh failed");
+        log.warn("Token is invalid or refresh failed");
         // We do not immediately clear the session, but wait for subsequent operations to fail
       }
       
@@ -34,7 +35,7 @@ export const authService = {
 
         // Check HTTP status code instead of data.code
         if (!response.ok) {
-          console.warn("Session verification failed, HTTP status code:", response.status);
+          log.warn("Session verification failed, HTTP status code:", response.status);
 
           // HTTP 401 means the token is expired or invalid
           if (response.status === STATUS_CODES.UNAUTHORIZED_HTTP) {
@@ -42,7 +43,7 @@ export const authService = {
           }
 
           // Other errors, possibly server issues, continue using local session
-          console.warn("Backend session verification failed, but will continue using local session");
+          log.warn("Backend session verification failed, but will continue using local session");
           return sessionObj;
         }
 
@@ -62,7 +63,7 @@ export const authService = {
         
         return sessionObj;
       } catch (error) {
-        console.error("Error verifying session:", error);
+        log.error("Error verifying session:", error);
         
         // Check if it is a TOKEN_EXPIRED error
         if (error instanceof Error && 'code' in error && (error as any).code === STATUS_CODES.TOKEN_EXPIRED) {
@@ -71,11 +72,11 @@ export const authService = {
         
         // If it is another network error, do not immediately clear the session
         // It may be that the backend service is not started or temporarily unavailable
-        console.warn("Backend session verification failed, but will continue using local session");
+        log.warn("Backend session verification failed, but will continue using local session");
         return sessionObj;
       }
     } catch (error) {
-      console.error("Failed to get session:", error);
+      log.error("Failed to get session:", error);
       return null;
     }
   },
@@ -144,16 +145,16 @@ export const authService = {
       setTimeout(() => {
         const savedSession = getSessionFromStorage();
         if (!savedSession || !savedSession.access_token) {
-          console.warn("Session not properly saved, retrying...");
+          log.warn("Session not properly saved, retrying...");
           saveSessionToStorage(session);
         } else {
-          console.debug("Session successfully saved to local storage");
+          log.debug("Session successfully saved to local storage");
         }
       }, 100);
       
       return { data: { session }, error: null };
     } catch (error) {
-      console.error("Login failed:", error);
+      log.error("Login failed:", error);
       return { 
         error: { 
           message: error instanceof Error ? error.message : "网络错误，请稍后重试",
@@ -248,7 +249,7 @@ export const authService = {
         return { data: { user, session }, error: null };
       }
     } catch (error) {
-      console.error("Registration failed:", error);
+      log.error("Registration failed:", error);
       return { 
         error: { 
           message: "Network error, please try again later",
@@ -271,7 +272,7 @@ export const authService = {
       
       return { error: null };
     } catch (error) {
-      console.error("Logout failed:", error);
+      log.error("Logout failed:", error);
       
       // Even if the API call fails, clear the local session
       removeSessionFromStorage();
@@ -287,7 +288,7 @@ export const authService = {
 
       // Check HTTP status code instead of data.code
       if (!response.ok) {
-        console.warn("Failed to get user ID, HTTP status code:", response.status);
+        log.warn("Failed to get user ID, HTTP status code:", response.status);
         return null;
       }
 
@@ -299,7 +300,7 @@ export const authService = {
       
       return data.data.user_id;
     } catch (error) {
-      console.error("Failed to get user ID:", error);
+      log.error("Failed to get user ID:", error);
       return null;
     }
   },

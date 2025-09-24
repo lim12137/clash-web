@@ -13,6 +13,7 @@ import { API_ENDPOINTS } from "@/services/api"
 import { User, AuthContextType } from "@/types/auth"
 import { EVENTS, STATUS_CODES } from "@/const/auth"
 import { getSessionFromStorage } from "@/lib/auth"
+import log from "@/lib/logger"
 
 // Create auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         }
       }
     } catch (error) {
-      console.error('Failed to check deployment version:', error);
+      log.error('Failed to check deployment version:', error);
       setIsSpeedMode(false);
     } finally {
       setIsReady(true);
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // Use mock credentials for auto login
       await login('mock@example.com', 'mockpassword', false);
     } catch (error) {
-      console.error('Auto-login failed:', error);
+      log.error('Auto-login failed:', error);
     }
   };
 
@@ -165,7 +166,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
 
         localStorage.setItem('lastSessionVerifyTime', now.toString());
       } catch (error) {
-        console.error('Session validation failed:', error);
+        log.error('Session validation failed:', error);
       }
     };
 
@@ -211,7 +212,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       const { data, error } = await authService.signIn(email, password)
 
       if (error) {
-        console.error("Login failed: ", error.message)
+        log.error("Login failed: ", error.message)
         throw error
       }
 
@@ -244,7 +245,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         }, 150)
       }
     } catch (error: any) {
-      console.error("Error during login process:", error.message)
+      log.error("Error during login process:", error.message)
       throw error
     } finally {
       setIsLoading(false)
@@ -316,7 +317,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // Manually trigger storage event
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {
-      console.error("Logout failed:", error.message)
+      log.error("Logout failed:", error.message)
       message.error(t('auth.logoutFailed'))
     } finally {
       setIsLoading(false)

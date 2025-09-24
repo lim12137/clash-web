@@ -9,6 +9,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
 import { EVENTS } from "@/const/auth";
+import log from "@/lib/logger";
 
 /**
  * Session management component
@@ -129,7 +130,7 @@ export function SessionListeners() {
           );
         }
       } catch (error) {
-        console.error("Error checking session status:", error);
+        log.error("Error checking session status:", error);
       }
     };
 

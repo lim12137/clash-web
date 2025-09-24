@@ -1838,7 +1838,7 @@ async def test_prepare_agent_run(
         "test_user", "test_tenant", 1)
     mock_create_run_info.assert_called_once()
     mock_agent_run_manager.register_agent_run.assert_called_once_with(
-        123, mock_run_info)
+        123, mock_run_info, "test_user")
 
 
 @patch('backend.services.agent_service.submit')
@@ -1933,21 +1933,24 @@ def test_stop_agent_tasks(mock_preprocess_manager, mock_agent_run_manager):
     # Test both stopped
     mock_agent_run_manager.stop_agent_run.return_value = True
     mock_preprocess_manager.stop_preprocess_tasks.return_value = True
-    result = stop_agent_tasks(123)
+
+    result = stop_agent_tasks(123, "test_user")
     assert result["status"] == "success"
     assert "successfully stopped agent run and preprocess tasks" in result["message"]
+
+    mock_agent_run_manager.stop_agent_run.assert_called_once_with(123, "test_user")
 
     # Test only agent stopped
     mock_agent_run_manager.stop_agent_run.return_value = True
     mock_preprocess_manager.stop_preprocess_tasks.return_value = False
-    result = stop_agent_tasks(123)
+    result = stop_agent_tasks(123, "test_user")
     assert result["status"] == "success"
     assert "successfully stopped agent run" in result["message"]
 
     # Test neither stopped
     mock_agent_run_manager.stop_agent_run.return_value = False
     mock_preprocess_manager.stop_preprocess_tasks.return_value = False
-    result = stop_agent_tasks(123)
+    result = stop_agent_tasks(123, "test_user")
     assert result["status"] == "error"
     assert "no running agent or preprocess tasks found" in result["message"]
 
@@ -2340,11 +2343,11 @@ async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
         raising=False,
     )
 
-    # Mock unregister
     unregister_called = {}
 
-    def fake_unregister(conv_id):
+    def fake_unregister(conv_id, user_id):
         unregister_called["conv_id"] = conv_id
+        unregister_called["user_id"] = user_id
 
     monkeypatch.setattr(
         "backend.services.agent_service.agent_run_manager.unregister_agent_run",
@@ -2365,6 +2368,7 @@ async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
     ]  # Prefix added in helper
     assert save_calls, "save_messages should have been called for assistant messages"
     assert unregister_called.get("conv_id") == 999
+    assert unregister_called.get("user_id") == "u"
 
 
 @pytest.mark.asyncio
@@ -2386,10 +2390,11 @@ async def test__stream_agent_chunks_emits_error_chunk_on_run_failure(monkeypatch
         "backend.services.agent_service.agent_run", failing_agent_run, raising=False
     )
 
-    called = {"unregistered": None}
+    called = {"unregistered": None, "user_id": None}
 
-    def fake_unregister(conv_id):
+    def fake_unregister(conv_id, user_id):
         called["unregistered"] = conv_id
+        called["user_id"] = user_id
 
     monkeypatch.setattr(
         "backend.services.agent_service.agent_run_manager.unregister_agent_run",
@@ -2408,6 +2413,7 @@ async def test__stream_agent_chunks_emits_error_chunk_on_run_failure(monkeypatch
     assert collected and collected[0].startswith(
         "data: {") and "\"type\": \"error\"" in collected[0]
     assert called["unregistered"] == 1001
+    assert called["user_id"] == "u"
 
 
 @pytest.mark.asyncio
@@ -2692,13 +2698,13 @@ async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
         AsyncMock(return_value=MagicMock()),
         raising=False,
     )
-
-    # Capture register
+    
     registered = {}
 
-    def fake_register(conv_id, run_info):
+    def fake_register(conv_id, run_info, user_id):
         registered["conv_id"] = conv_id
         registered["run_info"] = run_info
+        registered["user_id"] = user_id
 
     monkeypatch.setattr(
         "backend.services.agent_service.agent_run_manager.register_agent_run",
@@ -2725,6 +2731,8 @@ async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
         collected.append(d)
 
     assert registered.get("conv_id") == 555
+    assert registered.get("user_id") == "u"
+    assert registered.get("run_info") is not None
     assert collected == ["data: body1\n\n", "data: body2\n\n"]
 
 
@@ -2760,6 +2768,38 @@ async def test_run_agent_stream_no_memory(
         tenant_id=None,
         language="en",
     )
+
+
+@pytest.mark.asyncio
+@patch(
+    "backend.services.agent_service._resolve_user_tenant_language",
+    return_value=("u", "t", "en"),
+)
+@patch("backend.services.agent_service.build_memory_context")
+@patch("backend.services.agent_service.save_messages")
+@patch("backend.services.agent_service.generate_stream_no_memory")
+async def test_run_agent_stream_skip_user_save(
+    mock_gen_no_mem,
+    mock_save_messages,
+    mock_build_mem_ctx,
+    mock_resolve,
+    mock_agent_request,
+    mock_http_request,
+):
+    async def mock_stream():
+        yield "c1"
+
+    mock_gen_no_mem.return_value = mock_stream()
+    mock_build_mem_ctx.return_value = MagicMock(
+        user_config=MagicMock(memory_switch=False)
+    )
+
+    resp = await run_agent_stream(
+        mock_agent_request, mock_http_request, "Bearer token", skip_user_save=True
+    )
+    assert isinstance(resp, StreamingResponse)
+    # Should not save user message when skip_user_save=True
+    mock_save_messages.assert_not_called()
 
 
 @pytest.mark.asyncio

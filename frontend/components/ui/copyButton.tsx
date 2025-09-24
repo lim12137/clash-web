@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Copy } from "lucide-react";
 
 import { copyToClipboard } from "@/lib/clipboard";
-
+import log from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
 
 interface CopyButtonProps {
   content: string;
@@ -48,7 +49,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       setTimeout(() => setCopied(false), 2000);
       onCopySuccess?.();
     } catch (error) {
-      console.error("Failed to copy content:", error);
+      log.error("Failed to copy content:", error);
       onCopyError?.(error as Error);
     }
   };
