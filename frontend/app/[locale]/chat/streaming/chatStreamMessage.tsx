@@ -20,12 +20,12 @@ import {
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import { chatConfig, Opinion } from "@/const/chatConfig";
 import { USER_ROLES } from "@/const/modelConfig";
-import { ChatMessageType } from "@/types/chat";
+import { AttachmentItem, ChatMessageType } from "@/types/chat";
 import { useConfig } from "@/hooks/useConfig";
 import { copyToClipboard } from "@/lib/clipboard";
+import log from "@/lib/logger";
 
 import { ChatAttachment } from "../internal/chatAttachment";
-import { AttachmentItem } from "@/types/chat";
 
 interface StreamMessageProps {
   message: ChatMessageType;
@@ -92,7 +92,7 @@ export function ChatStreamMessage({
         setTimeout(() => setCopied(false), 2000);
       })
       .catch((err) => {
-        console.error(t("chatStreamMessage.copyFailed"), err);
+        log.error(t("chatStreamMessage.copyFailed"), err);
       });
   };
 

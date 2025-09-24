@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "./api";
 import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 import { getAuthHeaders } from "@/lib/auth";
 import { convertParamType } from "@/lib/utils";
+import log from "@/lib/logger";
 
 /**
  * get tool list from backend
@@ -44,7 +45,7 @@ export const fetchTools = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("Error fetching tool list:", error);
+    log.error("Error fetching tool list:", error);
     return {
       success: false,
       data: [],
@@ -82,7 +83,7 @@ export const fetchAgentList = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("Failed to fetch agent list:", error);
+    log.error("Failed to fetch agent list:", error);
     return {
       success: false,
       data: [],
@@ -127,7 +128,7 @@ export const getCreatingSubAgentId = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("Failed to get creating sub agent ID:", error);
+    log.error("Failed to get creating sub agent ID:", error);
     return {
       success: false,
       data: null,
@@ -173,7 +174,7 @@ export const updateToolConfig = async (
       message: "Tool configuration updated successfully",
     };
   } catch (error) {
-    console.error("Failed to update tool configuration:", error);
+    log.error("Failed to update tool configuration:", error);
     return {
       success: false,
       data: null,
@@ -213,7 +214,7 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
       message: "",
     };
   } catch (error) {
-    console.error("Failed to search tool configuration:", error);
+    log.error("Failed to search tool configuration:", error);
     return {
       success: false,
       data: null,
@@ -277,7 +278,7 @@ export const updateAgent = async (
       message: "Agent updated successfully",
     };
   } catch (error) {
-    console.error("Failed to update Agent:", error);
+    log.error("Failed to update Agent:", error);
     return {
       success: false,
       data: null,
@@ -308,7 +309,7 @@ export const deleteAgent = async (agentId: number) => {
       message: "Agent deleted successfully",
     };
   } catch (error) {
-    console.error("Failed to delete Agent:", error);
+    log.error("Failed to delete Agent:", error);
     return {
       success: false,
       message: "Failed to delete Agent, please try again later",
@@ -349,7 +350,7 @@ export const exportAgent = async (agentId: number) => {
       };
     }
   } catch (error) {
-    console.error("Failed to export Agent:", error);
+    log.error("Failed to export Agent:", error);
     return {
       success: false,
       data: null,
@@ -385,7 +386,7 @@ export const importAgent = async (agentInfo: any) => {
       message: "Agent imported successfully",
     };
   } catch (error) {
-    console.error("Failed to import Agent:", error);
+    log.error("Failed to import Agent:", error);
     return {
       success: false,
       data: null,
@@ -462,7 +463,7 @@ export const searchAgentInfo = async (agentId: number) => {
       message: "",
     };
   } catch (error) {
-    console.error("Failed to get Agent details:", error);
+    log.error("Failed to get Agent details:", error);
     return {
       success: false,
       data: null,
@@ -500,7 +501,7 @@ export const fetchAllAgents = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("Failed to get all Agent list:", error);
+    log.error("Failed to get all Agent list:", error);
     return {
       success: false,
       data: [],
@@ -549,7 +550,7 @@ export const addRelatedAgent = async (
       };
     }
   } catch (error) {
-    console.error("Failed to add related Agent:", error);
+    log.error("Failed to add related Agent:", error);
     return {
       success: false,
       data: null,
@@ -591,7 +592,7 @@ export const deleteRelatedAgent = async (
       message: "",
     };
   } catch (error) {
-    console.error("Failed to delete related Agent:", error);
+    log.error("Failed to delete related Agent:", error);
     return {
       success: false,
       data: null,
@@ -623,7 +624,7 @@ export const fetchAgentCallRelationship = async (agentId: number) => {
       message: ''
     };
   } catch (error) {
-    console.error('Failed to fetch agent call relationship:', error);
+    log.error('Failed to fetch agent call relationship:', error);
     return {
       success: false,
       data: null,

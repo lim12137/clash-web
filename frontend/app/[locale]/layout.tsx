@@ -8,6 +8,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper";
 
 import "@/styles/globals.css";
+import log from "@/lib/logger";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,7 +30,7 @@ export async function generateMetadata(props: {
       const fileContent = await fs.readFile(filePath, "utf8");
       messages = JSON.parse(fileContent);
     } catch (error) {
-      console.error(
+      log.error(
         `Failed to load i18n messages for locale: ${locale}`,
         error
       );

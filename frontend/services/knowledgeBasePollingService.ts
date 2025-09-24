@@ -4,6 +4,7 @@ import knowledgeBaseService from './knowledgeBaseService';
 
 import { NON_TERMINAL_STATUSES } from '@/const/knowledgeBase';
 import { Document, KnowledgeBase } from '@/types/knowledgeBase';
+import log from '@/lib/logger';
 
 class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
@@ -20,7 +21,7 @@ class KnowledgeBasePollingService {
 
   // Start document status polling, only update documents for specified knowledge base
   startDocumentStatusPolling(kbId: string, callback: (documents: Document[]) => void): void {
-    console.debug(`Start polling documents status for knowledge base ${kbId}`);
+    log.debug(`Start polling documents status for knowledge base ${kbId}`);
     
     // Clear existing polling first
     this.stopPolling(kbId);
@@ -42,7 +43,7 @@ class KnowledgeBasePollingService {
         
         // If exceeded maximum polling count, handle timeout
         if (pollCount > this.maxDocumentPolls) {
-          console.warn(`Document polling for knowledge base ${kbId} timed out after ${this.maxDocumentPolls} attempts`);
+          log.warn(`Document polling for knowledge base ${kbId} timed out after ${this.maxDocumentPolls} attempts`);
           await this.handlePollingTimeout(kbId, 'document', callback);
           // Push documents to UI
           try {
@@ -68,19 +69,19 @@ class KnowledgeBasePollingService {
         
         // If there are processing documents, continue polling
         if (hasProcessingDocs) {
-          console.log('Documents processing, continue polling');
+          log.log('Documents processing, continue polling');
           // Continue polling, don't stop
           return;
         }
         
         // All documents processed, stopping polling
-        console.log('All documents processed, stopping polling');
+        log.log('All documents processed, stopping polling');
         this.stopPolling(kbId);
         
         // Trigger knowledge base list update
         this.triggerKnowledgeBaseListUpdate(true);
       } catch (error) {
-        console.error(`Error polling knowledge base ${kbId} document status:`, error);
+        log.error(`Error polling knowledge base ${kbId} document status:`, error);
       }
     };
     
@@ -106,7 +107,7 @@ class KnowledgeBasePollingService {
     callback?: (documents: Document[]) => void
   ): Promise<void> {
     try {
-      console.log(`Handling ${timeoutType} polling timeout for knowledge base ${kbId}`);
+      log.log(`Handling ${timeoutType} polling timeout for knowledge base ${kbId}`);
       // Get current documents
       const documents = await knowledgeBaseService.getAllFiles(kbId);
       // Find all documents that are still in processing state
@@ -114,7 +115,7 @@ class KnowledgeBasePollingService {
         NON_TERMINAL_STATUSES.includes(doc.status)
       );
       if (processingDocs.length > 0) {
-        console.warn(`${timeoutType} polling timed out with ${processingDocs.length} documents still processing:`, 
+        log.warn(`${timeoutType} polling timed out with ${processingDocs.length} documents still processing:`, 
           processingDocs.map(doc => ({ name: doc.name, status: doc.status })));
         if (callback) {
           callback(documents);
@@ -125,10 +126,10 @@ class KnowledgeBasePollingService {
         this.triggerDocumentsUpdate(kbId, documents);
       }
     } catch (error) {
-      console.error(`Error handling ${timeoutType} polling timeout for knowledge base ${kbId}:`, error);
+      log.error(`Error handling ${timeoutType} polling timeout for knowledge base ${kbId}:`, error);
       // Even if we can't get documents, we should still log the timeout
       if (timeoutType === 'knowledgeBase') {
-        console.warn(`Knowledge base ${kbId} polling timed out, but could not retrieve documents to update their status`);
+        log.warn(`Knowledge base ${kbId} polling timed out, but could not retrieve documents to update their status`);
       }
     }
   }
@@ -158,7 +159,7 @@ class KnowledgeBasePollingService {
               expectedIncrement > 0 &&
               kb.documentCount >= (originalDocumentCount + expectedIncrement)
             ) {
-              console.log(
+              log.log(
                 `Knowledge base ${kbName} documentCount increased as expected: ${kb.documentCount} (was ${originalDocumentCount}, expected increment ${expectedIncrement})`
               );
               this.triggerKnowledgeBaseListUpdate(true);
@@ -167,7 +168,7 @@ class KnowledgeBasePollingService {
             }
             // Fallback: for new KB or no increment specified, use old logic
             if (expectedIncrement === 0 && (kb.documentCount > 0 || kb.chunkCount > 0)) {
-              console.log(`Knowledge base ${kbName} is ready and stats are populated.`);
+              log.log(`Knowledge base ${kbName} is ready and stats are populated.`);
               this.triggerKnowledgeBaseListUpdate(true);
               resolve(kb);
               return;
@@ -176,10 +177,10 @@ class KnowledgeBasePollingService {
 
           count++;
           if (count < this.maxKnowledgeBasePolls) {
-            console.log(`Knowledge base ${kbName} not ready yet, continue waiting...`);
+            log.log(`Knowledge base ${kbName} not ready yet, continue waiting...`);
             setTimeout(checkForStats, this.knowledgeBasePollingInterval);
           } else {
-            console.error(`Knowledge base ${kbName} readiness check timed out after ${this.maxKnowledgeBasePolls} attempts.`);
+            log.error(`Knowledge base ${kbName} readiness check timed out after ${this.maxKnowledgeBasePolls} attempts.`);
             
             // Handle knowledge base polling timeout - mark related tasks as failed
             await this.handlePollingTimeout(kbName, 'knowledgeBase');
@@ -194,7 +195,7 @@ class KnowledgeBasePollingService {
             reject(new Error(`创建知识库 ${kbName} 超时失败。`));
           }
         } catch (error) {
-          console.error(`Failed to get stats for knowledge base ${kbName}:`, error);
+          log.error(`Failed to get stats for knowledge base ${kbName}:`, error);
           count++;
           if (count < this.maxKnowledgeBasePolls) {
             setTimeout(checkForStats, this.knowledgeBasePollingInterval);
@@ -228,7 +229,7 @@ class KnowledgeBasePollingService {
       // callback with populated knowledge base when everything is ready
       callback(populatedKB);
     } catch (error) {
-      console.error(`Failed to handle new knowledge base creation for ${kbName}:`, error);
+      log.error(`Failed to handle new knowledge base creation for ${kbName}:`, error);
       throw error;
     }
   }

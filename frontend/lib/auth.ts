@@ -8,6 +8,7 @@ import * as initialsStyle from '@dicebear/initials';
 import { fetchWithErrorHandling } from "@/services/api";
 import { STORAGE_KEYS } from "@/const/auth";
 import { Session } from "@/types/auth";
+import log from "@/lib/logger";
 
 // Get color corresponding to user role
 export function getRoleColor(role: string): string {
@@ -81,7 +82,7 @@ export const getSessionFromStorage = (): Session | null => {
 
     return JSON.parse(storedSession);
   } catch (error) {
-    console.error("解析会话信息失败:", error);
+    log.error("解析会话信息失败:", error);
     return null;
   }
 };

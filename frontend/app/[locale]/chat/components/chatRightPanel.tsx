@@ -8,6 +8,7 @@ import { StaticScrollArea } from "@/components/ui/scrollArea";
 import { ChatMessageType, ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
 import { API_ENDPOINTS } from "@/services/api";
 import { formatDate, formatUrl } from "@/lib/utils";
+import log from "@/lib/logger";
 
 
 export function ChatRightPanel({
@@ -110,7 +111,7 @@ export function ChatRightPanel({
         handleImageLoadFail(imageUrl);
       }
     } catch (error) {
-      console.error(t("chatRightPanel.imageProxyError"), error);
+      log.error(t("chatRightPanel.imageProxyError"), error);
       // If loading fails, remove it directly from the list
       handleImageLoadFail(imageUrl);
     } finally {
@@ -147,7 +148,7 @@ export function ChatRightPanel({
 
         setSearchResults(results);
       } catch (error) {
-        console.error(t("chatRightPanel.processSearchResultsError"), error);
+        log.error(t("chatRightPanel.processSearchResultsError"), error);
         setSearchResults([]);
       }
     } else {
@@ -180,7 +181,7 @@ export function ChatRightPanel({
 
       // Load all images in parallel
       Promise.all(loadPromises).catch((error) => {
-        console.error(t("chatRightPanel.parallelLoadImagesError"), error);
+        log.error(t("chatRightPanel.parallelLoadImagesError"), error);
       });
     } else {
       setProcessedImages([]);
