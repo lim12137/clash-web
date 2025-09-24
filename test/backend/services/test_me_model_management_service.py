@@ -1,3 +1,5 @@
+import backend.services.me_model_management_service as svc
+from consts.exceptions import TimeoutException
 import sys
 import os
 
@@ -5,13 +7,12 @@ import aiohttp
 import pytest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
-from http import HTTPStatus
 
 # Add the project root directory to sys.path
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../..')))
 
-from consts.exceptions import NotFoundException, TimeoutException
+
 
 # Sample test data
 sample_models_data = {
@@ -32,14 +33,33 @@ sample_models_list = [
 
 
 @pytest.mark.asyncio
+async def test_check_me_variable_set_truthy_when_both_present():
+    # Patch service module constants to have non-empty values
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'k'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
+        assert await svc.check_me_variable_set()
+
+
+@pytest.mark.asyncio
+async def test_check_me_variable_set_falsy_when_api_key_missing():
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', ''), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
+        assert not await svc.check_me_variable_set()
+
+
+@pytest.mark.asyncio
+async def test_check_me_variable_set_falsy_when_host_missing():
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'k'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', ''):
+        assert not await svc.check_me_variable_set()
+
+
+@pytest.mark.asyncio
 async def test_get_me_models_impl_success_no_filter():
     """Test successful model list retrieval without type filter"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock response
         mock_response = AsyncMock()
@@ -58,11 +78,11 @@ async def test_get_me_models_impl_success_no_filter():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function
-            data = await get_me_models_impl(timeout=30, type="")
+            data = await svc.get_me_models_impl(timeout=30, type="")
 
             # Assertions
             assert data == sample_models_list
@@ -80,12 +100,9 @@ async def test_get_me_models_impl_success_no_filter():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_success_with_filter():
     """Test successful model list retrieval with type filter"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock response
         mock_response = AsyncMock()
@@ -104,11 +121,11 @@ async def test_get_me_models_impl_success_with_filter():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function with embed type filter
-            data = await get_me_models_impl(timeout=30, type="embed")
+            data = await svc.get_me_models_impl(timeout=30, type="embed")
 
             # Assertions
             expected_embed_models = [
@@ -125,12 +142,9 @@ async def test_get_me_models_impl_success_with_filter():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_filter_not_found():
     """Test model list retrieval with non-existent type filter"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock response
         mock_response = AsyncMock()
@@ -149,12 +163,12 @@ async def test_get_me_models_impl_filter_not_found():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function with non-existent type filter - should raise Exception (not NotFoundException)
             with pytest.raises(Exception) as exc_info:
-                await get_me_models_impl(timeout=30, type="nonexistent")
+                await svc.get_me_models_impl(timeout=30, type="nonexistent")
 
             # Verify the exception message contains expected information
             assert "Failed to get model list: No models found with type 'nonexistent'" in str(
@@ -164,12 +178,9 @@ async def test_get_me_models_impl_filter_not_found():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_timeout():
     """Test model list retrieval with timeout"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock session that raises TimeoutError
         mock_session = AsyncMock()
@@ -182,12 +193,12 @@ async def test_get_me_models_impl_timeout():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function - should raise TimeoutException
             with pytest.raises(TimeoutException) as exc_info:
-                await get_me_models_impl(timeout=30, type="")
+                await svc.get_me_models_impl(timeout=30, type="")
 
             # Verify the exception message
             assert "Request timeout." in str(exc_info.value)
@@ -196,12 +207,9 @@ async def test_get_me_models_impl_timeout():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_http_error():
     """Test model list retrieval with HTTP error"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock response that raises HTTP error
         mock_response = AsyncMock()
@@ -223,12 +231,12 @@ async def test_get_me_models_impl_http_error():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function - should raise Exception
             with pytest.raises(Exception) as exc_info:
-                await get_me_models_impl(timeout=30, type="")
+                await svc.get_me_models_impl(timeout=30, type="")
 
             # Verify the exception message contains expected information
             assert "Failed to get model list:" in str(exc_info.value)
@@ -239,12 +247,9 @@ async def test_get_me_models_impl_http_error():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_json_parse_error():
     """Test model list retrieval when JSON parsing fails"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock response
         mock_response = AsyncMock()
@@ -263,12 +268,12 @@ async def test_get_me_models_impl_json_parse_error():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function - should raise Exception
             with pytest.raises(Exception) as exc_info:
-                await get_me_models_impl(timeout=30, type="")
+                await svc.get_me_models_impl(timeout=30, type="")
 
             # Verify the exception message contains expected information
             assert "Failed to get model list: Invalid JSON." in str(
@@ -278,12 +283,9 @@ async def test_get_me_models_impl_json_parse_error():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_connection_exception():
     """Test model list retrieval when connection exception occurs"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Create mock session that raises exception
         mock_session = AsyncMock()
@@ -296,12 +298,12 @@ async def test_get_me_models_impl_connection_exception():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function - should raise Exception
             with pytest.raises(Exception) as exc_info:
-                await get_me_models_impl(timeout=30, type="")
+                await svc.get_me_models_impl(timeout=30, type="")
 
             # Verify the exception message contains expected information
             assert "Failed to get model list: Connection error." in str(
@@ -311,12 +313,12 @@ async def test_get_me_models_impl_connection_exception():
 @pytest.mark.asyncio
 async def test_get_me_models_impl_different_types():
     """Test model list retrieval with different type filters"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
+    # Patch service module constants and import the function
+    with patch('backend.services.me_model_management_service.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch('backend.services.me_model_management_service.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+        from backend.services.me_model_management_service import get_me_models_impl
 
         test_cases = [
             ("chat", [{"name": "model2", "type": "chat", "version": "1.0"}]),
@@ -344,30 +346,27 @@ async def test_get_me_models_impl_different_types():
             mock_client_session = AsyncMock()
             mock_client_session.__aenter__.return_value = mock_session
 
-            # Patch the ClientSession
-            with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
-                mock_session_class.return_value = mock_client_session
+        # Patch the ClientSession
+        with patch('backend.services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+            mock_session_class.return_value = mock_client_session
 
-                # Test the function
-                data = await get_me_models_impl(timeout=30, type=filter_type)
+            # Test the function
+            data = await svc.get_me_models_impl(timeout=30, type=filter_type)
 
-                # Assertions
-                assert data == expected_models
-                assert len(data) == len(expected_models)
+            # Assertions
+            assert data == expected_models
+            assert len(data) == len(expected_models)
 
-                # Verify correct URL was called
-                mock_session.get.assert_called_once()
+            # Verify correct URL was called
+            mock_session.get.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_get_me_models_impl_empty_response():
     """Test model list retrieval with empty response"""
-    # Mock the consts.const module and import the function
-    with patch('consts.const.MODEL_ENGINE_APIKEY', 'mock-api-key'), \
-            patch('consts.const.MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
-
-        # Import the function after mocking
-        from services.me_model_management_service import get_me_models_impl
+    # Patch service module constants
+    with patch.object(svc, 'MODEL_ENGINE_APIKEY', 'mock-api-key'), \
+            patch.object(svc, 'MODEL_ENGINE_HOST', 'http://mock-model-engine-host'):
 
         empty_models_data = {"data": []}
 
@@ -388,11 +387,11 @@ async def test_get_me_models_impl_empty_response():
         mock_client_session.__aenter__.return_value = mock_session
 
         # Patch the ClientSession
-        with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
+        with patch.object(svc.aiohttp, 'ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
             # Test the function without filter - should return empty list
-            data = await get_me_models_impl(timeout=30, type="")
+            data = await svc.get_me_models_impl(timeout=30, type="")
 
             # Assertions for no filter
             assert data == []
@@ -400,7 +399,7 @@ async def test_get_me_models_impl_empty_response():
 
             # Test the function with filter on empty data - should raise Exception
             with pytest.raises(Exception) as exc_info:
-                await get_me_models_impl(timeout=30, type="embed")
+                await svc.get_me_models_impl(timeout=30, type="embed")
 
             # Verify the exception message contains expected information
             assert "Failed to get model list: No models found with type 'embed'" in str(

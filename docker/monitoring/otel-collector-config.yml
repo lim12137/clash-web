@@ -1,0 +1,80 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  
+  # Prometheus receiver to collect metrics from instrumented apps
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'nexent-backend-otel'
+          static_configs:
+            - targets: ['host.docker.internal:8000']
+          scrape_interval: 5s
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+  
+  # Resource processor to add common attributes
+  resource:
+    attributes:
+      - key: service.name
+        value: nexent-backend
+        action: upsert
+      - key: service.version
+        from_attribute: version
+        action: insert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    limit_mib: 256
+    check_interval: 1s
+
+  # Add attributes specifically for LLM monitoring
+  attributes:
+    actions:
+      - key: llm.system
+        value: openai
+        action: insert
+      - key: deployment.environment
+        value: development
+        action: insert
+
+exporters:
+  # Export traces to Jaeger via OTLP
+  otlp/jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # Export metrics to Prometheus
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Logging exporter for debugging
+  logging:
+    verbosity: normal
+
+service:
+  extensions: []
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/jaeger, logging]
+    
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, attributes, batch]
+      exporters: [prometheus, logging]
+  
+  telemetry:
+    logs:
+      level: "info"

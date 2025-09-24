@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 
-import { App, Modal, Typography } from "antd";
+import { App, Modal, Typography, Button } from "antd";
+import { WarningFilled } from "@ant-design/icons";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -14,6 +15,8 @@ import {
   importAgent,
   deleteAgent,
   searchAgentInfo,
+  searchToolConfig,
+  updateToolConfig,
 } from "@/services/agentConfigService";
 import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
 import log from "@/lib/logger";
@@ -68,6 +71,7 @@ export default function AgentSetupOrchestrator({
   onDeleteAgent,
   editingAgent: editingAgentFromParent,
   onExitCreation,
+  isEmbeddingConfigured,
 }: AgentSetupOrchestratorProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -77,6 +81,11 @@ export default function AgentSetupOrchestrator({
   // Delete confirmation popup status
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+
+  // Embedding auto-unselect notice modal
+  const [isEmbeddingAutoUnsetOpen, setIsEmbeddingAutoUnsetOpen] =
+    useState(false);
+  const lastProcessedAgentIdForEmbedding = useRef<number | null>(null);
 
   // Edit agent related status
   const [isEditingAgent, setIsEditingAgent] = useState(false);
@@ -229,6 +238,63 @@ export default function AgentSetupOrchestrator({
 
     setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
+
+  // Auto-unselect knowledge_base_search if embedding is not configured
+  useEffect(() => {
+    if (isEmbeddingConfigured) return;
+    if (!tools || tools.length === 0) return;
+
+    const kbTool = tools.find((tool) => tool.name === "knowledge_base_search");
+    if (!kbTool) return;
+
+    const currentAgentId = (
+      isEditingAgent && editingAgent
+        ? Number(editingAgent.id)
+        : mainAgentId
+        ? Number(mainAgentId)
+        : undefined
+    ) as number | undefined;
+
+    if (!currentAgentId) return;
+    if (lastProcessedAgentIdForEmbedding.current === currentAgentId) return;
+
+    const kbToolId = Number(kbTool.id);
+    if (!enabledToolIds || !enabledToolIds.includes(kbToolId)) {
+      lastProcessedAgentIdForEmbedding.current = currentAgentId;
+      return;
+    }
+
+    const run = async () => {
+      try {
+        // Fetch existing params to avoid losing saved configuration
+        const search = await searchToolConfig(kbToolId, currentAgentId);
+        const params =
+          search.success && search.data?.params ? search.data.params : {};
+        // Disable the tool
+        await updateToolConfig(kbToolId, currentAgentId, params, false);
+        // Update local state
+        setEnabledToolIds((prev) => prev.filter((id) => id !== kbToolId));
+        const nextSelected = selectedTools.filter(
+          (tool) => tool.id !== kbTool.id
+        );
+        setSelectedTools(nextSelected);
+      } catch (error) {
+        // Even if API fails, still inform user and prevent usage in UI
+      } finally {
+        setIsEmbeddingAutoUnsetOpen(true);
+        lastProcessedAgentIdForEmbedding.current = currentAgentId;
+      }
+    };
+
+    run();
+  }, [
+    isEmbeddingConfigured,
+    tools,
+    enabledToolIds,
+    isEditingAgent,
+    editingAgent,
+    mainAgentId,
+  ]);
 
   // Listen for refresh agent list events from parent component
   useEffect(() => {
@@ -770,6 +836,7 @@ export default function AgentSetupOrchestrator({
                     onToolsRefresh={handleToolsRefresh}
                     isEditingMode={isEditingAgent || isCreatingNewAgent}
                     isGeneratingAgent={isGeneratingAgent}
+                    isEmbeddingConfigured={isEmbeddingConfigured}
                   />
                 </div>
               </div>
@@ -829,22 +896,16 @@ export default function AgentSetupOrchestrator({
           title={t("businessLogic.config.modal.deleteTitle")}
           open={isDeleteConfirmOpen}
           onCancel={() => setIsDeleteConfirmOpen(false)}
+          centered
           footer={
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-                style={{ border: "none" }}
-              >
-                {t("businessLogic.config.modal.button.cancel")}
-              </button>
-              <button
+              <Button
+                type="primary"
+                danger
                 onClick={() => handleConfirmDelete(t)}
-                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
-                style={{ border: "none" }}
               >
-                {t("businessLogic.config.modal.button.confirm")}
-              </button>
+                {t("common.confirm")}
+              </Button>
             </div>
           }
           width={400}
@@ -855,6 +916,38 @@ export default function AgentSetupOrchestrator({
                 name: agentToDelete?.name,
               })}
             </Typography.Text>
+          </div>
+        </Modal>
+        {/* Auto unselect knowledge_base_search notice when embedding not configured */}
+        <Modal
+          title={t("embedding.agentToolAutoDeselectModal.title")}
+          open={isEmbeddingAutoUnsetOpen}
+          onCancel={() => setIsEmbeddingAutoUnsetOpen(false)}
+          centered
+          footer={
+            <div className="flex justify-end mt-6 gap-4">
+              <Button
+                type="primary"
+                onClick={() => setIsEmbeddingAutoUnsetOpen(false)}
+              >
+                {t("common.confirm")}
+              </Button>
+            </div>
+          }
+          width={520}
+        >
+          <div className="py-2">
+            <div className="flex items-center">
+              <WarningFilled
+                className="text-yellow-500 mt-1 mr-2"
+                style={{ fontSize: "48px" }}
+              />
+              <div className="ml-3 mt-2">
+                <div className="text-sm leading-6">
+                  {t("embedding.agentToolAutoDeselectModal.content")}
+                </div>
+              </div>
+            </div>
           </div>
         </Modal>
       </div>
