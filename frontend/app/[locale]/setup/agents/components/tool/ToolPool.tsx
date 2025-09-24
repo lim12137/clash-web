@@ -408,17 +408,6 @@ function ToolPool({
             ? "cursor-not-allowed"
             : "cursor-pointer"
         }`}
-        title={
-          isEmbeddingBlocked
-            ? undefined
-            : !isEffectivelyAvailable
-            ? isSelected
-              ? t("toolPool.tooltip.disabledTool")
-              : t("toolPool.tooltip.unavailableTool")
-            : !isEditingMode
-            ? t("toolPool.tooltip.viewOnlyMode")
-            : tool.name
-        }
         onClick={(e) => {
           if (isDisabled) {
             return;
