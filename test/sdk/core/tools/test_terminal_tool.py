@@ -1,7 +1,7 @@
 import pytest
 import json
 import time
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 import os
 
 # Create all necessary mocks
@@ -22,7 +22,7 @@ module_mocks = {
 # Apply mocks
 with patch.dict('sys.modules', module_mocks):
     # Import all required modules
-    from sdk.nexent.core.utils.observer import MessageObserver, ProcessType
+    from sdk.nexent.core.utils.observer import MessageObserver
     from sdk.nexent.core.utils.tools_common_message import ToolSign
     # Import target module
     from sdk.nexent.core.tools.terminal_tool import TerminalTool
@@ -68,7 +68,8 @@ def mock_ssh_session():
 @pytest.fixture
 def terminal_tool(mock_observer):
     """Create a TerminalTool instance for testing"""
-    with patch('paramiko.SSHClient') as mock_client_class:
+    with patch('paramiko.SSHClient') as mock_client_class, \
+         patch('time.sleep'):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         
@@ -86,7 +87,8 @@ def terminal_tool(mock_observer):
 @pytest.fixture
 def terminal_tool_no_observer():
     """Create a TerminalTool instance without observer for testing"""
-    with patch('paramiko.SSHClient') as mock_client_class:
+    with patch('paramiko.SSHClient') as mock_client_class, \
+         patch('time.sleep'):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         
@@ -264,7 +266,8 @@ class TestSessionManagement:
     
     def test_get_session_creates_new(self, terminal_tool, mock_ssh_session):
         """Test getting a new session"""
-        with patch.object(terminal_tool, '_create_session') as mock_create:
+        with patch.object(terminal_tool, '_create_session') as mock_create, \
+             patch('time.sleep'):
             mock_create.return_value = mock_ssh_session
             
             session = terminal_tool._get_session("test_session")
@@ -274,7 +277,8 @@ class TestSessionManagement:
     
     def test_get_session_reuses_existing(self, terminal_tool, mock_ssh_session):
         """Test reusing existing session"""
-        with patch.object(terminal_tool, '_create_session') as mock_create:
+        with patch.object(terminal_tool, '_create_session') as mock_create, \
+             patch('time.sleep'):
             mock_create.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_is_session_alive') as mock_alive:
                 mock_alive.return_value = True
@@ -289,7 +293,8 @@ class TestSessionManagement:
     
     def test_get_session_recreates_dead_session(self, terminal_tool, mock_ssh_session):
         """Test recreating dead session"""
-        with patch.object(terminal_tool, '_create_session') as mock_create:
+        with patch.object(terminal_tool, '_create_session') as mock_create, \
+             patch('time.sleep'):
             mock_create.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_is_session_alive') as mock_alive:
                 mock_alive.return_value = False
@@ -418,8 +423,12 @@ class TestCommandExecution:
         mock_channel.recv_ready.return_value = True
         mock_channel.recv.return_value = b"test output\n$ "
         
-        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+        with patch.object(terminal_tool, '_clean_output') as mock_clean, \
+             patch('sdk.nexent.core.tools.terminal_tool.time.sleep'), \
+             patch('sdk.nexent.core.tools.terminal_tool.time.time') as mock_time:
             mock_clean.return_value = "cleaned output"
+            # Mock time progression to avoid infinite loop
+            mock_time.side_effect = [0, 0, 0, 31]  # Simulate timeout after a few iterations
             
             result = terminal_tool._execute_command(mock_channel, "ls", 30)
             
@@ -432,7 +441,8 @@ class TestCommandExecution:
         mock_channel = mock_ssh_session["channel"]
         mock_channel.recv_ready.return_value = False  # No output
         
-        with patch('time.time') as mock_time:
+        with patch('time.time') as mock_time, \
+             patch('time.sleep'):
             mock_time.side_effect = [0, 0, 35]  # Timeout after 35 seconds
             
             result = terminal_tool._execute_command(mock_channel, "sleep 60", 30)
@@ -444,10 +454,11 @@ class TestCommandExecution:
         mock_channel = mock_ssh_session["channel"]
         mock_channel.send.side_effect = Exception("Send failed")
         
-        result = terminal_tool._execute_command(mock_channel, "ls", 30)
-        
-        assert "Error executing command" in result
-        assert "Send failed" in result
+        with patch('time.sleep'):
+            result = terminal_tool._execute_command(mock_channel, "ls", 30)
+            
+            assert "Error executing command" in result
+            assert "Send failed" in result
     
     def test_execute_command_prompt_detection_with_no_more_data(self, terminal_tool, mock_ssh_session):
         """Test command execution with prompt detection and no more data after prompt"""
@@ -458,7 +469,8 @@ class TestCommandExecution:
         mock_channel.recv_ready.side_effect = [True, False]
         mock_channel.recv.return_value = b"file1.txt\nfile2.txt\n$ "
         
-        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+        with patch.object(terminal_tool, '_clean_output') as mock_clean, \
+             patch('time.sleep'):
             mock_clean.return_value = "cleaned output"
             
             result = terminal_tool._execute_command(mock_channel, "ls", 30)
@@ -477,7 +489,8 @@ class TestCommandExecution:
         mock_channel.recv_ready.side_effect = [True, False]
         mock_channel.recv.return_value = b"root@server:~# "
         
-        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+        with patch.object(terminal_tool, '_clean_output') as mock_clean, \
+             patch('time.sleep'):
             mock_clean.return_value = "cleaned output"
             
             result = terminal_tool._execute_command(mock_channel, "whoami", 30)
@@ -494,7 +507,8 @@ class TestCommandExecution:
         mock_channel.recv_ready.side_effect = [True, False]
         mock_channel.recv.return_value = b"C:\\Users\\test> "
         
-        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+        with patch.object(terminal_tool, '_clean_output') as mock_clean, \
+             patch('time.sleep'):
             mock_clean.return_value = "cleaned output"
             
             result = terminal_tool._execute_command(mock_channel, "dir", 30)
@@ -510,7 +524,8 @@ class TestCommandExecution:
         # No data available, should timeout after 2 seconds of no output
         mock_channel.recv_ready.return_value = False
         
-        with patch('time.time') as mock_time:
+        with patch('time.time') as mock_time, \
+             patch('time.sleep'):
             # Simulate time progression: start at 0, then 1 second, then 3 seconds (timeout)
             mock_time.side_effect = [0, 1, 3]
             
@@ -525,7 +540,8 @@ class TestForwardMethod:
     
     def test_forward_success(self, terminal_tool, mock_ssh_session):
         """Test successful forward execution"""
-        with patch.object(terminal_tool, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_execute_command') as mock_execute:
                 mock_execute.return_value = "command output"
@@ -543,7 +559,8 @@ class TestForwardMethod:
     
     def test_forward_with_observer(self, terminal_tool, mock_ssh_session):
         """Test forward execution with observer"""
-        with patch.object(terminal_tool, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_execute_command') as mock_execute:
                 mock_execute.return_value = "command output"
@@ -564,7 +581,8 @@ class TestForwardMethod:
     
     def test_forward_without_observer(self, terminal_tool_no_observer, mock_ssh_session):
         """Test forward execution without observer"""
-        with patch.object(terminal_tool_no_observer, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool_no_observer, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.return_value = mock_ssh_session
             with patch.object(terminal_tool_no_observer, '_execute_command') as mock_execute:
                 mock_execute.return_value = "command output"
@@ -577,7 +595,8 @@ class TestForwardMethod:
     
     def test_forward_exception(self, terminal_tool, mock_ssh_session):
         """Test forward execution with exception"""
-        with patch.object(terminal_tool, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.side_effect = Exception("Session failed")
             
             result = terminal_tool.forward("ls -la", "test_session", 30)
@@ -590,7 +609,8 @@ class TestForwardMethod:
     
     def test_forward_default_parameters(self, terminal_tool, mock_ssh_session):
         """Test forward execution with default parameters"""
-        with patch.object(terminal_tool, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_execute_command') as mock_execute:
                 mock_execute.return_value = "output"
@@ -607,7 +627,9 @@ class TestIntegration:
     
     def test_full_workflow(self, terminal_tool, mock_ssh_session):
         """Test complete workflow from initialization to command execution"""
-        with patch('paramiko.SSHClient') as mock_client_class:
+        with patch('paramiko.SSHClient') as mock_client_class, \
+             patch('sdk.nexent.core.tools.terminal_tool.time.sleep'), \
+             patch('sdk.nexent.core.tools.terminal_tool.time.time') as mock_time:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
             mock_client.connect.return_value = None
@@ -616,6 +638,9 @@ class TestIntegration:
             # Mock channel behavior for command execution
             mock_ssh_session["channel"].recv_ready.return_value = True
             mock_ssh_session["channel"].recv.return_value = b"file1.txt\nfile2.txt\n$ "
+            
+            # Mock time progression to avoid infinite loop
+            mock_time.side_effect = [0, 0, 0, 31, 1000, 1001, 1002, 1003, 1004, 1005]  # More values for other time.time() calls
             
             # Execute command
             result = terminal_tool.forward("ls", "integration_test", 30)
@@ -627,7 +652,8 @@ class TestIntegration:
     
     def test_multiple_commands_same_session(self, terminal_tool, mock_ssh_session):
         """Test multiple commands using the same session"""
-        with patch.object(terminal_tool, '_get_session') as mock_get_session:
+        with patch.object(terminal_tool, '_get_session') as mock_get_session, \
+             patch('time.sleep'):
             mock_get_session.return_value = mock_ssh_session
             with patch.object(terminal_tool, '_execute_command') as mock_execute:
                 mock_execute.return_value = "output"

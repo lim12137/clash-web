@@ -1,5 +1,5 @@
 import atexit
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 import os
 import sys
 import types
@@ -14,19 +14,22 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.insert(0, backend_dir)
 
-from apps.agent_app import router
+# Mock boto3 before importing backend modules
+boto3_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
+
+# Import target endpoints with all external dependencies patched
+with patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
+    minio_mock.return_value = MagicMock()
+    
+    from apps.agent_app import router
 
 # Apply patches before importing any app modules (similar to test_base_app.py)
 
 patches = [
-    # Mock boto3 client
-    patch('boto3.client', return_value=Mock()),
-    # Mock boto3 resource
-    patch('boto3.resource', return_value=Mock()),
     # Mock database sessions
-    patch('backend.database.client.get_db_session', return_value=Mock()),
-    # Mock Elasticsearch to prevent connection errors
-    patch('elasticsearch.Elasticsearch', return_value=Mock())
+    patch('backend.database.client.get_db_session', return_value=Mock())
 ]
 
 for p in patches:
