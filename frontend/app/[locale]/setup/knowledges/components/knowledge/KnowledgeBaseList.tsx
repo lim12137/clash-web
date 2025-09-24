@@ -158,8 +158,8 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                 return kb ? (
                   <span
                     key={id}
-                    className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md text-sm font-medium group"
-                    style={{ maxWidth: 'fit-content' }}
+                    className="inline-flex items-center justify-center bg-blue-100 text-blue-800 rounded text-[8px] font-medium group"
+                    style={{ maxWidth: 'fit-content', padding: '1px 3px' }}
                   >
                     <span
                       className="truncate"

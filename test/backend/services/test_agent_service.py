@@ -1,3 +1,26 @@
+import backend.services.agent_service as agent_service
+from backend.services.agent_service import update_agent_info_impl
+from backend.services.agent_service import get_creating_sub_agent_info_impl
+from backend.services.agent_service import list_all_agent_info_impl
+from backend.services.agent_service import get_agent_info_impl
+from backend.services.agent_service import get_creating_sub_agent_id_service
+from backend.services.agent_service import get_enable_tool_id_by_agent_id
+from backend.services.agent_service import (
+    get_agent_call_relationship_impl,
+    delete_agent_impl,
+    export_agent_impl,
+    export_agent_by_agent_id,
+    import_agent_by_agent_id,
+    insert_related_agent_impl,
+    load_default_agents_json_file,
+    clear_agent_memory,
+    import_agent_impl,
+    get_agent_id_by_name,
+    save_messages,
+    prepare_agent_run,
+    run_agent_stream,
+    stop_agent_tasks,
+)
 from fastapi import Request
 from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 import sys
@@ -37,6 +60,31 @@ sys.modules['nexent.core.agents'] = MagicMock()
 sys.modules['nexent.memory'] = MagicMock()
 sys.modules['nexent.memory.memory_service'] = MagicMock()
 
+# Mock monitoring modules
+monitoring_manager_mock = MagicMock()
+
+# Define a decorator that simply returns the original function unchanged
+
+
+def pass_through_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+    return decorator
+
+
+monitoring_manager_mock.monitor_endpoint = pass_through_decorator
+monitoring_manager_mock.monitor_llm_call = pass_through_decorator
+monitoring_manager_mock.setup_fastapi_app = MagicMock(return_value=True)
+monitoring_manager_mock.configure = MagicMock()
+monitoring_manager_mock.add_span_event = MagicMock()
+monitoring_manager_mock.set_span_attributes = MagicMock()
+
+# Mock nexent.monitor modules
+sys.modules['nexent.monitor'] = MagicMock()
+sys.modules['nexent.monitor.monitoring'] = MagicMock()
+sys.modules['nexent.monitor'].get_monitoring_manager = lambda: monitoring_manager_mock
+sys.modules['nexent.monitor'].monitoring_manager = monitoring_manager_mock
+
 # Mock other dependencies
 sys.modules['agents'] = MagicMock()
 sys.modules['agents.create_agent_info'] = MagicMock()
@@ -53,32 +101,15 @@ sys.modules['utils'] = MagicMock()
 sys.modules['utils.auth_utils'] = MagicMock()
 sys.modules['utils.memory_utils'] = MagicMock()
 sys.modules['utils.thread_utils'] = MagicMock()
+# Mock utils.monitoring to return our monitoring_manager_mock
+utils_monitoring_mock = MagicMock()
+utils_monitoring_mock.monitoring_manager = monitoring_manager_mock
+utils_monitoring_mock.setup_fastapi_app = MagicMock(return_value=True)
+sys.modules['utils.monitoring'] = utils_monitoring_mock
 sys.modules['agents.agent_run_manager'] = MagicMock()
 sys.modules['agents.preprocess_manager'] = MagicMock()
 sys.modules['nexent.core.agents.run_agent'] = MagicMock()
 
-from backend.services.agent_service import (
-    get_agent_call_relationship_impl,
-    delete_agent_impl,
-    export_agent_impl,
-    export_agent_by_agent_id,
-    import_agent_by_agent_id,
-    insert_related_agent_impl,
-    load_default_agents_json_file,
-    clear_agent_memory,
-    import_agent_impl,
-    get_agent_id_by_name,
-    save_messages,
-    prepare_agent_run,
-    run_agent_stream,
-    stop_agent_tasks,
-)
-from backend.services.agent_service import get_enable_tool_id_by_agent_id
-from backend.services.agent_service import get_creating_sub_agent_id_service
-from backend.services.agent_service import get_agent_info_impl
-from backend.services.agent_service import list_all_agent_info_impl
-from backend.services.agent_service import get_creating_sub_agent_info_impl
-from backend.services.agent_service import update_agent_info_impl
 
 original_agent_model = sys.modules['nexent.core.agents.agent_model']
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
@@ -1616,7 +1647,6 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     mock_import_agent.assert_called_once()
 
 
-
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
@@ -1938,7 +1968,8 @@ def test_stop_agent_tasks(mock_preprocess_manager, mock_agent_run_manager):
     assert result["status"] == "success"
     assert "successfully stopped agent run and preprocess tasks" in result["message"]
 
-    mock_agent_run_manager.stop_agent_run.assert_called_once_with(123, "test_user")
+    mock_agent_run_manager.stop_agent_run.assert_called_once_with(
+        123, "test_user")
 
     # Test only agent stopped
     mock_agent_run_manager.stop_agent_run.return_value = True
@@ -2305,8 +2336,6 @@ def test_get_agent_call_relationship_impl_tool_name_fallback(mock_query_sub_agen
 # Additional tests for newer logic in agent_service.py
 #############################
 
-import backend.services.agent_service as agent_service
-
 
 @pytest.mark.asyncio
 async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
@@ -2326,7 +2355,8 @@ async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
         yield "chunk1"
         yield "chunk2"
 
-    monkeypatch.setitem(sys.modules, "nexent.core.agents.run_agent", MagicMock())
+    monkeypatch.setitem(
+        sys.modules, "nexent.core.agents.run_agent", MagicMock())
     monkeypatch.setattr(
         "backend.services.agent_service.agent_run", fake_agent_run, raising=False
     )
@@ -2674,6 +2704,7 @@ async def test_generate_stream_with_memory_unexpected_exception_emits_error(monk
     assert out and out[0].startswith(
         "data: {") and "\"type\": \"error\"" in out[0]
 
+
 async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
     """generate_stream_no_memory should prepare run info, register it and stream data without memory tokens."""
     # Prepare AgentRequest & Request
@@ -2698,7 +2729,7 @@ async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
         AsyncMock(return_value=MagicMock()),
         raising=False,
     )
-    
+
     registered = {}
 
     def fake_register(conv_id, run_info, user_id):
@@ -2819,7 +2850,8 @@ async def test_generate_stream_with_memory_emits_tokens_and_unregisters(monkeypa
     # Enable memory switch in preview
     monkeypatch.setattr(
         "backend.services.agent_service.build_memory_context",
-        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        MagicMock(return_value=MagicMock(
+            user_config=MagicMock(memory_switch=True))),
         raising=False,
     )
 
@@ -2893,7 +2925,8 @@ async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
     # Enable memory
     monkeypatch.setattr(
         "backend.services.agent_service.build_memory_context",
-        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        MagicMock(return_value=MagicMock(
+            user_config=MagicMock(memory_switch=True))),
         raising=False,
     )
 
@@ -2944,7 +2977,7 @@ async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
 async def test_list_all_agent_info_impl_with_disabled_agents():
     """
     Test list_all_agent_info_impl with disabled agents.
-    
+
     This test verifies that:
     1. Agents with enabled=False are skipped and not included in the result
     2. Only enabled agents are processed and returned
@@ -2997,7 +3030,7 @@ async def test_list_all_agent_info_impl_with_disabled_agents():
         assert result[0]["name"] == "Enabled Agent 1"
         assert result[0]["display_name"] == "Display Enabled Agent 1"
         assert result[0]["is_available"] == True
-        
+
         assert result[1]["agent_id"] == 3
         assert result[1]["name"] == "Enabled Agent 2"
         assert result[1]["display_name"] == "Display Enabled Agent 2"
@@ -3019,7 +3052,7 @@ async def test_list_all_agent_info_impl_with_disabled_agents():
 async def test_list_all_agent_info_impl_all_disabled_agents():
     """
     Test list_all_agent_info_impl with all agents disabled.
-    
+
     This test verifies that:
     1. When all agents are disabled, an empty list is returned
     2. No tool queries are made since no agents are processed

@@ -23,6 +23,9 @@ from apps.user_management_app import router as user_management_router
 from apps.voice_app import router as voice_router
 from consts.const import IS_SPEED_MODE
 
+# Import monitoring utilities
+from utils.monitoring import monitoring_manager
+
 # Create logger instance
 logger = logging.getLogger("base_app")
 app = FastAPI(root_path="/api")
@@ -60,6 +63,9 @@ app.include_router(summary_router)
 app.include_router(prompt_router)
 app.include_router(tenant_config_router)
 app.include_router(remote_mcp_router)
+
+# Initialize monitoring for the application
+monitoring_manager.setup_fastapi_app(app)
 
 
 # Global exception handler for HTTP exceptions
