@@ -434,347 +434,358 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   };
 
   return (
-    <>
-      <style jsx global>{`
-        .markdown-body,
-        .task-message-content {
-          color: hsl(var(--foreground)) !important;
-        }
-        .markdown-body {
-          background: transparent !important;
-          min-height: 1em;
-          padding-top: 0.5em;
-          padding-bottom: 0.5em;
-        }
+      <>
+          <style jsx global>{`
+              .markdown-body,
+              .task-message-content {
+                  color: hsl(var(--foreground)) !important;
+              }
 
-        .markdown-body .katex,
-        .markdown-body .katex * {
-          font-family: KaTeX_Main, "Times New Roman", serif !important;
-        }
-        .markdown-body .katex {
-          font-size: 1.1em;
-          display: inline;
-          white-space: nowrap;
-          vertical-align: baseline;
-        }
+              .markdown-body {
+                  background: transparent !important;
+                  min-height: 1em;
+                  padding-top: 0.5em;
+                  padding-bottom: 0.5em;
+              }
 
-        .markdown-body .katex-display {
-          margin: 1.2em 0;
-          text-align: center;
-          display: block;
-          white-space: normal;
-        }
+              .markdown-body .katex,
+              .markdown-body .katex * {
+                  font-family: KaTeX_Main, "Times New Roman", serif !important;
+              }
 
-        .markdown-body .katex .katex-html {
-          white-space: nowrap;
-          display: inline;
-        }
+              .markdown-body .katex {
+                  font-size: 1.1em;
+                  display: inline;
+                  white-space: nowrap;
+                  vertical-align: baseline;
+              }
 
-        .markdown-body .katex .base {
-          display: inline;
-          white-space: nowrap;
-        }
+              .markdown-body .katex-display {
+                  margin: 1.2em 0;
+                  text-align: center;
+                  display: block;
+                  white-space: normal;
+              }
 
-        .markdown-body p .katex,
-        .markdown-body li .katex,
-        .markdown-body td .katex,
-        .markdown-body th .katex {
-          display: inline;
-          white-space: nowrap;
-          vertical-align: baseline;
-        }
+              .markdown-body .katex .katex-html {
+                  white-space: nowrap;
+                  display: inline;
+              }
 
-        .markdown-body .katex .mord,
-        .markdown-body .katex .mop,
-        .markdown-body .katex .mbin,
-        .markdown-body .katex .mrel,
-        .markdown-body .katex .mopen,
-        .markdown-body .katex .mclose,
-        .markdown-body .katex .mpunct {
-          white-space: nowrap;
-        }
+              .markdown-body .katex .base {
+                  display: inline;
+                  white-space: nowrap;
+              }
 
-        /* Global scrollbar styles */
-        .tooltip-content-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgb(209 213 219) transparent;
-        }
+              .markdown-body p .katex,
+              .markdown-body li .katex,
+              .markdown-body td .katex,
+              .markdown-body th .katex {
+                  display: inline;
+                  white-space: nowrap;
+                  vertical-align: baseline;
+              }
 
-        .tooltip-content-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .markdown-body ul,
-        .markdown-body ol {
-          list-style-type: revert !important;
-          list-style-position: revert !important;
-          margin-left: revert !important;
-          padding-left: revert !important;
-        }
-        .markdown-body li {
-          display: list-item !important;
-        }
-        .markdown-body p {
-          margin-bottom: 0.5rem !important;
-          margin-top: 0.25rem !important;
-        }
-        .user-paragraph {
-          margin-bottom: 0.25rem !important;
-          margin-top: 0.25rem !important;
-        }
-        /* Code block container styles */
-        .code-block-container {
-          position: relative;
-          display: block;
-          border-radius: 6px;
-          margin: 16px 0;
-          width: 100%;
-          overflow: hidden;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-          border: 1px solid #e0e0e0;
-        }
+              .markdown-body .katex .mord,
+              .markdown-body .katex .mop,
+              .markdown-body .katex .mbin,
+              .markdown-body .katex .mrel,
+              .markdown-body .katex .mopen,
+              .markdown-body .katex .mclose,
+              .markdown-body .katex .mpunct {
+                  white-space: nowrap;
+              }
 
-        .code-block-container > div {
-          margin: 0 !important;
-        }
+              /* Global scrollbar styles */
+              .tooltip-content-scroll {
+                  scrollbar-width: thin;
+                  scrollbar-color: rgb(209 213 219) transparent;
+              }
 
-        .code-block-container pre {
-          margin: 0 !important;
-        }
+              .tooltip-content-scroll::-webkit-scrollbar {
+                  width: 6px;
+              }
 
-        .code-block-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 6px 12px;
-          background: #eeeeee;
-          border-bottom: 1px solid #ddd;
-          font-size: 13px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            "Liberation Mono", "Courier New", monospace;
-          min-height: 36px;
-          box-sizing: border-box;
-        }
+              .markdown-body ul,
+              .markdown-body ol {
+                  list-style-type: revert !important;
+                  list-style-position: revert !important;
+                  margin-left: revert !important;
+                  padding-left: revert !important;
+              }
 
-        .code-language-label {
-          color: #666;
-          font-weight: 500;
-          text-transform: lowercase;
-          display: flex;
-          align-items: center;
-          font-size: 12px;
-          letter-spacing: 0.5px;
-          margin-left: 0;
-        }
+              .markdown-body li {
+                  display: list-item !important;
+              }
 
-        .code-language-label::before {
-          display: none;
-        }
+              .markdown-body p {
+                  margin-bottom: 0.5rem !important;
+                  margin-top: 0.25rem !important;
+              }
 
-        .code-language-label[data-language="python"]::before,
-        .code-language-label[data-language="javascript"]::before,
-        .code-language-label[data-language="js"]::before,
-        .code-language-label[data-language="typescript"]::before,
-        .code-language-label[data-language="ts"]::before,
-        .code-language-label[data-language="html"]::before,
-        .code-language-label[data-language="css"]::before {
-          display: none;
-        }
+              .user-paragraph {
+                  margin-bottom: 0.25rem !important;
+                  margin-top: 0.25rem !important;
+              }
 
-        .code-block-content {
-          position: relative;
-          background: #f8f8f8;
-          padding: 0;
-        }
+              /* Code block container styles */
+              .code-block-container {
+                  position: relative;
+                  display: block;
+                  border-radius: 6px;
+                  margin: 16px 0;
+                  width: 100%;
+                  overflow: hidden;
+                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+                  border: 1px solid #e0e0e0;
+              }
 
-        .code-block-header .copy-button,
-        .code-block-header .header-copy-button {
-          padding: 2px;
-          height: 24px;
-          width: 24px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0.6;
-          background: transparent;
-          border: none;
-          border-radius: 4px;
-          transition: all 0.2s ease;
-          font-size: 12px;
-          cursor: pointer;
-          position: static;
-          margin: 0;
-          float: right;
-          margin-right: 0;
-        }
+              .code-block-container > div {
+                  margin: 0 !important;
+              }
 
-        .code-block-header .copy-button:hover,
-        .code-block-header .header-copy-button:hover {
-          opacity: 1;
-          background: rgba(0, 0, 0, 0.05);
-          border-color: transparent;
-        }
+              .code-block-container pre {
+                  margin: 0 !important;
+              }
 
-        .token.punctuation,
-        .token.operator {
-          opacity: 0.7;
-        }
+              .code-block-header {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 6px 12px;
+                  background: #eeeeee;
+                  border-bottom: 1px solid #ddd;
+                  font-size: 13px;
+                  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                  "Liberation Mono", "Courier New", monospace;
+                  min-height: 36px;
+                  box-sizing: border-box;
+              }
 
-        .token.comment {
-          font-style: italic;
-          color: #6a9955;
-        }
+              .code-language-label {
+                  color: #666;
+                  font-weight: 500;
+                  text-transform: lowercase;
+                  display: flex;
+                  align-items: center;
+                  font-size: 12px;
+                  letter-spacing: 0.5px;
+                  margin-left: 0;
+              }
 
-        .token.string {
-          color: #a31515;
-        }
+              .code-language-label::before {
+                  display: none;
+              }
 
-        .code-block-content pre::-webkit-scrollbar {
-          height: 6px;
-          width: 6px;
-        }
+              .code-language-label[data-language="python"]::before,
+              .code-language-label[data-language="javascript"]::before,
+              .code-language-label[data-language="js"]::before,
+              .code-language-label[data-language="typescript"]::before,
+              .code-language-label[data-language="ts"]::before,
+              .code-language-label[data-language="html"]::before,
+              .code-language-label[data-language="css"]::before {
+                  display: none;
+              }
 
-        .code-block-content pre::-webkit-scrollbar-thumb {
-          background: #ccc;
-          border-radius: 3px;
-        }
+              .code-block-content {
+                  position: relative;
+                  background: #f8f8f8;
+                  padding: 0;
+              }
 
-        .code-block-content pre::-webkit-scrollbar-thumb:hover {
-          background: #aaa;
-        }
-      `}</style>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex as any]}
-        components={{
-          // Heading components
-          h1: ({ children }: any) => (
-            <h1>
-              <TextWrapper>{children}</TextWrapper>
-            </h1>
-          ),
-          h2: ({ children }: any) => (
-            <h2>
-              <TextWrapper>{children}</TextWrapper>
-            </h2>
-          ),
-          h3: ({ children }: any) => (
-            <h3>
-              <TextWrapper>{children}</TextWrapper>
-            </h3>
-          ),
-          h4: ({ children }: any) => (
-            <h4>
-              <TextWrapper>{children}</TextWrapper>
-            </h4>
-          ),
-          h5: ({ children }: any) => (
-            <h5>
-              <TextWrapper>{children}</TextWrapper>
-            </h5>
-          ),
-          h6: ({ children }: any) => (
-            <h6>
-              <TextWrapper>{children}</TextWrapper>
-            </h6>
-          ),
-          // Paragraph
-          p: ({ children }: any) => (
-            <p className={`user-paragraph`}>
-              <TextWrapper>{children}</TextWrapper>
-            </p>
-          ),
-          // List item
-          li: ({ children }: any) => (
-            <li>
-              <TextWrapper>{children}</TextWrapper>
-            </li>
-          ),
-          // Blockquote
-          blockquote: ({ children }: any) => (
-            <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
-              <TextWrapper>{children}</TextWrapper>
-            </blockquote>
-          ),
-          // Table components
-          td: ({ children }: any) => (
-            <td>
-              <TextWrapper>{children}</TextWrapper>
-            </td>
-          ),
-          th: ({ children }: any) => (
-            <th>
-              <TextWrapper>{children}</TextWrapper>
-            </th>
-          ),
-          // Emphasis components
-          strong: ({ children }: any) => (
-            <strong>
-              <TextWrapper>{children}</TextWrapper>
-            </strong>
-          ),
-          em: ({ children }: any) => (
-            <em>
-              <TextWrapper>{children}</TextWrapper>
-            </em>
-          ),
-          // Strikethrough
-          del: ({ children }: any) => (
-            <del>
-              <TextWrapper>{children}</TextWrapper>
-            </del>
-          ),
-          // Link
-          a: ({ href, children, ...props }: any) => (
-            <a href={href} {...props}>
-              <TextWrapper>{children}</TextWrapper>
-            </a>
-          ),
-          // Code blocks and inline code
-          code({ node, inline, className, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || "");
-            const codeContent = String(children).replace(/^\n+|\n+$/g, "");
-            return !inline && match ? (
-              <div className="code-block-container group">
-                <div className="code-block-header">
+              .code-block-header .copy-button,
+              .code-block-header .header-copy-button {
+                  padding: 2px;
+                  height: 24px;
+                  width: 24px;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  opacity: 0.6;
+                  background: transparent;
+                  border: none;
+                  border-radius: 4px;
+                  transition: all 0.2s ease;
+                  font-size: 12px;
+                  cursor: pointer;
+                  position: static;
+                  margin: 0;
+                  float: right;
+                  margin-right: 0;
+              }
+
+              .code-block-header .copy-button:hover,
+              .code-block-header .header-copy-button:hover {
+                  opacity: 1;
+                  background: rgba(0, 0, 0, 0.05);
+                  border-color: transparent;
+              }
+
+              .token.punctuation,
+              .token.operator {
+                  opacity: 0.7;
+              }
+
+              .token.comment {
+                  font-style: italic;
+                  color: #6a9955;
+              }
+
+              .token.string {
+                  color: #a31515;
+              }
+
+              .code-block-content pre::-webkit-scrollbar {
+                  height: 6px;
+                  width: 6px;
+              }
+
+              .code-block-content pre::-webkit-scrollbar-thumb {
+                  background: #ccc;
+                  border-radius: 3px;
+              }
+
+              .code-block-content pre::-webkit-scrollbar-thumb:hover {
+                  background: #aaa;
+              }
+          `}</style>
+          <div className={`markdown-body ${className || ""}`}>
+              <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex as any]}
+                  components={{
+                      // Heading components - now using CSS classes
+                      h1: ({children}: any) => (
+                          <h1 className="markdown-h1">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h1>
+                      ),
+                      h2: ({children}: any) => (
+                          <h2 className="markdown-h2">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h2>
+                      ),
+                      h3: ({children}: any) => (
+                          <h3 className="markdown-h3">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h3>
+                      ),
+                      h4: ({children}: any) => (
+                          <h4 className="markdown-h4">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h4>
+                      ),
+                      h5: ({children}: any) => (
+                          <h5 className="markdown-h5">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h5>
+                      ),
+                      h6: ({children}: any) => (
+                          <h6 className="markdown-h6">
+                              <TextWrapper>{children}</TextWrapper>
+                          </h6>
+                      ),
+                      // Paragraph
+                      p: ({children}: any) => (
+                          <p className="markdown-paragraph">
+                              <TextWrapper>{children}</TextWrapper>
+                          </p>
+                      ),
+                      // List item
+                      li: ({children}: any) => (
+                          <li className="markdown-li">
+                              <TextWrapper>{children}</TextWrapper>
+                          </li>
+                      ),
+                      // Blockquote
+                      blockquote: ({children}: any) => (
+                          <blockquote className="markdown-blockquote">
+                              <TextWrapper>{children}</TextWrapper>
+                          </blockquote>
+                      ),
+                      // Table components
+                      td: ({children}: any) => (
+                          <td className="markdown-td">
+                              <TextWrapper>{children}</TextWrapper>
+                          </td>
+                      ),
+                      th: ({children}: any) => (
+                          <th className="markdown-th">
+                              <TextWrapper>{children}</TextWrapper>
+                          </th>
+                      ),
+                      // Emphasis components
+                      strong: ({children}: any) => (
+                          <strong className="markdown-strong">
+                              <TextWrapper>{children}</TextWrapper>
+                          </strong>
+                      ),
+                      em: ({children}: any) => (
+                          <em className="markdown-em">
+                              <TextWrapper>{children}</TextWrapper>
+                          </em>
+                      ),
+                      // Strikethrough
+                      del: ({children}: any) => (
+                          <del className="markdown-del">
+                              <TextWrapper>{children}</TextWrapper>
+                          </del>
+                      ),
+                      // Link
+                      a: ({href, children, ...props}: any) => (
+                          <a href={href} className="markdown-link" {...props}>
+                              <TextWrapper>{children}</TextWrapper>
+                          </a>
+                      ),
+                      // Code blocks and inline code
+                      code({node, inline, className, children, ...props}: any) {
+                          const match = /language-(\w+)/.exec(className || "");
+                          const codeContent = String(children).replace(/^\n+|\n+$/g, "");
+                          return !inline && match ? (
+                              <div className="code-block-container group">
+                                  <div className="code-block-header">
                   <span
-                    className="code-language-label"
-                    data-language={match[1]}
+                      className="code-language-label"
+                      data-language={match[1]}
                   >
                     {match[1]}
                   </span>
-                  <CopyButton
-                    content={codeContent}
-                    variant="code-block"
-                    className="header-copy-button"
-                    tooltipText={{
-                      copy: t("chatStreamMessage.copyContent"),
-                      copied: t("chatStreamMessage.copied"),
-                    }}
-                  />
-                </div>
-                <div className="code-block-content">
-                  <SyntaxHighlighter
-                    style={customStyle}
-                    language={match[1]}
-                    PreTag="div"
-                    {...props}
-                  >
-                    {codeContent}
-                  </SyntaxHighlighter>
-                </div>
+                                      <CopyButton
+                                          content={codeContent}
+                                          variant="code-block"
+                                          className="header-copy-button"
+                                          tooltipText={{
+                                              copy: t("chatStreamMessage.copyContent"),
+                                              copied: t("chatStreamMessage.copied"),
+                                          }}
+                                      />
+                                  </div>
+                                  <div className="code-block-content">
+                                      <SyntaxHighlighter
+                                          style={customStyle}
+                                          language={match[1]}
+                                          PreTag="div"
+                                          {...props}
+                                      >
+                                          {codeContent}
+                                      </SyntaxHighlighter>
+                                  </div>
+                              </div>
+                          ) : (
+                              <code className="markdown-code" {...props}>
+                                  <TextWrapper>{children}</TextWrapper>
+                              </code>
+                          );
+                      },
+                      // Image
+                      img: ({src, alt}: any) => (
+                          <img src={src} alt={alt} className="markdown-img"/>
+                      ),
+                  }}
+              >
+                  {content}
+              </ReactMarkdown>
               </div>
-            ) : (
-              <code {...props}>
-                <TextWrapper>{children}</TextWrapper>
-              </code>
-            );
-          },
-          // Image
-          img: ({ src, alt }: any) => <img src={src} alt={alt} />,
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </>
-  );
-};
+          </>
+          );
+          };
