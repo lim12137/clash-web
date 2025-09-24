@@ -1,4 +1,5 @@
-from apps.agent_app import router
+import atexit
+from unittest.mock import patch, Mock
 import os
 import sys
 import types
@@ -8,10 +9,28 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
-# Dynamically determine the backend path
+# Dynamically determine the backend path - MUST BE FIRST
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-sys.path.append(backend_dir)
+sys.path.insert(0, backend_dir)
+
+from apps.agent_app import router
+
+# Apply patches before importing any app modules (similar to test_base_app.py)
+
+patches = [
+    # Mock boto3 client
+    patch('boto3.client', return_value=Mock()),
+    # Mock boto3 resource
+    patch('boto3.resource', return_value=Mock()),
+    # Mock database sessions
+    patch('backend.database.client.get_db_session', return_value=Mock()),
+    # Mock Elasticsearch to prevent connection errors
+    patch('elasticsearch.Elasticsearch', return_value=Mock())
+]
+
+for p in patches:
+    p.start()
 
 # Mock external dependencies before importing the modules that use them
 # Stub nexent.core.agents.agent_model.ToolConfig to satisfy type imports in consts.model
@@ -92,6 +111,17 @@ sys.modules['services.conversation_management_service'] = pytest.importorskip(
 sys.modules['services.memory_config_service'] = pytest.importorskip(
     "unittest.mock").MagicMock()
 
+# Now safe to import app modules after all mocks are set up
+
+# Stop all patches at the end of the module
+
+
+def stop_patches():
+    for p in patches:
+        p.stop()
+
+
+atexit.register(stop_patches)
 
 # Create FastAPI app for testing
 app = FastAPI()
