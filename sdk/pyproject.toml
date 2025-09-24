@@ -91,7 +91,7 @@ performance = [
     "prometheus-client"
 ]
 dev = [
-    "nexent[dev, data_process]"
+    "nexent[quality, data_process, performance]"
 ]
 
 [tool.setuptools.packages.find]
