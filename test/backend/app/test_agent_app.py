@@ -19,7 +19,8 @@ boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
 # Import target endpoints with all external dependencies patched
-with patch('backend.database.client.MinioClient') as minio_mock:
+with patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
     minio_mock.return_value = MagicMock()
     
     from apps.agent_app import router
@@ -28,9 +29,7 @@ with patch('backend.database.client.MinioClient') as minio_mock:
 
 patches = [
     # Mock database sessions
-    patch('backend.database.client.get_db_session', return_value=Mock()),
-    # Mock Elasticsearch to prevent connection errors
-    patch('elasticsearch.Elasticsearch', return_value=Mock())
+    patch('backend.database.client.get_db_session', return_value=Mock())
 ]
 
 for p in patches:
