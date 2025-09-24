@@ -6,18 +6,29 @@ Provides distributed tracing, token-level performance monitoring, and seamless
 integration with OpenTelemetry, Jaeger, Prometheus, and Grafana.
 
 This module uses a singleton pattern for consistent monitoring across the SDK.
+When OpenTelemetry dependencies are not available, the module gracefully degrades
+and disables monitoring functionality without breaking the application.
+
+Installation:
+- Basic: pip install nexent
+- With monitoring: pip install nexent[performance]
 """
 
-from opentelemetry.trace.status import Status, StatusCode
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry import trace, metrics
-from opentelemetry.sdk.resources import Resource
+# Optional OpenTelemetry imports - gracefully handle missing dependencies
+try:
+    from opentelemetry.trace.status import Status, StatusCode
+    from opentelemetry.exporter.prometheus import PrometheusMetricReader
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.resources import Resource
+    OPENTELEMETRY_AVAILABLE = True
+except ImportError:
+    OPENTELEMETRY_AVAILABLE = False
 import logging
 import time
 import functools
@@ -27,10 +38,12 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# Import OpenTelemetry dependencies (assumed to be available in SDK)
-
 F = TypeVar('F', bound=Callable[..., Any])
 
+
+def is_opentelemetry_available() -> bool:
+    """Check if OpenTelemetry dependencies are available."""
+    return OPENTELEMETRY_AVAILABLE
 
 @dataclass
 class MonitoringConfig:
@@ -42,6 +55,15 @@ class MonitoringConfig:
     telemetry_sample_rate: float = 1.0
     llm_slow_request_threshold_seconds: float = 5.0
     llm_slow_token_rate_threshold: float = 10.0
+    
+    def __post_init__(self):
+        """Validate configuration and adjust based on OpenTelemetry availability."""
+        if self.enable_telemetry and not OPENTELEMETRY_AVAILABLE:
+            logger.warning(
+                "OpenTelemetry dependencies not available. Disabling telemetry. "
+                "Install with: pip install nexent[performance]"
+            )
+            self.enable_telemetry = False
 
 
 class MonitoringManager:
@@ -88,6 +110,13 @@ class MonitoringManager:
         """Initialize OpenTelemetry tracing and metrics."""
         if not self._config or not self._config.enable_telemetry:
             logger.info("Telemetry is disabled by configuration")
+            return
+
+        if not OPENTELEMETRY_AVAILABLE:
+            logger.warning(
+                "OpenTelemetry dependencies not available. Telemetry initialization skipped. "
+                "Install with: pip install nexent[performance]"
+            )
             return
 
         try:
@@ -164,7 +193,9 @@ class MonitoringManager:
     @property
     def is_enabled(self) -> bool:
         """Check if monitoring is enabled."""
-        return self._config is not None and self._config.enable_telemetry
+        return (self._config is not None and 
+                self._config.enable_telemetry and 
+                OPENTELEMETRY_AVAILABLE)
 
     @property
     def tracer(self):
@@ -174,11 +205,16 @@ class MonitoringManager:
     def setup_fastapi_app(self, app) -> bool:
         """Setup monitoring for a FastAPI application."""
         try:
-            if self.is_enabled and app:
+            if self.is_enabled and app and OPENTELEMETRY_AVAILABLE:
                 FastAPIInstrumentor.instrument_app(app)
                 logger.info(
                     "FastAPI application monitoring initialized successfully")
                 return True
+            elif not OPENTELEMETRY_AVAILABLE:
+                logger.warning(
+                    "OpenTelemetry not available. FastAPI monitoring skipped. "
+                    "Install with: pip install nexent[performance]"
+                )
             return False
         except Exception as e:
             logger.error(f"Failed to initialize FastAPI monitoring: {e}")
@@ -187,9 +223,7 @@ class MonitoringManager:
     @contextmanager
     def trace_llm_request(self, operation_name: str, model_name: str, **attributes: Any) -> Iterator[Optional[Any]]:
         """Context manager for tracing LLM requests with comprehensive metrics."""
-        if not self.is_enabled or not self._tracer:
-            logger.warning(
-                f"⚠️ trace_llm_request returning None: is_enabled={self.is_enabled}, has_tracer={self._tracer is not None}")
+        if not self.is_enabled or not OPENTELEMETRY_AVAILABLE or not self._tracer:
             yield None
             return
 
@@ -218,13 +252,13 @@ class MonitoringManager:
 
     def get_current_span(self) -> Optional[Any]:
         """Get the current active span."""
-        if not self.is_enabled:
+        if not self.is_enabled or not OPENTELEMETRY_AVAILABLE:
             return None
         return trace.get_current_span()
 
     def add_span_event(self, name: str, attributes: Optional[Dict[str, Any]] = None) -> None:
         """Add an event to the current span."""
-        if not self.is_enabled:
+        if not self.is_enabled or not OPENTELEMETRY_AVAILABLE:
             return
 
         span = trace.get_current_span()
@@ -233,7 +267,7 @@ class MonitoringManager:
 
     def set_span_attributes(self, **attributes: Any) -> None:
         """Set attributes on the current span."""
-        if not self.is_enabled:
+        if not self.is_enabled or not OPENTELEMETRY_AVAILABLE:
             return
 
         span = trace.get_current_span()
@@ -246,7 +280,7 @@ class MonitoringManager:
 
     def record_llm_metrics(self, metric_type: str, value: float, attributes: Dict[str, Any]) -> None:
         """Record LLM-specific metrics."""
-        if not self.is_enabled:
+        if not self.is_enabled or not OPENTELEMETRY_AVAILABLE:
             return
 
         if metric_type == "ttft" and self._llm_ttft_duration:
@@ -499,4 +533,5 @@ __all__ = [
     'MonitoringManager',
     'LLMTokenTracker',
     'get_monitoring_manager',
+    'is_opentelemetry_available',
 ]
