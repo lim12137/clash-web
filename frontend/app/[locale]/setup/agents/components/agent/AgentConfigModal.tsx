@@ -676,31 +676,6 @@ export default function AgentConfigModal({
         )}
 
         <style jsx global>{`
-          /* Custom scrollbar styles for better UX */
-          .milkdown-editor-container .milkdown {
-            overflow: auto !important;
-          }
-          .milkdown-editor-container .milkdown .editor {
-            overflow: auto !important;
-          }
-          /* Show Milkdown editor's scrollbar */
-          .milkdown-editor-container .milkdown .editor::-webkit-scrollbar {
-            width: 8px !important;
-            display: block !important;
-          }
-          .milkdown-editor-container .milkdown .editor {
-            scrollbar-width: auto !important;
-            -ms-overflow-style: auto !important;
-          }
-          /* Show all Milkdown related scrollbars */
-          .milkdown-editor-container *::-webkit-scrollbar {
-            width: 8px !important;
-            display: block !important;
-          }
-          .milkdown-editor-container * {
-            scrollbar-width: auto !important;
-            -ms-overflow-style: auto !important;
-          }
           /* Force consistent font sizes */
           .agent-config-content * {
             font-size: inherit !important;
