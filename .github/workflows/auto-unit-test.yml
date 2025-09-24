@@ -10,7 +10,7 @@ on:
       runner_label_json:
         description: 'runner array in json format (e.g. ["ubuntu-latest"] or ["self-hosted"])'
         required: false
-        default: '["ubuntu-24.04-arm"]'
+        default: '["ubuntu-latest"]'
   pull_request:
     branches: [develop]
     paths:
@@ -28,7 +28,7 @@ on:
 
 jobs:
   test:
-    runs-on: ${{ fromJson(github.event.inputs.runner_label_json || '["ubuntu-24.04-arm"]') }}
+    runs-on: ${{ fromJson(github.event.inputs.runner_label_json || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
