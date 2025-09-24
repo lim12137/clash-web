@@ -216,7 +216,7 @@ export default function SubAgentPool({
                         >
                           <span className="flex items-baseline">
                             {agent.display_name && (
-                              <span className="text-base leading-normal">
+                              <span className="text-sm leading-normal">
                                 {agent.display_name}
                               </span>
                             )}
@@ -224,7 +224,7 @@ export default function SubAgentPool({
                               className={`leading-normal ${
                                 agent.display_name
                                   ? "ml-2 text-sm"
-                                  : "text-base"
+                                  : "text-sm"
                               }`}
                             >
                               {agent.name}
