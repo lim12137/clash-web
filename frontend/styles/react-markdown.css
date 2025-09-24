@@ -136,6 +136,22 @@
   color: var(--color-nord0);
 }
 
+/* Markdown table reset to prevent external zebra striping */
+.markdown-body table {
+  border-collapse: collapse;
+}
+
+.markdown-body table tr,
+.markdown-body table tr:nth-child(odd),
+.markdown-body table tr:nth-child(even) {
+  background-color: transparent !important;
+}
+
+.markdown-body table td,
+.markdown-body table th {
+  background-color: transparent !important;
+}
+
 /* Emphasis Styles */
 .markdown-strong {
   font-weight: 600;
