@@ -1,28 +1,3 @@
-import backend.services.agent_service as agent_service
-from backend.services.agent_service import update_agent_info_impl
-from backend.services.agent_service import get_creating_sub_agent_info_impl
-from backend.services.agent_service import list_all_agent_info_impl
-from backend.services.agent_service import get_agent_info_impl
-from backend.services.agent_service import get_creating_sub_agent_id_service
-from backend.services.agent_service import get_enable_tool_id_by_agent_id
-from backend.services.agent_service import (
-    get_agent_call_relationship_impl,
-    delete_agent_impl,
-    export_agent_impl,
-    export_agent_by_agent_id,
-    import_agent_by_agent_id,
-    insert_related_agent_impl,
-    load_default_agents_json_file,
-    clear_agent_memory,
-    import_agent_impl,
-    get_agent_id_by_name,
-    save_messages,
-    prepare_agent_run,
-    run_agent_stream,
-    stop_agent_tasks,
-)
-from fastapi import Request
-from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 import sys
 import asyncio
 import json
@@ -30,6 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 import pytest
 from fastapi.responses import StreamingResponse
+from fastapi import Request
 
 # Import the actual ToolConfig model for testing before any mocking
 from nexent.core.agents.agent_model import ToolConfig
@@ -37,6 +13,35 @@ from nexent.core.agents.agent_model import ToolConfig
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
+
+# Mock MinioClient before importing backend modules that might initialize it
+with patch('backend.database.client.MinioClient') as minio_mock:
+    minio_mock.return_value = MagicMock()
+    
+    import backend.services.agent_service as agent_service
+    from backend.services.agent_service import update_agent_info_impl
+    from backend.services.agent_service import get_creating_sub_agent_info_impl
+    from backend.services.agent_service import list_all_agent_info_impl
+    from backend.services.agent_service import get_agent_info_impl
+    from backend.services.agent_service import get_creating_sub_agent_id_service
+    from backend.services.agent_service import get_enable_tool_id_by_agent_id
+    from backend.services.agent_service import (
+        get_agent_call_relationship_impl,
+        delete_agent_impl,
+        export_agent_impl,
+        export_agent_by_agent_id,
+        import_agent_by_agent_id,
+        insert_related_agent_impl,
+        load_default_agents_json_file,
+        clear_agent_memory,
+        import_agent_impl,
+        get_agent_id_by_name,
+        save_messages,
+        prepare_agent_run,
+        run_agent_stream,
+        stop_agent_tasks,
+    )
+    from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
 # Mock Elasticsearch
 elasticsearch_client_mock = MagicMock()
