@@ -408,17 +408,6 @@ function ToolPool({
             ? "cursor-not-allowed"
             : "cursor-pointer"
         }`}
-        title={
-          isEmbeddingBlocked
-            ? undefined
-            : !isEffectivelyAvailable
-            ? isSelected
-              ? t("toolPool.tooltip.disabledTool")
-              : t("toolPool.tooltip.unavailableTool")
-            : !isEditingMode
-            ? t("toolPool.tooltip.viewOnlyMode")
-            : tool.name
-        }
         onClick={(e) => {
           if (isDisabled) {
             return;
@@ -434,9 +423,7 @@ function ToolPool({
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <CustomTooltip>
-            <TooltipTrigger asChild>
-              <div
+        <div
                 className={`font-medium text-sm truncate transition-colors duration-300 ${
                   !isEffectivelyAvailable && !isSelected ? "text-gray-400" : ""
                 }`}
@@ -451,9 +438,7 @@ function ToolPool({
               >
                 {tool.name}
               </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">{tool.name}</TooltipContent>
-          </CustomTooltip>
+
         </div>
         {/* Settings button right - Tag removed */}
         <div className="flex items-center gap-2 ml-2">
