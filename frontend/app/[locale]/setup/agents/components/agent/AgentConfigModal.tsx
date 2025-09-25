@@ -396,7 +396,12 @@ export default function AgentConfigModal({
           placeholder={t("agent.displayNamePlaceholder")}
           size="large"
           disabled={!isEditingMode}
-          status={agentDisplayNameError || agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT ? "error" : ""}
+          status={
+            agentDisplayNameError ||
+            agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
+              ? "error"
+              : ""
+          }
         />
         {agentDisplayNameError && (
           <p className="mt-1 text-sm text-red-600">{agentDisplayNameError}</p>
@@ -424,16 +429,22 @@ export default function AgentConfigModal({
           placeholder={t("agent.namePlaceholder")}
           size="large"
           disabled={!isEditingMode}
-          status={agentNameError || agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT ? "error" : ""}
+          status={
+            agentNameError ||
+            agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
+              ? "error"
+              : ""
+          }
         />
         {agentNameError && (
           <p className="mt-1 text-sm text-red-600">{agentNameError}</p>
         )}
-        {!agentNameError && agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
-          <p className="mt-1 text-sm text-red-600">
-            {t("agent.error.nameExists", { name: agentName })}
-          </p>
-        )}
+        {!agentNameError &&
+          agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
+            <p className="mt-1 text-sm text-red-600">
+              {t("agent.error.nameExists", { name: agentName })}
+            </p>
+          )}
       </div>
 
       {/* Model Selection */}
@@ -501,56 +512,60 @@ export default function AgentConfigModal({
             maxHeight: "200px",
             boxShadow: "none",
           }}
+          bordered={false}
         />
       </div>
     </div>
   );
 
   const renderDutyContent = () => (
-    <div className="p-1">
-      <SimplePromptEditor
-        value={localDutyContent}
-        onChange={(value: string) => {
-          setLocalDutyContent(value);
-          // Immediate update to parent component
-          if (onDutyContentChange) {
-            onDutyContentChange(value);
-          }
-        }}
-        height="200px"
-      />
+    <div className="p-1 h-full flex flex-col">
+      <div className="flex-1 min-h-0">
+        <SimplePromptEditor
+          value={localDutyContent}
+          onChange={(value: string) => {
+            setLocalDutyContent(value);
+            // Immediate update to parent component
+            if (onDutyContentChange) {
+              onDutyContentChange(value);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 
   const renderConstraintContent = () => (
-    <div className="p-1">
-      <SimplePromptEditor
-        value={localConstraintContent}
-        onChange={(value: string) => {
-          setLocalConstraintContent(value);
-          // Immediate update to parent component
-          if (onConstraintContentChange) {
-            onConstraintContentChange(value);
-          }
-        }}
-        height="200px"
-      />
+    <div className="p-1 h-full flex flex-col">
+      <div className="flex-1 min-h-0">
+        <SimplePromptEditor
+          value={localConstraintContent}
+          onChange={(value: string) => {
+            setLocalConstraintContent(value);
+            // Immediate update to parent component
+            if (onConstraintContentChange) {
+              onConstraintContentChange(value);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 
   const renderFewShotsContent = () => (
-    <div className="p-1">
-      <SimplePromptEditor
-        value={localFewShotsContent}
-        onChange={(value: string) => {
-          setLocalFewShotsContent(value);
-          // Immediate update to parent component
-          if (onFewShotsContentChange) {
-            onFewShotsContentChange(value);
-          }
-        }}
-        height="200px"
-      />
+    <div className="p-1 h-full flex flex-col">
+      <div className="flex-1 min-h-0">
+        <SimplePromptEditor
+          value={localFewShotsContent}
+          onChange={(value: string) => {
+            setLocalFewShotsContent(value);
+            // Immediate update to parent component
+            if (onFewShotsContentChange) {
+              onFewShotsContentChange(value);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 
@@ -647,11 +662,11 @@ export default function AgentConfigModal({
               else if (activeSegment === "few-shots") onExpandCard?.(4);
             }}
             className="absolute top-2 right-4 z-20"
-            style={{ 
+            style={{
               borderRadius: "50%",
               backgroundColor: "rgba(255, 255, 255, 0.9)",
               border: "none",
-              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
             }}
             title={t("systemPrompt.button.expand")}
             icon={<ExpandAltOutlined />}
@@ -661,31 +676,6 @@ export default function AgentConfigModal({
         )}
 
         <style jsx global>{`
-          /* Custom scrollbar styles for better UX */
-          .milkdown-editor-container .milkdown {
-            overflow: auto !important;
-          }
-          .milkdown-editor-container .milkdown .editor {
-            overflow: auto !important;
-          }
-          /* Show Milkdown editor's scrollbar */
-          .milkdown-editor-container .milkdown .editor::-webkit-scrollbar {
-            width: 8px !important;
-            display: block !important;
-          }
-          .milkdown-editor-container .milkdown .editor {
-            scrollbar-width: auto !important;
-            -ms-overflow-style: auto !important;
-          }
-          /* Show all Milkdown related scrollbars */
-          .milkdown-editor-container *::-webkit-scrollbar {
-            width: 8px !important;
-            display: block !important;
-          }
-          .milkdown-editor-container * {
-            scrollbar-width: auto !important;
-            -ms-overflow-style: auto !important;
-          }
           /* Force consistent font sizes */
           .agent-config-content * {
             font-size: inherit !important;
@@ -750,7 +740,6 @@ export default function AgentConfigModal({
             }
           }
 
-
           /* Fix Ant Design button hover border color issues - ensure consistent color scheme */
           .responsive-button.ant-btn:hover {
             border-color: inherit !important;
@@ -777,16 +766,18 @@ export default function AgentConfigModal({
           {activeSegment === "agent-info" && <div>{renderAgentInfo()}</div>}
 
           {/* Duty Content */}
-          {activeSegment === "duty" && <div>{renderDutyContent()}</div>}
+          {activeSegment === "duty" && (
+            <div className="h-full">{renderDutyContent()}</div>
+          )}
 
           {/* Constraint Content */}
           {activeSegment === "constraint" && (
-            <div>{renderConstraintContent()}</div>
+            <div className="h-full">{renderConstraintContent()}</div>
           )}
 
           {/* Few Shots Content */}
           {activeSegment === "few-shots" && (
-            <div>{renderFewShotsContent()}</div>
+            <div className="h-full">{renderFewShotsContent()}</div>
           )}
         </div>
       </div>
@@ -857,7 +848,10 @@ export default function AgentConfigModal({
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+                  if (
+                    agentDisplayNameStatus ===
+                    NAME_CHECK_STATUS.EXISTS_IN_TENANT
+                  ) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });
@@ -892,7 +886,10 @@ export default function AgentConfigModal({
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+                  if (
+                    agentDisplayNameStatus ===
+                    NAME_CHECK_STATUS.EXISTS_IN_TENANT
+                  ) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });
@@ -913,7 +910,7 @@ export default function AgentConfigModal({
 
       {/* Generating prompt overlay */}
       {isGeneratingAgent && (
-        <div 
+        <div
           style={{
             position: "absolute",
             top: 0,
@@ -932,19 +929,23 @@ export default function AgentConfigModal({
         >
           <div style={{ textAlign: "center", color: "#1890ff" }}>
             <Spin size="large" />
-            <div style={{ 
-              marginTop: "16px", 
-              fontSize: "16px", 
-              fontWeight: 500, 
-              color: "#1890ff" 
-            }}>
+            <div
+              style={{
+                marginTop: "16px",
+                fontSize: "16px",
+                fontWeight: 500,
+                color: "#1890ff",
+              }}
+            >
               {t("agent.generating.title")}
             </div>
-            <div style={{ 
-              marginTop: "8px", 
-              fontSize: "14px", 
-              color: "#666" 
-            }}>
+            <div
+              style={{
+                marginTop: "8px",
+                fontSize: "14px",
+                color: "#666",
+              }}
+            >
               {t("agent.generating.subtitle")}
             </div>
           </div>
