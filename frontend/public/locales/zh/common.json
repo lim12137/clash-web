@@ -854,6 +854,7 @@
   "embedding.knowledgeBaseAutoDeselectModal.content": "由于您已修改向量化模型配置，已自动取消选中不兼容的知识库。",
   "embedding.agentToolAutoDeselectModal.title": "自动移除无法使用的 Agent 工具",
   "embedding.agentToolAutoDeselectModal.content": "由于您尚未配置向量化模型，已自动取消选中无法使用的 Agent 工具。",
+  "embedding.agentToolDisableTooltip.content": "您尚未配置向量化模型，无法使用依赖向量化能力的 Agent 工具",
   "embedding.chatMemoryWarningModal.title": "向量化模型未配置",
   "embedding.chatMemoryWarningModal.content": "您尚未配置向量化模型，暂时无法使用记忆功能。",
   "embedding.chatMemoryWarningModal.tip": "建议您联系您的租户管理员进行配置。",
