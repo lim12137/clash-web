@@ -28,7 +28,7 @@ class MockTTSModel:
         self.config = config
         self.check_connectivity = AsyncMock(return_value=True)
     
-    def generate_speech(self, text: str, stream: bool = False):
+    async def generate_speech(self, text: str, stream: bool = False):
         """Mock implementation that returns appropriate data based on stream parameter"""
         if stream:
             # Return an async generator for streaming
@@ -49,8 +49,8 @@ import services.voice_service
 
 def mock_voice_dependencies(func):
     """Decorator to apply all necessary mocks for voice service tests"""
-    @patch('nexent.core.models.tts_model.TTSModel', MockTTSModel)
-    @patch('nexent.core.models.stt_model.STTModel', MockSTTModel)
+    @patch('services.voice_service.TTSModel', MockTTSModel)
+    @patch('services.voice_service.STTModel', MockSTTModel)
     @patch('consts.const.TEST_VOICE_PATH', '/test/path')
     @patch('consts.const.SPEED_RATIO', 1.0)
     @patch('consts.const.VOICE_TYPE', 'test_voice_type')
@@ -58,6 +58,8 @@ def mock_voice_dependencies(func):
     @patch('consts.const.TOKEN', 'test_token')
     @patch('consts.const.APPID', 'test_appid')
     def wrapper(*args, **kwargs):
+        # Reset the global voice service instance to ensure test isolation
+        services.voice_service._voice_service_instance = None
         return func(*args, **kwargs)
     return wrapper
 
@@ -177,6 +179,19 @@ class TestVoiceService:
         """Test successful TTS streaming to WebSocket"""
         service = VoiceService()
         
+        # Mock the TTS model's generate_speech method directly to avoid real WebSocket connections
+        async def mock_generate_speech(text: str, stream: bool = False):
+            if stream:
+                async def mock_audio_generator():
+                    yield b"mock_audio_chunk_1"
+                    yield b"mock_audio_chunk_2"
+                    yield b"mock_audio_chunk_3"
+                return mock_audio_generator()
+            else:
+                return b"mock_complete_audio_data"
+        
+        service.tts_model.generate_speech = mock_generate_speech
+        
         # Mock WebSocket with client_state
         mock_websocket = Mock()
         mock_websocket.send_bytes = AsyncMock()
@@ -191,7 +206,7 @@ class TestVoiceService:
         # Test the method
         asyncio.run(service.stream_tts_to_websocket(mock_websocket, "Hello, world!"))
         
-        assert mock_websocket.send_bytes.call_count == 6
+        assert mock_websocket.send_bytes.call_count == 3
         mock_websocket.send_json.assert_called_once_with({"status": "completed"})
 
     @mock_voice_dependencies
