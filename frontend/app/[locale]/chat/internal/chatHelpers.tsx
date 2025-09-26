@@ -33,12 +33,3 @@ export const deduplicateImages = (
 
   return uniqueImages;
 };
-
-// Get internationalization key based on message type
-export const getI18nKeyByType = (type: string): string => {
-  const typeToKeyMap: Record<string, string> = {
-    "progress": "chatInterface.parsingFileWithProgress",
-    "truncation": "chatInterface.fileTruncated",
-  };
-  return typeToKeyMap[type] || "";
-};

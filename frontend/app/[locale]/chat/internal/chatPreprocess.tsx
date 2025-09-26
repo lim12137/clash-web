@@ -1,9 +1,59 @@
 import { conversationService } from "@/services/conversationService";
-import { FilePreview, ChatMessageType } from "@/types/chat";
-import { ROLE_ASSISTANT } from "@/const/agentConfig";
-import { chatConfig } from "@/const/chatConfig";
-import { getI18nKeyByType } from "@/app/chat/internal/chatHelpers";
+import { storageService } from "@/services/storageService";
+import { FilePreview, AgentStep } from "@/types/chat";
 import log from "@/lib/logger";
+
+// Step ID Counter
+const stepIdCounter = { current: 0 };
+
+/**
+ * Parse agent steps, convert text content to structured steps
+ */
+export const parseAgentSteps = (
+  content: string,
+  defaultExpanded: boolean = false,
+  t: any
+): AgentStep[] => {
+  const steps: AgentStep[] = [];
+  const stepRegex = /<step[^>]*>([\s\S]*?)<\/step>/g;
+  let match;
+
+  while ((match = stepRegex.exec(content)) !== null) {
+    const stepContent = match[1];
+    const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(stepContent);
+    const contentMatch = /<content>([\s\S]*?)<\/content>/i.exec(stepContent);
+
+    const step: AgentStep = {
+      id: `step-${stepIdCounter.current++}`,
+      title: titleMatch ? titleMatch[1].trim() : t("chatPreprocess.step"),
+      content: "",
+      expanded: defaultExpanded,
+      thinking: { content: "", expanded: false },
+      code: { content: "", expanded: false },
+      output: { content: "", expanded: false },
+      metrics: "",
+      contents: [],
+    };
+
+    if (contentMatch) {
+      step.contents = [
+        {
+          id: `content-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 7)}`,
+          type: "model_output",
+          content: contentMatch[1],
+          expanded: false,
+          timestamp: Date.now(),
+        },
+      ];
+    }
+
+    steps.push(step);
+  }
+
+  return steps;
+};
 
 /**
  * Handle attachment file preprocessing
@@ -105,183 +155,144 @@ export const preprocessAttachments = async (
 };
 
 /**
- * Create a preprocessing step for assistant message
- * @param t Translation function
- * @returns Preprocessing step object
+ * Create thinking step
+ * @param message Message to display
+ * @returns Thinking step object
  */
-export const createPreprocessingStep = (t: any) => {
+export const createThinkingStep = (t: any, message?: string): AgentStep => {
+  const displayMessage = message || t("chatPreprocess.parsingFile");
   return {
-    id: `preprocess-${Date.now()}`,
-    title: t("chatInterface.filePreprocessing"),
-    content: "",
+    id: `thinking-${Date.now()}`,
+    title: t("chatPreprocess.thinking"),
+    content: displayMessage,
     expanded: true,
-    metrics: "",
-    thinking: { content: "", expanded: false },
+    thinking: { content: displayMessage, expanded: true },
     code: { content: "", expanded: false },
     output: { content: "", expanded: false },
-    contents: [
-      {
-        id: `preprocess-content-${Date.now()}`,
-        type: chatConfig.contentTypes.PREPROCESS,
-        content: t("chatInterface.parsingFile"),
-        expanded: false,
-        timestamp: Date.now(),
-      },
-    ],
+    metrics: "",
+    contents: [],
   };
 };
 
 /**
- * Create a preprocessing message for assistant
- * @param t Translation function
- * @returns ChatMessageType object for preprocessing
+ * Handle file upload
+ * @param file Uploaded file
+ * @param setFileUrls Callback function to set file URL
+ * @returns File ID
  */
-export const createPreprocessingMessage = (t: any): ChatMessageType => {
-  return {
-    id: `preprocess-msg-${Date.now()}`,
-    role: ROLE_ASSISTANT,
-    content: "",
-    timestamp: new Date(),
-    isComplete: false,
-    steps: [createPreprocessingStep(t)],
-  };
-};
-
-/**
- * Update preprocessing step content based on progress data
- * @param lastMsg Last message in conversation
- * @param jsonData Progress data from preprocessing
- * @param t Translation function
- * @param truncationBuffer Buffer for truncation messages
- * @param processedTruncationIds Set of processed truncation IDs
- * @returns Updated message
- */
-export const updatePreprocessingStep = (
-  lastMsg: ChatMessageType,
-  jsonData: any,
-  t: any,
-  truncationBuffer: any[],
-  processedTruncationIds: Set<string>
-): ChatMessageType => {
-  if (lastMsg.role !== ROLE_ASSISTANT) {
-    return lastMsg;
-  }
-
-  if (!lastMsg.steps) lastMsg.steps = [];
-
-  // Find the latest preprocessing step
-  let step = lastMsg.steps.find(
-    (s) => s.title === t("chatInterface.filePreprocessing")
-  );
-
-  if (!step) {
-    step = createPreprocessingStep(t);
-    lastMsg.steps.push(step);
-  }
-
-  // Handle truncation messages - buffer them instead of updating immediately
-  if (jsonData.type === "truncation") {
-    // Create a unique ID for this truncation message to avoid duplicates
-    const truncationId = `${jsonData.filename || "unknown"}_${
-      jsonData.message || ""
-    }`;
-
-    // Only add if not already processed
-    if (!processedTruncationIds.has(truncationId)) {
-      truncationBuffer.push(jsonData);
-      processedTruncationIds.add(truncationId);
-    }
-    return lastMsg; // Don't update stepContent for truncation
-  }
-
-  let stepContent = "";
-  switch (jsonData.type) {
-    case "progress":
-      if (jsonData.message_data) {
-        const i18nKey = getI18nKeyByType(jsonData.type);
-        stepContent = String(t(i18nKey, jsonData.message_data.params));
-      } else {
-        stepContent = jsonData.message || "";
-      }
-      break;
-    case "error":
-      stepContent = t("chatInterface.parseFileFailed", {
-        filename: jsonData.filename,
-        message: jsonData.message,
-      });
-      break;
-    case "file_processed":
-      stepContent = t("chatInterface.fileParsed", {
-        filename: jsonData.filename,
-      });
-      break;
-    case "complete":
-      // When complete, process all buffered truncation messages
-      if (truncationBuffer.length > 0) {
-        // Process truncation messages using internationalization
-        const truncationInfo = truncationBuffer
-          .map((truncation) => {
-            if (truncation.message_data) {
-              const i18nKey = getI18nKeyByType(truncation.type);
-              return String(t(i18nKey, truncation.message_data.params));
-            } else {
-              return truncation.message;
-            }
-          })
-          .join(String(t("chatInterface.truncationSeparator")));
-
-        stepContent = t("chatInterface.fileParsingCompleteWithTruncation", {
-          truncationInfo: truncationInfo,
-        });
-      } else {
-        stepContent = t("chatInterface.fileParsingComplete");
-      }
-      break;
-    default:
-      stepContent = jsonData.message || "";
-  }
-
-  // Only update the first content, don't add new ones
-  if (step && step.contents && step.contents.length > 0) {
-    step.contents[0].content = stepContent;
-    step.contents[0].timestamp = Date.now();
-  }
-
-  return lastMsg;
-};
-
-/**
- * Handle preprocessing error and update message
- * @param lastMsg Last message in conversation
- * @param error Error from preprocessing
- * @param t Translation function
- * @returns Updated message
- */
-export const handlePreprocessingError = (
-  lastMsg: ChatMessageType,
-  error: string,
+export const handleFileUpload = (
+  file: File,
+  setFileUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>,
   t: any
-): ChatMessageType => {
-  if (lastMsg.role !== ROLE_ASSISTANT) {
-    return lastMsg;
+): string => {
+  const fileId = `file-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(7)}`;
+
+  // If it is not an image type, create a file preview URL
+  if (!file.type.startsWith("image/")) {
+    const fileUrl = URL.createObjectURL(file);
+    setFileUrls((prev) => ({ ...prev, [fileId]: fileUrl }));
   }
 
-  // Handle error codes with internationalization
-  let errorMessage;
-  if (error === 'REQUEST_ENTITY_TOO_LARGE') {
-    errorMessage = t("chatInterface.fileSizeExceeded");
-  } else if (error === 'FILE_PARSING_FAILED') {
-    errorMessage = t("chatInterface.fileParsingFailed");
-  } else {
-    // For any other error, show a generic message without exposing technical details
-    errorMessage = t("chatInterface.fileProcessingFailed", {
-      error: "Unknown error"
-    });
-  }
-
-  lastMsg.content = errorMessage;
-  lastMsg.isComplete = true;
-
-  return lastMsg;
+  return fileId;
 };
 
+/**
+ * Handle image upload
+ * @param file Uploaded image file
+ */
+export const handleImageUpload = (file: File, t: any): void => {};
+
+/**
+ * Upload attachments to storage service
+ * @param attachments Attachment list
+ * @returns Uploaded file URLs and object names
+ */
+export const uploadAttachments = async (
+  attachments: FilePreview[],
+  t: any
+): Promise<{
+  uploadedFileUrls: Record<string, string>;
+  objectNames: Record<string, string>;
+  error?: string;
+}> => {
+  if (attachments.length === 0) {
+    return { uploadedFileUrls: {}, objectNames: {} };
+  }
+
+  try {
+    // Upload all files to storage service
+    const uploadResult = await storageService.uploadFiles(
+      attachments.map((attachment) => attachment.file)
+    );
+
+    // Handle upload results
+    const uploadedFileUrls: Record<string, string> = {};
+    const objectNames: Record<string, string> = {};
+
+    if (uploadResult.success_count > 0) {
+      uploadResult.results.forEach((result) => {
+        if (result.success) {
+          uploadedFileUrls[result.file_name] = result.url;
+          objectNames[result.file_name] = result.object_name;
+        }
+      });
+    }
+
+    return { uploadedFileUrls, objectNames };
+  } catch (error) {
+    log.error(t("chatPreprocess.fileUploadFailed"), error);
+    return {
+      uploadedFileUrls: {},
+      objectNames: {},
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+/**
+ * Create message attachment objects from attachment list
+ * @param attachments Attachment list
+ * @param uploadedFileUrls Uploaded file URLs
+ * @param fileUrls File URL mapping
+ * @returns Message attachment object array
+ */
+export const createMessageAttachments = (
+  attachments: FilePreview[],
+  uploadedFileUrls: Record<string, string>,
+  fileUrls: Record<string, string>
+): { type: string; name: string; size: number; url?: string }[] => {
+  return attachments.map((attachment) => ({
+    type: attachment.type,
+    name: attachment.file.name,
+    size: attachment.file.size,
+    url:
+      uploadedFileUrls[attachment.file.name] ||
+      (attachment.type === "image"
+        ? attachment.previewUrl
+        : fileUrls[attachment.id]),
+  }));
+};
+
+/**
+ * Clean up attachment URLs
+ * @param attachments Attachment list
+ * @param fileUrls File URL mapping
+ */
+export const cleanupAttachmentUrls = (
+  attachments: FilePreview[],
+  fileUrls: Record<string, string>
+): void => {
+  // Clean up attachment preview URLs
+  attachments.forEach((attachment) => {
+    if (attachment.previewUrl) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
+  });
+
+  // Clean up other file URLs
+  Object.values(fileUrls).forEach((url) => {
+    URL.revokeObjectURL(url);
+  });
+};
