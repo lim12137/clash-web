@@ -341,7 +341,7 @@ function ToolPool({
         );
       }
     } catch (error) {
-      log.error(t("debug.log.refreshToolsFailed"), error);
+      log.error(t("agentConfig.tools.refreshFailedDebug"), error);
       message.error(t("toolManagement.message.refreshFailedRetry"));
     } finally {
       setIsRefreshing(false);
