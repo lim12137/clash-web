@@ -610,10 +610,8 @@ export function ChatInterface() {
               } else if (result.error === 'FILE_PARSING_FAILED') {
                 errorMessage = t("chatInterface.fileParsingFailed");
               } else {
-                // For any other error, show a generic message without exposing technical details
-                errorMessage = t("chatInterface.fileProcessingFailed", {
-                  error: "Unknown error"
-                });
+                // For any other error, show a simple message
+                errorMessage = t("chatInterface.fileProcessingStopped");
               }
               
               lastMsg.content = errorMessage;
