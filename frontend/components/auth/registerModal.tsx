@@ -19,6 +19,7 @@ import {
   SafetyOutlined,
   KeyOutlined,
   CrownOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -504,7 +505,28 @@ export function RegisterModal() {
                     {t("auth.inviteCodeHint.starAction")}
                   </div>
                   <div>
-                    🎁 {t("auth.inviteCodeHint.step2")}
+                    💬 {t("auth.inviteCodeHint.step2")}
+                    <a
+                      href={t("auth.inviteCodeHint.contributionWallUrl")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                    >
+                      {t("auth.inviteCodeHint.contributionWallLink")}
+                    </a>
+                    {t("auth.inviteCodeHint.step2Action")}
+                    <a
+                      href={t("auth.inviteCodeHint.documentationUrl")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 text-blue-600 dark:text-blue-400 hover:underline"
+                      title={t("auth.inviteCodeHint.viewDocumentation")}
+                    >
+                      <FileTextOutlined />
+                    </a>
+                  </div>
+                  <div>
+                    🎁 {t("auth.inviteCodeHint.step3")}
                     <a
                       href="http://nexent.tech/contact"
                       target="_blank"
@@ -513,7 +535,7 @@ export function RegisterModal() {
                     >
                       {t("auth.inviteCodeHint.communityLink")}
                     </a>
-                    {t("auth.inviteCodeHint.step2Action")}
+                    {t("auth.inviteCodeHint.step3Action")}
                   </div>
                 </div>
               </div>
