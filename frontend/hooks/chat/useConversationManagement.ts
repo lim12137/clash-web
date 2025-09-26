@@ -100,16 +100,12 @@ export const useConversationManagement = () => {
   };
 
   return {
-    // State
+    // State (read-only)
     conversationId,
-    setConversationId,
     conversationTitle,
-    setConversationTitle,
     conversationList,
     selectedConversationId,
-    setSelectedConversationId,
     isNewConversation,
-    setIsNewConversation,
     conversationLoadError,
     
     // Refs
@@ -123,5 +119,11 @@ export const useConversationManagement = () => {
     updateConversationTitle,
     clearConversationLoadError,
     setConversationLoadErrorForId,
+    
+    // Setters (for internal use by components)
+    setConversationId,
+    setSelectedConversationId,
+    setConversationTitle,
+    setIsNewConversation,
   };
 };
