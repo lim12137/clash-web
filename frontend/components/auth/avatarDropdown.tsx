@@ -94,7 +94,7 @@ export function AvatarDropdown() {
           <div className="font-medium">{user.email}</div>
           <div className="mt-1">
             <Tag color={getRoleColor(user.role)}>
-              {t(user.role === "admin" ? "role_admin" : "role_user")}
+              {t(user.role === "admin" ? "auth.admin" : "auth.user")}
             </Tag>
           </div>
         </div>
