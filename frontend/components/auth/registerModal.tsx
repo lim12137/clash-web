@@ -152,8 +152,8 @@ export function RegisterModal() {
           },
         ]);
       }
-      // HTTP 422 Unprocessable Entity
-      else if (httpStatusCode === 422 || errorType === "WEAK_PASSWORD") {
+      // HTTP 406 Not Acceptable
+      else if (httpStatusCode === 406 || errorType === "WEAK_PASSWORD") {
         const errorMsg = t("auth.weakPassword");
         message.error(errorMsg);
         setPasswordError({ target: "password", message: errorMsg });
