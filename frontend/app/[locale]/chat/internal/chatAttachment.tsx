@@ -2,6 +2,10 @@ import { chatConfig } from "@/const/chatConfig";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink } from "lucide-react";
+import { storageService } from "@/services/storageService";
+import { ChatMessageType } from "@/types/chat";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import log from "@/lib/logger";
 import {
   AiFillFileImage,
   AiFillFilePdf,
@@ -316,3 +320,84 @@ export function ChatAttachment({
     </div>
   );
 }
+
+/**
+ * Asynchronously load attachment URLs for messages
+ * @param messages Array of chat messages
+ * @param targetConversationId Target conversation ID
+ * @param messageManagement Message management hook instance
+ * @param t Translation function
+ * @returns Promise that resolves when all URLs are loaded
+ */
+export const loadAttachmentUrls = async (
+  messages: ChatMessageType[],
+  targetConversationId: number,
+  messageManagement: any,
+  t: any
+): Promise<void> => {
+  // Create a copy to avoid directly modifying parameters
+  const updatedMessages = [...messages];
+  let hasUpdates = false;
+
+  // Process attachments for each message
+  for (const message of updatedMessages) {
+    if (message.attachments && message.attachments.length > 0) {
+      // Get URL for each attachment
+      for (const attachment of message.attachments) {
+        if (attachment.object_name && !attachment.url) {
+          try {
+            // Get file URL
+            const url = await storageService.getFileUrl(
+              attachment.object_name
+            );
+            // Update attachment info
+            attachment.url = url;
+            hasUpdates = true;
+          } catch (error) {
+            log.error(
+              t("chatInterface.errorFetchingAttachmentUrl", {
+                object_name: attachment.object_name,
+              }),
+              error
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // If there are updates, set new message array
+  if (hasUpdates) {
+    messageManagement.setMessages(targetConversationId, updatedMessages);
+  }
+};
+
+/**
+ * Handle image loading errors
+ * @param imageUrl Failed image URL
+ * @param messageManagement Message management hook
+ * @param conversationId Current conversation ID
+ * @param t Translation function
+ */
+export const handleImageError = (
+  imageUrl: string,
+  messageManagement: any,
+  conversationId: number,
+  t: any
+) => {
+  log.error(t("chatInterface.imageLoadFailed"), imageUrl);
+
+  // Remove failed images from messages
+  const messages = messageManagement.getMessages(conversationId);
+  if (messages.length === 0) return;
+  
+  const lastMsg = messages[messages.length - 1];
+  if (lastMsg.role === ROLE_ASSISTANT && lastMsg.images) {
+    // Filter out failed images
+    const updatedImages = lastMsg.images.filter((url: string) => url !== imageUrl);
+    messageManagement.updateMessage(conversationId, lastMsg.id, {
+      ...lastMsg,
+      images: updatedImages,
+    });
+  }
+};
