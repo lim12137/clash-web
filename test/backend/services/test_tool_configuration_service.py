@@ -17,7 +17,8 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         get_local_tools_classes,
         search_tool_info_impl,
         update_tool_info_impl,
-        list_all_tools
+        list_all_tools,
+        load_last_tool_config_impl
     )
 from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest
 from consts.exceptions import MCPConnectionError
@@ -1069,6 +1070,52 @@ class TestInitializeToolsOnStartup:
         assert "Failed tenants:" in warning_call
         assert "tenant_2 (timeout)" in warning_call
         assert "tenant_3 (error: Connection error)" in warning_call
+
+
+class TestLoadLastToolConfigImpl:
+    """Test load_last_tool_config_impl function"""
+
+    @patch('backend.services.tool_configuration_service.search_last_tool_instance_by_tool_id')
+    def test_load_last_tool_config_impl_success(self, mock_search_tool_instance):
+        """Test successfully loading last tool configuration"""
+        mock_tool_instance = {
+            "tool_instance_id": 1,
+            "tool_id": 123,
+            "params": {"param1": "value1", "param2": "value2"},
+            "enabled": True
+        }
+        mock_search_tool_instance.return_value = mock_tool_instance
+
+        result = load_last_tool_config_impl(123, "tenant1", "user1")
+
+        assert result == {"param1": "value1", "param2": "value2"}
+        mock_search_tool_instance.assert_called_once_with(123, "tenant1", "user1")
+
+    @patch('backend.services.tool_configuration_service.search_last_tool_instance_by_tool_id')
+    def test_load_last_tool_config_impl_not_found(self, mock_search_tool_instance):
+        """Test loading tool config when tool instance not found"""
+        mock_search_tool_instance.return_value = None
+
+        with pytest.raises(ValueError, match="Tool configuration not found for tool ID: 123"):
+            load_last_tool_config_impl(123, "tenant1", "user1")
+
+        mock_search_tool_instance.assert_called_once_with(123, "tenant1", "user1")
+
+    @patch('backend.services.tool_configuration_service.search_last_tool_instance_by_tool_id')
+    def test_load_last_tool_config_impl_empty_params(self, mock_search_tool_instance):
+        """Test loading tool config with empty params"""
+        mock_tool_instance = {
+            "tool_instance_id": 1,
+            "tool_id": 123,
+            "params": {},
+            "enabled": True
+        }
+        mock_search_tool_instance.return_value = mock_tool_instance
+
+        result = load_last_tool_config_impl(123, "tenant1", "user1")
+
+        assert result == {}
+        mock_search_tool_instance.assert_called_once_with(123, "tenant1", "user1")
 
 
 if __name__ == '__main__':
