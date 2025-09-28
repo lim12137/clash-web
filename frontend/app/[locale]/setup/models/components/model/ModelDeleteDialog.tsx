@@ -211,8 +211,8 @@ export const ModelDeleteDialog = ({
       case MODEL_SOURCES.SILICON:
         return (
           <img
-            src="/siliconcloud-color.png"
-            alt="Silicon"
+            src="/siliconflow.png"
+            alt="SiliconFlow"
             className="w-5 h-5"
           />
         );
