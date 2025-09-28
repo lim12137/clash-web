@@ -401,6 +401,85 @@ class TestEdgeCases:
         assert "Failed to update tool" in data["detail"]
 
 
+class TestLoadLastToolConfigAPI:
+    """Test endpoint for loading last tool configuration"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.load_last_tool_config_impl')
+    def test_load_last_tool_config_success(self, mock_load_config, mock_get_user_id):
+        """Test successful loading of last tool configuration"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_load_config.return_value = {"param1": "value1", "param2": "value2"}
+
+        response = client.get("/tool/load_config/123")
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["message"] == {"param1": "value1", "param2": "value2"}
+
+        mock_get_user_id.assert_called_once_with(None)
+        mock_load_config.assert_called_once_with(123, "tenant456", "user123")
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.load_last_tool_config_impl')
+    def test_load_last_tool_config_not_found(self, mock_load_config, mock_get_user_id):
+        """Test loading tool config when not found"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_load_config.side_effect = ValueError("Tool configuration not found for tool ID: 123")
+
+        response = client.get("/tool/load_config/123")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
+        data = response.json()
+        assert "Tool configuration not found" in data["detail"]
+
+        mock_get_user_id.assert_called_once_with(None)
+        mock_load_config.assert_called_once_with(123, "tenant456", "user123")
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.load_last_tool_config_impl')
+    def test_load_last_tool_config_service_error(self, mock_load_config, mock_get_user_id):
+        """Test service error when loading tool config"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_load_config.side_effect = Exception("Database error")
+
+        response = client.get("/tool/load_config/123")
+
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to load tool config" in data["detail"]
+
+        mock_get_user_id.assert_called_once_with(None)
+        mock_load_config.assert_called_once_with(123, "tenant456", "user123")
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    def test_load_last_tool_config_auth_error(self, mock_get_user_id):
+        """Test authentication error when loading tool config"""
+        mock_get_user_id.side_effect = Exception("Auth error")
+
+        response = client.get("/tool/load_config/123")
+
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to load tool config" in data["detail"]
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.load_last_tool_config_impl')
+    def test_load_last_tool_config_with_authorization_header(self, mock_load_config, mock_get_user_id):
+        """Test loading tool config with authorization header"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_load_config.return_value = {"param1": "value1"}
+
+        response = client.get(
+            "/tool/load_config/123",
+            headers={"Authorization": "Bearer test_token"}
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        mock_get_user_id.assert_called_with("Bearer test_token")
+
+
 class TestDataValidation:
     """Data validation tests"""
 

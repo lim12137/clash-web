@@ -224,6 +224,38 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
 };
 
 /**
+ * load last tool config
+ * @param toolId tool id
+ * @returns last tool config info
+ */
+export const loadLastToolConfig = async (toolId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.tool.loadConfig(toolId), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data.message, // Backend returns config in message field
+      message: "",
+    };
+  } catch (error) {
+    log.error("Failed to load last tool configuration:", error);
+    return {
+      success: false,
+      data: null,
+      message: "Failed to load last tool configuration, please try again later",
+    };
+  }
+};
+
+/**
  * Update Agent information
  * @param agentId agent id
  * @param name agent name

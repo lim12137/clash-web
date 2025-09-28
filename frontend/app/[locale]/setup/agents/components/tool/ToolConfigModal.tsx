@@ -9,6 +9,7 @@ import { ToolParam, ToolConfigModalProps } from "@/types/agentConfig";
 import {
   updateToolConfig,
   searchToolConfig,
+  loadLastToolConfig,
 } from "@/services/agentConfigService";
 import log from "@/lib/logger";
 
@@ -120,6 +121,36 @@ export default function ToolConfigModal({
     const newParams = [...currentParams];
     newParams[index] = { ...newParams[index], value };
     setCurrentParams(newParams);
+  };
+
+  // load last tool config
+  const handleLoadLastConfig = async () => {
+    if (!tool) return;
+
+    try {
+      const result = await loadLastToolConfig(parseInt(tool.id));
+      if (result.success && result.data) {
+        // Parse the last config data
+        const lastConfig = result.data;
+        
+        // Update current params with last config values
+        const updatedParams = currentParams.map((param) => {
+          const lastValue = lastConfig[param.name];
+          return {
+            ...param,
+            value: lastValue !== undefined ? lastValue : param.value,
+          };
+        });
+        
+        setCurrentParams(updatedParams);
+        message.success(t("toolConfig.message.loadLastConfigSuccess"));
+      } else {
+        message.warning(t("toolConfig.message.loadLastConfigNotFound"));
+      }
+    } catch (error) {
+      log.error(t("toolConfig.message.loadLastConfigFailed"), error);
+      message.error(t("toolConfig.message.loadLastConfigFailed"));
+    }
   };
 
   const handleSave = async () => {
@@ -257,26 +288,36 @@ export default function ToolConfigModal({
       title={
         <div className="flex justify-between items-center w-full pr-8">
           <span>{`${tool?.name}`}</span>
-          <Tag
-            color={
-              tool?.source === "mcp"
-                ? "blue"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleLoadLastConfig}
+              className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              {t("toolConfig.message.loadLastConfig")}
+            </button>
+            <Tag
+              color={
+                tool?.source === "mcp"
+                  ? "blue"
+                  : tool?.source === "langchain"
+                  ? "orange"
+                  : "green"
+              }
+            >
+              {tool?.source === "mcp"
+                ? t("toolPool.tag.mcp")
                 : tool?.source === "langchain"
-                ? "orange"
-                : "green"
-            }
-          >
-            {tool?.source === "mcp"
-              ? t("toolPool.tag.mcp")
-              : tool?.source === "langchain"
-              ? t("toolPool.tag.langchain")
-              : t("toolPool.tag.local")}
-          </Tag>
+                ? t("toolPool.tag.langchain")
+                : t("toolPool.tag.local")}
+            </Tag>
+          </div>
         </div>
       }
       open={isOpen}
       onCancel={onCancel}
       onOk={handleSave}
+      okText={t("common.button.save")}
+      cancelText={t("common.button.cancel")}
       width={600}
       confirmLoading={isLoading}
     >

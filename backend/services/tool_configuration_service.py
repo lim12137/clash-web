@@ -19,7 +19,8 @@ from database.tool_db import (
     create_or_update_tool_by_tool_info,
     query_all_tools,
     query_tool_instances_by_id,
-    update_tool_table_from_scan_tool_list
+    update_tool_table_from_scan_tool_list,
+    search_last_tool_instance_by_tool_id
 )
 from database.user_tenant_db import get_all_tenant_ids
 
@@ -414,3 +415,12 @@ async def initialize_tools_on_startup():
     except Exception as e:
         logger.error(f"❌ Tool initialization failed: {str(e)}")
         raise
+
+def load_last_tool_config_impl(tool_id: int, tenant_id: str, user_id: str):
+    """
+    Load the last tool configuration for a given tool ID
+    """
+    tool_instance = search_last_tool_instance_by_tool_id(tool_id, tenant_id, user_id)
+    if tool_instance is None:
+        raise ValueError(f"Tool configuration not found for tool ID: {tool_id}")
+    return tool_instance.get("params", {})
