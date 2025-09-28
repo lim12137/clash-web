@@ -8,7 +8,6 @@ from consts.const import (
     CUSTOM_ICON_URL,
     DEFAULT_APP_DESCRIPTION_EN,
     DEFAULT_APP_DESCRIPTION_ZH,
-    DEFAULT_APP_ICON_URL,
     DEFAULT_APP_NAME_EN,
     DEFAULT_APP_NAME_ZH,
     ICON_TYPE,
@@ -133,8 +132,7 @@ def build_app_config(language: str, tenant_id: str) -> dict:
                                                             tenant_id=tenant_id) or default_app_description,
         "icon": {
             "type": tenant_config_manager.get_app_config(ICON_TYPE, tenant_id=tenant_id) or "preset",
-            "avatarUri": tenant_config_manager.get_app_config(AVATAR_URI,
-                                                              tenant_id=tenant_id) or DEFAULT_APP_ICON_URL,
+            "avatarUri": tenant_config_manager.get_app_config(AVATAR_URI, tenant_id=tenant_id) or "",
             "customUrl": tenant_config_manager.get_app_config(CUSTOM_ICON_URL, tenant_id=tenant_id) or ""
         }
     }
