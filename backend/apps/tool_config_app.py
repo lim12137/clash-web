@@ -10,7 +10,9 @@ from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
 from services.tool_configuration_service import (
     search_tool_info_impl,
     update_tool_info_impl,
-    update_tool_list, list_all_tools,
+    update_tool_list,
+    list_all_tools,
+    load_last_tool_config_impl,
 )
 from utils.auth_utils import get_current_user_id
 
@@ -78,3 +80,21 @@ async def scan_and_update_tool(
         logger.error(f"Failed to update tool: {e}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to update tool")
+
+@router.get("/load_config/{tool_id}")
+async def load_last_tool_config(tool_id: int, authorization: Optional[str] = Header(None)):
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        tool_params = load_last_tool_config_impl(tool_id, tenant_id, user_id)
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={"message": tool_params, "status": "success"}
+        )
+    except ValueError:
+        logger.error(f"Tool configuration not found for tool ID: {tool_id}")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Tool configuration not found")
+    except Exception as e:
+        logger.error(f"Failed to load tool config: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to load tool config")
