@@ -15,7 +15,7 @@ from services.remote_mcp_service import get_remote_mcp_server_list
 from services.memory_config_service import build_memory_context
 from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id_list
 from database.tool_db import search_tools_for_sub_agent
-from database.model_management_db import get_model_records
+from database.model_management_db import get_model_records, get_model_by_model_id
 from utils.model_name_utils import add_repo_to_name
 from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -170,6 +170,11 @@ async def create_agent_config(
     else:
         system_prompt = agent_info.get("prompt", "")
 
+    if agent_info.get("model_id") is not None:
+        model_info = get_model_by_model_id(agent_info.get("model_id"))
+        model_name = model_info["display_name"] if model_info is not None else "main_model"
+    else:
+        model_name = "main_model"
     agent_config = AgentConfig(
         name="undefined" if agent_info["name"] is None else agent_info["name"],
         description="undefined" if agent_info["description"] is None else agent_info["description"],
@@ -180,7 +185,7 @@ async def create_agent_config(
         ),
         tools=tool_list,
         max_steps=agent_info.get("max_steps", 10),
-        model_name=agent_info.get("model_name"),
+        model_name=model_name,
         provide_run_summary=agent_info.get("provide_run_summary", False),
         managed_agents=managed_agents
     )
