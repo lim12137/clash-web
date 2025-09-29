@@ -21,7 +21,6 @@ from services.model_provider_service import (
 from services.model_health_service import embedding_dimension_check
 from utils.model_name_utils import (
     add_repo_to_name,
-    split_display_name,
     split_repo_name,
     sort_models_by_id,
 )
@@ -53,8 +52,10 @@ async def create_model_for_tenant(user_id: str, tenant_id: str, model_data: Dict
         model_data["model_name"] = model_name
 
         if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(
-                model_data.get("model_name", ""))
+            model_data["display_name"] = add_repo_to_name(
+                model_repo=model_data.get("model_repo", ""),
+                model_name=model_data.get("model_name", "")
+            )
 
         # Use NOT_DETECTED status as default
         model_data["connect_status"] = model_data.get(
@@ -150,10 +151,12 @@ async def batch_create_models_for_tenant(user_id: str, tenant_id: str, batch_pay
         for model in model_list:
             _, model_name = split_repo_name(
                 model["id"]) if model.get("id") else ("", "")
-            model_display_name = split_display_name(model.get("id", ""))
+            model_repo, model_name_only = split_repo_name(
+                model.get("id", "")) if model.get("id") else ("", "")
+            model_display_name = add_repo_to_name(model_repo, model_name_only)
             if model_name:
                 existing_model_by_display = get_model_by_display_name(
-                    provider + "/" + model_display_name, tenant_id)
+                    model_display_name, tenant_id)
                 if existing_model_by_display:
                     # Check if max_tokens has changed
                     existing_max_tokens = existing_model_by_display.get(
