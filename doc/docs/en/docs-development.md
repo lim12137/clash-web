@@ -33,7 +33,7 @@ pnpm vitepress dev docs
 
 After successfully start, visit:
 
-- `http://localhost:5173/doc`
+- `http://localhost:5173/doc/`
 
 ## ✍️ Add or Edit Docs
 - Put Chinese docs under `doc/docs/zh` and English docs under `doc/docs/en`.
