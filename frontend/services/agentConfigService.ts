@@ -118,6 +118,7 @@ export const getCreatingSubAgentId = async () => {
         description: data.description,
         enabledToolIds: data.enable_tool_id_list || [],
         modelName: data.model_name,
+        model_id: data.model_id,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
         dutyPrompt: data.duty_prompt,
@@ -277,7 +278,8 @@ export const updateAgent = async (
   dutyPrompt?: string,
   constraintPrompt?: string,
   fewShotsPrompt?: string,
-  displayName?: string
+  displayName?: string,
+  modelId?: number
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -289,6 +291,7 @@ export const updateAgent = async (
         description: description,
         display_name: displayName,
         model_name: modelName,
+        model_id: modelId,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
         enabled: enabled,
@@ -453,6 +456,7 @@ export const searchAgentInfo = async (agentId: number) => {
       display_name: data.display_name,
       description: data.description,
       model: data.model_name,
+      model_id: data.model_id,
       max_step: data.max_steps,
       duty_prompt: data.duty_prompt,
       constraint_prompt: data.constraint_prompt,

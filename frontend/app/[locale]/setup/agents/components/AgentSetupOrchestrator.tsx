@@ -38,6 +38,8 @@ export default function AgentSetupOrchestrator({
   setIsCreatingNewAgent,
   mainAgentModel,
   setMainAgentModel,
+  mainAgentModelId,
+  setMainAgentModelId,
   mainAgentMaxStep,
   setMainAgentMaxStep,
   tools,
@@ -167,6 +169,10 @@ export default function AgentSetupOrchestrator({
         }
         // Update the model
         setMainAgentModel(modelName);
+        // Update the model ID if available
+        if (result.data.model_id) {
+          setMainAgentModelId(result.data.model_id);
+        }
         // Update the maximum number of steps
         if (maxSteps) {
           setMainAgentMaxStep(maxSteps);
@@ -207,6 +213,7 @@ export default function AgentSetupOrchestrator({
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic("");
         setMainAgentModel(null); // Clear model selection when creating new agent
+        setMainAgentModelId(null); // Clear model ID when creating new agent
         fetchSubAgentIdAndEnableToolList(t);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
@@ -217,6 +224,7 @@ export default function AgentSetupOrchestrator({
       if (!isEditingAgent && hasInitialized.current) {
         setBusinessLogic("");
         setMainAgentModel(null);
+        setMainAgentModelId(null);
         setMainAgentMaxStep(5);
         // Delay refreshing agent list to avoid jumping
         setTimeout(() => {
@@ -408,7 +416,8 @@ export default function AgentSetupOrchestrator({
             dutyContent,
             constraintContent,
             fewShotsContent,
-            agentDisplayName
+            agentDisplayName,
+            mainAgentModelId ?? undefined
           );
         } else {
           result = await updateAgent(
@@ -423,7 +432,8 @@ export default function AgentSetupOrchestrator({
             dutyContent,
             constraintContent,
             fewShotsContent,
-            agentDisplayName
+            agentDisplayName,
+            mainAgentModelId ?? undefined
           );
         }
 
@@ -542,6 +552,7 @@ export default function AgentSetupOrchestrator({
 
       // Load Agent data to interface
       setMainAgentModel(agentDetail.model);
+      setMainAgentModelId(agentDetail.model_id);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || "");
 
@@ -584,7 +595,7 @@ export default function AgentSetupOrchestrator({
   };
 
   // Handle the update of the model
-  const handleModelChange = async (value: string) => {
+  const handleModelChange = async (value: string, modelId?: number) => {
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
@@ -592,7 +603,46 @@ export default function AgentSetupOrchestrator({
       message.error(t("businessLogic.config.error.noAgentId"));
       return;
     }
+    
+    // Update local state first
     setMainAgentModel(value);
+    if (modelId !== undefined) {
+      setMainAgentModelId(modelId);
+    }
+
+    // Call updateAgent API to save the model change
+    try {
+      const result = await updateAgent(
+        Number(targetAgentId),
+        undefined, // name
+        undefined, // description
+        value, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        undefined, // dutyPrompt
+        undefined, // constraintPrompt
+        undefined, // fewShotsPrompt
+        undefined, // displayName
+        modelId // modelId
+      );
+
+      if (!result.success) {
+        message.error(
+          result.message || t("businessLogic.config.error.modelUpdateFailed")
+        );
+        // Revert local state on failure
+        setMainAgentModel(mainAgentModel);
+        setMainAgentModelId(mainAgentModelId);
+      }
+    } catch (error) {
+      log.error("Error updating agent model:", error);
+      message.error(t("businessLogic.config.error.modelUpdateFailed"));
+      // Revert local state on failure
+      setMainAgentModel(mainAgentModel);
+      setMainAgentModelId(mainAgentModelId);
+    }
   };
 
   // Handle the update of the maximum number of steps
@@ -607,7 +657,40 @@ export default function AgentSetupOrchestrator({
 
     const newValue = value ?? 5;
 
+    // Update local state first
     setMainAgentMaxStep(newValue);
+
+    // Call updateAgent API to save the max steps change
+    try {
+      const result = await updateAgent(
+        Number(targetAgentId),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        newValue, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        undefined, // dutyPrompt
+        undefined, // constraintPrompt
+        undefined, // fewShotsPrompt
+        undefined, // displayName
+        undefined // modelId
+      );
+
+      if (!result.success) {
+        message.error(
+          result.message || t("businessLogic.config.error.maxStepsUpdateFailed")
+        );
+        // Revert local state on failure
+        setMainAgentMaxStep(mainAgentMaxStep);
+      }
+    } catch (error) {
+      log.error("Error updating agent max steps:", error);
+      message.error(t("businessLogic.config.error.maxStepsUpdateFailed"));
+      // Revert local state on failure
+      setMainAgentMaxStep(mainAgentMaxStep);
+    }
   };
 
   // Handle importing agent
@@ -871,9 +954,10 @@ export default function AgentSetupOrchestrator({
               onAgentDisplayNameChange={setAgentDisplayName}
               isEditingMode={isEditingAgent || isCreatingNewAgent}
               mainAgentModel={mainAgentModel ?? undefined}
+              mainAgentModelId={mainAgentModelId}
               mainAgentMaxStep={mainAgentMaxStep}
-              onModelChange={(value: string) =>
-                handleModelChange(value)
+              onModelChange={(value: string, modelId?: number) =>
+                handleModelChange(value, modelId)
               }
               onMaxStepChange={handleMaxStepChange}
               onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
