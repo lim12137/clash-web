@@ -29,7 +29,7 @@
   "chatInterface.truncationSeparator": "; ",
   "chatInterface.fileParsingFailed": "File parsing failed",
   "chatInterface.fileSizeExceeded": "File size exceeds the limit, please upload smaller files",
-  "chatInterface.filePreprocessingStopped": "File parsing stopped",
+  "chatInterface.fileProcessingStopped": "File parsing stopped",
   "chatInterface.conversationStopped": "Conversation stopped",
   "chatInterface.errorProcessingRequest": "An error occurred while processing the request",
   "chatInterface.errorFetchingConversationList": "Failed to fetch conversation list during initialization:",

@@ -484,12 +484,12 @@ async def test_list_provider_models_for_tenant_exception():
 async def test_update_single_model_for_tenant_success():
     svc = import_svc()
 
-    model = {"model_id": "m1", "display_name": "name"}
+    model = {"model_id": "1", "display_name": "name"}
     with mock.patch.object(svc, "get_model_by_display_name", return_value=None) as mock_get, \
             mock.patch.object(svc, "update_model_record") as mock_update:
         await svc.update_single_model_for_tenant("u1", "t1", model)
         mock_get.assert_called_once_with("name", "t1")
-        mock_update.assert_called_once_with("m1", model, "u1")
+        mock_update.assert_called_once_with(1, model, "u1")
 
 
 async def test_update_single_model_for_tenant_conflict():
@@ -500,6 +500,45 @@ async def test_update_single_model_for_tenant_conflict():
         with pytest.raises(Exception) as exc:
             await svc.update_single_model_for_tenant("u1", "t1", model)
         assert "Failed to update model" in str(exc.value)
+
+
+async def test_update_single_model_for_tenant_same_model_no_conflict():
+    """Test that updating the same model with same display name doesn't raise conflict."""
+    svc = import_svc()
+
+    model = {"model_id": "123", "display_name": "existing_name"}
+    # Return the same model_id (as int) to simulate updating the same model
+    with mock.patch.object(svc, "get_model_by_display_name", return_value={"model_id": 123}) as mock_get, \
+            mock.patch.object(svc, "update_model_record") as mock_update:
+        await svc.update_single_model_for_tenant("u1", "t1", model)
+        mock_get.assert_called_once_with("existing_name", "t1")
+        mock_update.assert_called_once_with(123, model, "u1")
+
+
+async def test_update_single_model_for_tenant_type_conversion():
+    """Test that string model_id is properly converted to int for comparison."""
+    svc = import_svc()
+
+    model = {"model_id": "456", "display_name": "test_name"}
+    # Return the same model_id as int to test type conversion
+    with mock.patch.object(svc, "get_model_by_display_name", return_value={"model_id": 456}) as mock_get, \
+            mock.patch.object(svc, "update_model_record") as mock_update:
+        await svc.update_single_model_for_tenant("u1", "t1", model)
+        mock_get.assert_called_once_with("test_name", "t1")
+        mock_update.assert_called_once_with(456, model, "u1")
+
+
+async def test_update_single_model_for_tenant_different_model_conflict():
+    """Test that updating with a display name used by a different model raises conflict."""
+    svc = import_svc()
+
+    model = {"model_id": "789", "display_name": "conflict_name"}
+    # Return a different model_id to simulate name conflict
+    with mock.patch.object(svc, "get_model_by_display_name", return_value={"model_id": 999}):
+        with pytest.raises(Exception) as exc:
+            await svc.update_single_model_for_tenant("u1", "t1", model)
+        assert "Failed to update model" in str(exc.value)
+        assert "Name conflict_name is already in use" in str(exc.value)
 
 
 async def test_batch_update_models_for_tenant_success():
