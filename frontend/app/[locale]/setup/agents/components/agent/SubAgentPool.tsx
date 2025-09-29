@@ -182,7 +182,7 @@ export default function SubAgentPool({
                     <Tooltip key={agent.id}>
                       <TooltipTrigger asChild>
                         <div
-                          className={`py-2 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
+                          className={`py-3 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 h-[80px] ${
                             isCurrentlyEditing
                               ? "bg-blue-50 border-l-4 border-l-blue-500" // Highlight editing agent, add left vertical line
                               : !isAvailable
@@ -214,7 +214,7 @@ export default function SubAgentPool({
                                   !isAvailable ? "text-gray-500" : ""
                                 }`}
                               >
-                                <span className="flex items-baseline">
+                                <div className="flex items-center">
                                   {agent.display_name && (
                                     <span className="text-base leading-normal">
                                       {agent.display_name}
@@ -229,12 +229,20 @@ export default function SubAgentPool({
                                   >
                                     {agent.name}
                                   </span>
-                                </span>
+                                </div>
                               </div>
                               <div
-                                className={`text-xs line-clamp-2 transition-colors duration-300 ${
+                                className={`text-xs line-clamp-2 transition-colors duration-300 leading-[1.25] overflow-hidden ${
                                   !isAvailable ? "text-gray-400" : "text-gray-500"
                                 }`}
+                                style={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxHeight: '2.5rem'
+                                }}
                               >
                                 {agent.description}
                               </div>
