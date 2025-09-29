@@ -200,11 +200,10 @@ source .env && python backend/main_service.py           # 主服务
 ## 💡 获取帮助
 
 ### 文档资源
-- [安装指南](./installation.md) - 环境搭建和部署
-- [模型提供商](./model-providers.md) - 模型配置和API获取
+- [安装部署](./installation.md) - 环境搭建和部署
 - [常见问题](./faq) - 常见问题解答
+- [用户指南](../user-guide/) - Nexent使用指南
 
 ### 社区支持
 - [Discord 社区](https://discord.gg/tb5H3S3wyv) - 实时交流和支持
 - [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) - 问题报告和功能请求
-- [贡献指南](../contributing.md) - 参与项目开发

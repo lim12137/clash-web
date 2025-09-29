@@ -1,4 +1,4 @@
-# 安装与配置
+# 安装部署
 
 ## 🎯 系统要求
 
@@ -16,22 +16,29 @@
 ```bash
 git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
-cp .env.example .env # 配置环境变量
+cp .env.example .env # 复制环境变量配置文件
 ```
+
+> **💡 提示**: 若无特殊需求，您可直接使用 `.env.example` 进行部署，无需进行任何修改。若您需要配置语音模型（STT/TTS），则需要在 `.env` 中配置相关参数。我们会尽快将此部分配置前端化，敬请期待。
 
 ### 2. 部署选项
 
-部署脚本提供多种模式：
+运行以下命令开始部署：
 
 ```bash
 bash deploy.sh
 ```
 
-**可用部署模式:**
+执行此命令后，系统会提供两个不同的版本供您选择：
+
+**版本选择:**
+- **Speed version（轻量快速部署，默认）**: 快速启动核心功能，适合个人用户和小团队使用
+- **Full version（完整功能版）**: 提供企业级租户管理和资源隔离等高级功能，但安装时间略长，适合企业用户
+
+**部署模式:**
 - **开发模式 (默认)**: 暴露所有服务端口以便调试
 - **基础设施模式**: 仅启动基础设施服务
 - **生产模式**: 为安全起见仅暴露端口 3000
-- **测试模式**: 使用开发分支镜像
 
 **可选组件:**
 - **终端工具**: 启用 openssh-server 供 AI 智能体执行 shell 命令
@@ -41,45 +48,12 @@ bash deploy.sh
 
 部署成功完成后：
 1. 在浏览器中打开 **http://localhost:3000**
-2. 按照设置向导进行初始配置
-3. 配置您的模型提供商（参见 [模型提供商指南](./model-providers)）
+2. 参考 [用户指南](../user-guide/) 进行智能体的开发
 
-## 🤖 模型配置
 
-Nexent 支持所有 **OpenAI 兼容的模型**，包括：
-- **大语言模型 (LLM)**: 任何 OpenAI 兼容的 API 提供商
-- **多模态视觉模型**: 文本 + 图像处理能力
-- **嵌入模型**: 所有 OpenAI 兼容的嵌入服务
-- **文本转语音和语音转文本**: 多提供商支持
-- **搜索集成**: 网络搜索和语义检索
+## 📦 服务架构
 
-### 快速提供商设置
-
-有关详细设置说明和 API 密钥获取，请参阅我们的 **[模型提供商指南](./model-providers)**。
-
-**快速开始推荐**:
-- **LLM**: [硅基流动](https://siliconflow.cn/) (有免费额度)
-- **嵌入**: [Jina AI](https://jina.ai/) (有免费额度)
-- **搜索**: [EXA](https://exa.ai/) (有免费额度)
-
-### 配置方法
-
-**方法一：Web 界面**
-1. 访问 `http://localhost:3000` 的模型配置
-2. 添加提供商详细信息：Base URL、API Key、Model Name
-
-**方法二：环境变量**
-添加到您的 `.env` 文件：
-```bash
-LLM_BASE_URL=https://api.siliconflow.cn/v1
-LLM_API_KEY=your_api_key
-EMBEDDING_API_KEY=your_jina_key
-EXA_API_KEY=your_exa_key
-```
-
-## 🏗️ 服务架构
-
-部署包含以下组件：
+Nexent 采用微服务架构，包含以下核心服务：
 
 **核心服务:**
 - `nexent`: 后端服务 (端口 5010)
@@ -115,7 +89,7 @@ EXA_API_KEY=your_exa_key
 
 - 浏览 [常见问题](./faq) 了解常见安装问题
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 提问
-- 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 提交错误报告或功能建议
+- 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中提交错误报告或功能建议
 
 ## 🔧 从源码构建
 

@@ -28,23 +28,7 @@ If our vision speaks to you, jump in via the **[Contribution Guide](../contribut
 
 Early contributors won't go unnoticed: from special badges and swag to other tangible rewards, we're committed to thanking the pioneers who help bring Nexent to life.
 
-Most of all, we need visibility. Star ⭐ and watch the repo, share it with friends, and help more developers discover Nexent — your click brings new hands to the project and keeps the momentum growing.
-
-## ⚡ Quick Start
-
-Ready to get started? Here are your next steps:
-
-1. **📋 [Installation & Setup](./installation)** - System requirements and deployment guide
-2. **🔧 [Development Guide](./development-guide)** - Build from source and customize
-3. **❓ [FAQ](./faq)** - Common questions and troubleshooting
-
-## 🌱 MCP Tool Ecosystem
-
-Nexent is built on the Model Context Protocol (MCP) tool ecosystem, providing a flexible and extensible framework for integrating various tools and services. MCP serves as the "USB-C of AI" - a universal interface standard that allows AI agents to seamlessly connect with external data sources, tools, and services.
-
-Learn more about the MCP ecosystem:
-- **[MCP Overview](../mcp-ecosystem/overview)** - Understanding the MCP ecosystem and tools
-- **[Use Cases & Scenarios](../mcp-ecosystem/use-cases)** - Real-world agent scenarios and implementations
+Most of all, we need visibility. Star ⭐ and watch the [GitHub repository](https://github.com/ModelEngine-Group/nexent), share it with friends, and help more developers discover Nexent — your click brings new hands to the project and keeps the momentum growing.
 
 ## ✨ Key Features
 
@@ -59,6 +43,36 @@ Nexent offers a comprehensive set of features for building powerful AI agents:
 - **🔧 MCP Ecosystem** - Extensible tool integration and custom development
 
 For detailed feature information and examples, see our **[Features Guide](./features)**.
+
+## 🏗️ Software Architecture
+
+Nexent adopts a modern distributed microservices architecture designed to provide high-performance, scalable AI agent platform. The entire system is based on containerized deployment, supporting cloud-native and enterprise-grade application scenarios.
+
+### 🌐 Layered Architecture Design
+- **Frontend Layer** - Modern user interface built with Next.js + React + TypeScript
+- **API Gateway Layer** - FastAPI high-performance web framework for request routing and load balancing
+- **Business Logic Layer** - Agent management, conversation management, knowledge base management, and model management
+- **Data Layer** - Distributed storage architecture with PostgreSQL, Elasticsearch, Redis, and MinIO
+
+### 🚀 Core Service Architecture
+- **Agent Services** - Agent generation and execution based on SmolAgents framework
+- **Data Processing Services** - Real-time and batch processing supporting 20+ file formats
+- **MCP Ecosystem** - Standardized tool interfaces and plugin architecture
+
+### ⚡ Distributed Features
+- **Asynchronous Processing** - High-performance async processing architecture based on asyncio
+- **Microservices Design** - Service decoupling with independent scaling and deployment
+- **Containerized Deployment** - Docker Compose service orchestration supporting cloud-native deployment
+
+For detailed architectural design and technical implementation, see our **[Software Architecture](./software-architecture)**.
+
+## ⚡ Quick Start
+
+Ready to get started? Here are your next steps:
+
+1. **📋 [Installation & Deployment](./installation)** - System requirements and deployment guide
+2. **🔧 [Development Guide](./development-guide)** - Build from source and customize
+3. **❓ [FAQ](./faq)** - Common questions and troubleshooting
 
 ## 💬 Community & contact
 
