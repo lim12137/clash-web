@@ -694,6 +694,199 @@ async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info, mock_
         mock_search_agent_info.assert_called_once_with(123, "test_tenant")
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_sub_agent_error(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with an error in retrieving sub agent id list.
+
+    This test verifies that:
+    1. The function correctly gets the agent information
+    2. When an error occurs retrieving sub agent id list
+    3. The function returns the agent information with an empty sub_agent_id_list
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": None,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    # Mock query_sub_agents_id_list to raise an exception
+    mock_query_sub_agents_id.side_effect = Exception("Sub agent query error")
+    mock_get_model_by_model_id.return_value = None
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    assert result["agent_id"] == 123
+    assert result["tools"] == mock_tools
+    assert result["sub_agent_id_list"] == []
+    assert result["model_name"] is None
+    mock_search_agent_info.assert_called_once_with(123, "test_tenant")
+    mock_search_tools.assert_called_once_with(
+        agent_id=123, tenant_id="test_tenant")
+    mock_query_sub_agents_id.assert_called_once_with(
+        main_agent_id=123, tenant_id="test_tenant")
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_success(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with a valid model_id.
+
+    This test verifies that:
+    1. The function correctly retrieves model information when model_id is not None
+    2. It sets model_name from the model's display_name
+    3. It handles the case when model_info is None
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock model info with display_name
+    mock_model_info = {
+        "model_id": 456,
+        "display_name": "GPT-4",
+        "provider": "openai"
+    }
+    mock_get_model_by_model_id.return_value = mock_model_info
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": "GPT-4"
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_no_display_name(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with model_id but model has no display_name.
+
+    This test verifies that:
+    1. The function correctly retrieves model information when model_id is not None
+    2. It sets model_name to None when model_info exists but has no display_name
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock model info without display_name
+    mock_model_info = {
+        "model_id": 456,
+        "provider": "openai"
+        # No display_name field
+    }
+    mock_get_model_by_model_id.return_value = mock_model_info
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": None
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_none_model_info(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with model_id but get_model_by_model_id returns None.
+
+    This test verifies that:
+    1. The function correctly handles when model_id is not None but get_model_by_model_id returns None
+    2. It sets model_name to None when model_info is None
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock get_model_by_model_id to return None
+    mock_get_model_by_model_id.return_value = None
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": None
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
+
+
 async def test_list_all_agent_info_impl_success():
     """
     Test successful retrieval of all agent information.
