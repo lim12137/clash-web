@@ -269,6 +269,7 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
         main_agent_id=123, tenant_id="test_tenant")
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
 @patch('backend.services.agent_service.query_sub_agents_id_list')
 @patch('backend.services.agent_service.get_enable_tool_id_by_agent_id')
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
@@ -277,7 +278,7 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
 @pytest.mark.asyncio
 async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_info, mock_get_creating_sub_agent,
                                                         mock_search_agent_info, mock_get_enable_tools,
-                                                        mock_query_sub_agents_id):
+                                                        mock_query_sub_agents_id, mock_get_model_by_model_id):
     """
     Test successful retrieval of creating sub-agent information.
 
@@ -292,11 +293,11 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "test_user", "test_tenant", "en")
     mock_get_creating_sub_agent.return_value = 456
     mock_search_agent_info.return_value = {
-        "model_id": 456,
+        "model_id": None,
+        "model_name": "test_model",
         "name": "agent_name",
         "display_name": "display name",
         "description": "description...",
-        "model_id": None,
         "max_steps": 5,
         "business_description": "Sub agent",
         "duty_prompt": "Sub duty prompt",
@@ -305,6 +306,9 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
     }
     mock_get_enable_tools.return_value = [1, 2]
     mock_query_sub_agents_id.return_value = [789]
+    
+    # Mock get_model_by_model_id - return None for model_id=None
+    mock_get_model_by_model_id.return_value = None
 
     # Execute
     # Ensure the sub agent id remains as initially configured (456)
@@ -318,6 +322,7 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "display_name": "display name",
         "description": "description...",
         "enable_tool_id_list": [1, 2],
+        "model_name": "test_model",
         "model_id": None,
         "max_steps": 5,
         "business_description": "Sub agent",
