@@ -329,7 +329,7 @@ async def test_create_model_for_tenant_conflict_raises():
 
 
 @pytest.mark.asyncio
-async def test_create_model_for_tenant_multi_embedding_creates_three_records():
+async def test_create_model_for_tenant_multi_embedding_creates_two_records():
     svc = import_svc()
 
     with mock.patch.object(svc, "get_model_by_display_name", return_value=None), \
@@ -346,8 +346,8 @@ async def test_create_model_for_tenant_multi_embedding_creates_three_records():
         }
 
         await svc.create_model_for_tenant(user_id, tenant_id, model_data)
-        # Per current implementation, it creates multi_embedding, embedding variant, and then one more general create
-        assert mock_create.call_count == 3
+        # Should create two records: multi_embedding and its embedding variant
+        assert mock_create.call_count == 2
 
 
 @pytest.mark.asyncio
