@@ -29,7 +29,7 @@
   "chatInterface.truncationSeparator": "；",
   "chatInterface.fileParsingFailed": "文件解析失败",
   "chatInterface.fileSizeExceeded": "文件大小超出限制，请上传更小的文件",
-  "chatInterface.filePreprocessingStopped": "文件解析已停止",
+  "chatInterface.fileProcessingStopped": "文件解析已停止",
   "chatInterface.conversationStopped": "对话已停止",
   "chatInterface.errorProcessingRequest": "处理请求时发生错误",
   "chatInterface.errorFetchingConversationList": "初始化时获取对话列表失败:",

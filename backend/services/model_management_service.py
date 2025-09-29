@@ -195,13 +195,15 @@ async def list_provider_models_for_tenant(tenant_id: str, provider: str, model_t
 async def update_single_model_for_tenant(user_id: str, tenant_id: str, model_data: Dict[str, Any]):
     """Update a single model by its model_id, ensuring display_name uniqueness."""
     try:
-        existing_model_by_display = get_model_by_display_name(
-            model_data["display_name"], tenant_id)
-        if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
+        existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
+        current_model_id = int(model_data["model_id"])
+        existing_model_id = existing_model_by_display["model_id"] if existing_model_by_display else None
+        
+        if existing_model_by_display and existing_model_id != current_model_id:
             raise ValueError(
                 f"Name {model_data['display_name']} is already in use, please choose another display name")
 
-        update_model_record(model_data["model_id"], model_data, user_id)
+        update_model_record(current_model_id, model_data, user_id)
         logging.debug(
             f"Model {model_data['display_name']} updated successfully")
     except Exception as e:

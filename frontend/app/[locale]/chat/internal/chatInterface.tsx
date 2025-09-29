@@ -1402,7 +1402,7 @@ export function ChatInterface() {
             );
             if (preprocessStep) {
               const stoppedMessage =
-                (t("chatInterface.filePreprocessingStopped") as string) ||
+                (t("chatInterface.fileProcessingStopped") as string) ||
                 "File preprocessing stopped";
               preprocessStep.content = stoppedMessage;
               if (
