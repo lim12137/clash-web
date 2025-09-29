@@ -35,18 +35,14 @@ export default defineConfig({
             text: "Getting Started",
             items: [
               { text: "Overview", link: "/en/getting-started/overview" },
-              {
-                text: "Installation & Setup",
-                link: "/en/getting-started/installation",
-              },
-              {
-                text: "Model Providers",
-                link: "/en/getting-started/model-providers",
-              },
               { text: "Key Features", link: "/en/getting-started/features" },
               {
                 text: "Software Architecture",
                 link: "/en/getting-started/software-architecture",
+              },
+              {
+                text: "Installation & Deployment",
+                link: "/en/getting-started/installation",
               },
               {
                 text: "Development Guide",
@@ -217,16 +213,12 @@ export default defineConfig({
             text: "快速开始",
             items: [
               { text: "项目概览", link: "/zh/getting-started/overview" },
-              { text: "安装与配置", link: "/zh/getting-started/installation" },
-              {
-                text: "模型提供商",
-                link: "/zh/getting-started/model-providers",
-              },
               { text: "核心特性", link: "/zh/getting-started/features" },
               {
                 text: "软件架构",
                 link: "/zh/getting-started/software-architecture",
               },
+              { text: "安装部署", link: "/zh/getting-started/installation" },
               {
                 text: "开发指南",
                 link: "/zh/getting-started/development-guide",
