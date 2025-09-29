@@ -172,7 +172,7 @@ async def test_get_models_exception():
 async def test_prepare_model_dict_llm():
     """LLM models should not trigger embedding_dimension_check and keep base_url untouched."""
     with mock.patch("backend.services.model_provider_service.split_repo_name", return_value=("openai", "gpt-4")) as mock_split_repo, \
-         mock.patch("backend.services.model_provider_service.split_display_name", return_value="gpt-4") as mock_split_display, \
+        mock.patch("backend.services.model_provider_service.add_repo_to_name", return_value="openai/gpt-4") as mock_add_repo_to_name, \
          mock.patch("backend.services.model_provider_service.ModelRequest") as mock_model_request, \
          mock.patch("backend.services.model_provider_service.embedding_dimension_check", new_callable=mock.AsyncMock) as mock_emb_dim_check, \
          mock.patch("backend.services.model_provider_service.ModelConnectStatusEnum") as mock_enum:
@@ -199,7 +199,7 @@ async def test_prepare_model_dict_llm():
         result = await prepare_model_dict(provider, model, base_url, api_key)
 
         mock_split_repo.assert_called_once_with("openai/gpt-4")
-        mock_split_display.assert_called_once_with("openai/gpt-4")
+        mock_add_repo_to_name.assert_called_once_with("openai", "gpt-4")
         mock_model_request.assert_called_once_with(
             model_factory="openai",
             model_name="gpt-4",
@@ -222,7 +222,7 @@ async def test_prepare_model_dict_llm():
 async def test_prepare_model_dict_embedding():
     """Embedding models should call embedding_dimension_check and adjust base_url & max_tokens."""
     with mock.patch("backend.services.model_provider_service.split_repo_name", return_value=("openai", "text-embedding-ada-002")) as mock_split_repo, \
-         mock.patch("backend.services.model_provider_service.split_display_name", return_value="text-embedding-ada-002") as mock_split_display, \
+        mock.patch("backend.services.model_provider_service.add_repo_to_name", return_value="openai/text-embedding-ada-002") as mock_add_repo_to_name, \
          mock.patch("backend.services.model_provider_service.ModelRequest") as mock_model_request, \
          mock.patch("backend.services.model_provider_service.embedding_dimension_check", new_callable=mock.AsyncMock, return_value=1536) as mock_emb_dim_check, \
          mock.patch("backend.services.model_provider_service.ModelConnectStatusEnum") as mock_enum:
@@ -248,7 +248,8 @@ async def test_prepare_model_dict_embedding():
         result = await prepare_model_dict(provider, model, base_url, api_key)
 
         mock_split_repo.assert_called_once_with("openai/text-embedding-ada-002")
-        mock_split_display.assert_called_once_with("openai/text-embedding-ada-002")
+        mock_add_repo_to_name.assert_called_once_with(
+            "openai", "text-embedding-ada-002")
         mock_model_request.assert_called_once_with(
             model_factory="openai",
             model_name="text-embedding-ada-002",

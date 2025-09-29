@@ -9,7 +9,7 @@ from consts.model import ModelConnectStatusEnum, ModelRequest
 from consts.provider import SILICON_GET_URL, ProviderEnum
 from database.model_management_db import get_models_by_tenant_factory_type
 from services.model_health_service import embedding_dimension_check
-from utils.model_name_utils import split_repo_name, split_display_name
+from utils.model_name_utils import split_repo_name, add_repo_to_name
 
 logger = logging.getLogger("model_provider_service")
 
@@ -83,7 +83,7 @@ async def prepare_model_dict(provider: str, model: dict, model_url: str, model_a
 
     # Split repo/name once so it can be reused multiple times.
     model_repo, model_name = split_repo_name(model["id"])
-    model_display_name = split_display_name(model["id"])
+    model_display_name = add_repo_to_name(model_repo, model_name)
 
     # Build the canonical representation using the existing Pydantic schema for
     # consistency of validation and default handling.
@@ -93,7 +93,7 @@ async def prepare_model_dict(provider: str, model: dict, model_url: str, model_a
         model_type=model["model_type"],
         api_key=model_api_key,
         max_tokens=model["max_tokens"],
-        display_name=f"{provider}/{model_display_name}"
+        display_name=model_display_name
     )
 
     model_dict = model_obj.model_dump()

@@ -303,7 +303,8 @@ async def test_create_model_for_tenant_success_llm():
 
         await svc.create_model_for_tenant(user_id, tenant_id, model_data)
 
-        mock_get_by_display.assert_called_once_with("llama", tenant_id)
+        mock_get_by_display.assert_called_once_with(
+            "huggingface/llama", tenant_id)
         # create_model_record called once for non-multimodal
         assert mock_create.call_count == 1
 
