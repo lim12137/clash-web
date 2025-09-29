@@ -1,4 +1,4 @@
-# Installation & Setup
+# Installation & Deployment
 
 ## 🎯 Prerequisites
 
@@ -19,21 +19,28 @@ cd nexent/docker
 cp .env.example .env # Configure environment variables
 ```
 
+> **💡 Tip**: If there are no special requirements, you can directly use `.env.example` for deployment without making any changes. If you need to configure voice models (STT/TTS), you will need to set the relevant parameters in `.env`. We will work on making this configuration available through the frontend soon—stay tuned.
+
 ### 2. Deployment Options
 
-The deployment script offers multiple modes:
+Run the following command to start deployment:
 
 ```bash
 bash deploy.sh
 ```
 
-**Available deployment modes:**
+After executing this command, the system will provide two different versions for you to choose from:
+
+**Version Selection:**
+- **Speed version (Lightweight & Fast Deployment, Default)**: Quick startup of core features, suitable for individual users and small teams
+- **Full version (Complete Feature Edition)**: Provides enterprise-level tenant management and resource isolation features, but takes longer to install, suitable for enterprise users
+
+**Deployment Modes:**
 - **Development mode (default)**: Exposes all service ports for debugging
 - **Infrastructure mode**: Only starts infrastructure services
 - **Production mode**: Only exposes port 3000 for security
-- **Beta mode**: Uses development branch images
 
-**Optional components:**
+**Optional Components:**
 - **Terminal Tool**: Enables openssh-server for AI agent shell command execution
 - **Regional optimization**: Mainland China users can use optimized image sources
 
@@ -41,45 +48,12 @@ bash deploy.sh
 
 When deployment completes successfully:
 1. Open **http://localhost:3000** in your browser
-2. Follow the setup wizard for initial configuration
-3. Configure your model providers (see [Model Providers Guide](./model-providers))
+2. Refer to the [User Guide](../user-guide/) to develop agents
 
-## 🤖 Model Configuration
-
-Nexent supports all **OpenAI-compatible models**, including:
-- **Large Language Models (LLM)**: Any OpenAI-compatible API provider
-- **Multimodal Vision Models**: Text + image processing capabilities  
-- **Embedding Models**: All OpenAI-compatible embedding services
-- **Text-to-Speech & Speech-to-Text**: Multiple provider support
-- **Search Integration**: Web search and semantic retrieval
-
-### Quick Provider Setup
-
-For detailed setup instructions and API key acquisition, see our **[Model Providers Guide](./model-providers)**.
-
-**Recommended for Quick Start**:
-- **LLM**: [Silicon Flow](https://siliconflow.cn/) (Free tier available)
-- **Embedding**: [Jina AI](https://jina.ai/) (Free tier available)
-- **Search**: [EXA](https://exa.ai/) (Free tier available)
-
-### Configuration Methods
-
-**Method 1: Web Interface**
-1. Access model configuration at `http://localhost:3000`
-2. Add provider details: Base URL, API Key, Model Name
-
-**Method 2: Environment Variables**
-Add to your `.env` file:
-```bash
-LLM_BASE_URL=https://api.siliconflow.cn/v1
-LLM_API_KEY=your_api_key
-EMBEDDING_API_KEY=your_jina_key
-EXA_API_KEY=your_exa_key
-```
 
 ## 🏗️ Service Architecture
 
-The deployment includes the following components:
+Nexent uses a microservices architecture with the following core services:
 
 **Core Services:**
 - `nexent`: Backend service (port 5010)

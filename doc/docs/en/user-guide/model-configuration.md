@@ -50,7 +50,7 @@ To improve import efficiency, Nexent provides a batch model import feature.
   <img src="./assets/model/add-model-batch.png" style="width: 50%; height: auto;" />
 </div>
 
-🔧 Edit Custom Models
+## 🔧 Edit Custom Models
 
 When you need to edit model configurations or delete models you no longer use, follow these steps:
 
@@ -75,7 +75,6 @@ When you need to edit model configurations or delete models you no longer use, f
   <img src="./assets/model/edit-model-6.png" style="width: 50%; height: 80%;" />
 </div>
 
-
 ## ⚙️ Configure System Models
 
 After adding models, you need to configure the system base model, which will be used for basic functions such as title generation and real-time file reading. When agents are running, you can specify specific models for each agent.
@@ -94,6 +93,20 @@ When creating and configuring agents, you can specify specific models for each a
 - Each agent can independently select the large language model to use
 - Support configuring different models for different agents to meet various business needs
 - Agent model configuration will be set in the agent configuration page
+
+### Vector Model
+Vector models are primarily used for vectorizing text, images, and other data in knowledge bases, serving as the foundation for efficient retrieval and semantic understanding. Configuring appropriate vector models can significantly improve knowledge base search accuracy and multimodal data processing capabilities.
+- Click the vector model dropdown to select from the added vector models.
+
+### Multimodal Model
+Multimodal models combine visual and language capabilities, enabling handling of complex scenarios involving text, images, and other information types. For example, when uploading image files in the chat interface, the system automatically calls multimodal models for content analysis and intelligent conversation.
+- Click the vision language model dropdown to select from the added vision language models.
+
+<div style="display: flex; gap: 8px;">
+  <img src="./assets/model/select-model-1.png" style="width: 30%; height: 100%;" />
+  <img src="./assets/model/select-model-2.png" style="width: 30%; height: 100%;" />
+  <img src="./assets/model/select-model-3.png" style="width: 30%; height: 100%;" />
+</div>
 
 ## ✅ Check Model Connectivity
 
@@ -114,7 +127,52 @@ Regularly checking model connectivity is important for stable system operation. 
 - Confirm the service status of the model provider
 - Check firewall and security policy settings
 
-For detailed configuration information about model providers, please refer to our **[Model Provider Guide](../getting-started/model-providers)**.
+## 🤖 Supported Model Providers
+
+### 🤖 Large Language Models (LLM)
+Nexent supports any **OpenAI API-compatible** large language model provider, including:
+- [SiliconFlow](https://siliconflow.cn/)
+- [Ali Bailian](https://bailian.console.aliyun.com/)
+- [TokenPony](https://www.tokenpony.cn/)
+- [DeepSeek](https://platform.deepseek.com/)
+- [OpenAI](https://platform.openai.com/)
+- [Anthropic](https://console.anthropic.com/)
+- [Moonshot](https://platform.moonshot.cn/)
+
+You can follow these steps to integrate models:
+1. Visit the model provider's official website and register an account;
+2. Create and copy the API Key;
+3. Check the API endpoint in the documentation (i.e., model URL, usually ending with `/v1`);
+4. Click "Add Custom Model" in the Nexent model configuration page, fill in the required information, and you're ready to go.
+
+### 🎭 Multimodal Vision Models
+
+Use the same API Key and model URL as large language models, but specify multimodal model names, such as **Qwen/Qwen2.5-VL-32B-Instruct** provided by SiliconFlow.
+
+### 🔤 Vector Models
+
+Use the same API Key as large language models, but the model URL is usually different, typically ending with `/v1/embeddings`, and specify vector model names, such as **BAAI/bge-m3** provided by SiliconFlow.
+
+### 🎤 Speech Models
+
+Currently only supports VolcEngine Voice, and needs to be configured in `.env`
+- **Website**: [volcengine.com/product/voice-tech](https://www.volcengine.com/product/voice-tech)
+- **Free Tier**: Available for personal use
+- **Features**: High-quality Chinese and English speech synthesis
+
+**Getting Started**:
+1. Register a VolcEngine account
+2. Access Voice Technology services
+3. Create an application and get API Key
+4. Configure TTS/STT settings in environment
+
+## 💡 Need Help
+
+If you encounter issues with model providers:
+1. Check provider-specific documentation
+2. Verify API key permissions and quotas
+3. Test with provider's official examples
+4. Join our [Discord community](https://discord.gg/tb5H3S3wyv) for support
 
 ## 🚀 Next Steps
 

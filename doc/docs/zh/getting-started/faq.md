@@ -1,10 +1,6 @@
 # Nexent 常见问题
 
-本常见问题解答主要针对安装和部署 Nexent 过程中可能遇到的问题。如需了解基本安装步骤，请参考我们文档中的[快速开始指南](./overview#quick-start)。
-
-## 🚀 安装与设置
-
-有关模型提供商设置和 API 密钥获取，请参阅我们的详细 **[模型提供商指南](./model-providers)**。
+本常见问题解答主要针对安装和使用 Nexent 过程中可能遇到的问题。如需了解基本安装步骤，请参考[安装部署](./installation)。如需了解基本使用指导，请参考[用户指南](../user-guide/)。
 
 ## 🚫 常见错误与运维方式
 
@@ -47,19 +43,10 @@
     3. **模型名称**: 确认模型标识符正确
     4. **网络访问**: 确保您的部署可以访问提供商的服务器
     
-    有关特定提供商设置，请参阅我们的 [模型提供商指南](./model-providers)。
-
-### 📧 邮件工具配置
-- **Q: 如何启用和配置邮件工具？**
-  - A: 我们团队已经预制实现了基于 IMAP 和 SMTP 的邮件工具。要启用它们：
-    1. 在 `.env` 文件中配置邮件参数
-    2. 在 `agent_utils.py` 中取消邮件工具相关的注释
-    3. 切换到支持邮件的系统提示词 `code_agent_with_email.yaml`
-    4. 重启 MCP 服务使更改生效
+    关于如何配置模型，请参阅用户指南中的 [模型配置](../user-guide/model-configuration)。
 
 ## 💡 需要帮助
 
 如果这里没有找到您的问题答案：
 - 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 获取实时支持
 - 查看我们的 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 寻找类似问题
-- 参考我们的[贡献指南](../contributing)获取更详细的信息 
