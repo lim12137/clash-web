@@ -201,10 +201,9 @@ For detailed build instructions, see [Docker Build Guide](../deployment/docker-b
 
 ### Documentation Resources
 - [Installation Guide](./installation.md) - Environment setup and deployment
-- [Model Providers](./model-providers.md) - Model configuration and API acquisition
 - [FAQ](./faq) - Frequently asked questions
+- [User Guide](../user-guide/) - Nexent user guide
 
 ### Community Support
 - [Discord Community](https://discord.gg/tb5H3S3wyv) - Real-time communication and support
 - [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) - Issue reporting and feature requests
-- [Contributing Guide](../contributing.md) - Participate in project development

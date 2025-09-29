@@ -15,7 +15,7 @@ On the Nexent homepage, you’ll see two main action buttons:
 
 ![Homepage](./assets/app/homepage.png)
 
-Additionally, you can switch languages (Simplified Chinese or English) in the upper right corner of the page as needed.
+Additionally, you can switch languages (Simplified Chinese or English) in the upper right corner of the page as needed. The current Nexent version number is displayed in the lower-left corner of the page, which can help you seek assistance when you encounter problems.
 
 ## 💡 Next Steps
 
