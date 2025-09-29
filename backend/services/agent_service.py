@@ -37,6 +37,7 @@ from database.agent_db import (
     search_blank_sub_agent_by_main_agent_id,
     update_agent
 )
+from database.model_management_db import get_model_by_model_id
 from database.remote_mcp_db import check_mcp_name_exists, get_mcp_server_by_name_and_tenant
 from database.tool_db import (
     check_tool_is_available,
@@ -229,6 +230,12 @@ async def get_agent_info_impl(agent_id: int, tenant_id: str):
         logger.error(f"Failed to get sub agent id list: {str(e)}")
         agent_info["sub_agent_id_list"] = []
 
+    if agent_info["model_id"] is not None:
+        model_info = get_model_by_model_id(agent_info["model_id"])
+        agent_info["model_name"] = model_info.get("display_name", None) if model_info is not None else None
+    else:
+        agent_info["model_name"] = None
+
     return agent_info
 
 
@@ -262,6 +269,7 @@ async def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
             "description": agent_info.get("description"),
             "enable_tool_id_list": enable_tool_id_list,
             "model_name": agent_info["model_name"],
+            "model_id": agent_info.get("model_id"),
             "max_steps": agent_info["max_steps"],
             "business_description": agent_info["business_description"],
             "duty_prompt": agent_info.get("duty_prompt"),
@@ -419,7 +427,6 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str) 
                                           display_name=agent_info["display_name"],
                                           description=agent_info["description"],
                                           business_description=agent_info["business_description"],
-                                          model_name=agent_info["model_name"],
                                           max_steps=agent_info["max_steps"],
                                           provide_run_summary=agent_info["provide_run_summary"],
                                           duty_prompt=agent_info.get(
@@ -545,9 +552,6 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
                                                  enabled=True,
                                                  params=tool.params))
     # check the validity of the agent parameters
-    if import_agent_info.model_name not in ["main_model", "sub_model"]:
-        raise ValueError(
-            f"Invalid model name: {import_agent_info.model_name}. model name must be 'main_model' or 'sub_model'.")
     if import_agent_info.max_steps <= 0 or import_agent_info.max_steps > 20:
         raise ValueError(
             f"Invalid max steps: {import_agent_info.max_steps}. max steps must be greater than 0 and less than 20.")
@@ -559,7 +563,7 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
                                          "display_name": import_agent_info.display_name,
                                          "description": import_agent_info.description,
                                          "business_description": import_agent_info.business_description,
-                                         "model_name": import_agent_info.model_name,
+                                         "model_id": None,
                                          "max_steps": import_agent_info.max_steps,
                                          "provide_run_summary": import_agent_info.provide_run_summary,
                                          "duty_prompt": import_agent_info.duty_prompt,

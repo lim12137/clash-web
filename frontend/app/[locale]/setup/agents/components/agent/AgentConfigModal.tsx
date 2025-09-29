@@ -39,8 +39,9 @@ export interface AgentConfigModalProps {
   onAgentDisplayNameChange?: (displayName: string) => void;
   isEditingMode?: boolean;
   mainAgentModel?: string;
+  mainAgentModelId?: number | null;
   mainAgentMaxStep?: number;
-  onModelChange?: (value: string) => void;
+  onModelChange?: (value: string, modelId?: number) => void;
   onMaxStepChange?: (value: number | null) => void;
   onSavePrompt?: () => void;
   onExpandCard?: (index: number) => void;
@@ -73,6 +74,7 @@ export default function AgentConfigModal({
   onAgentDisplayNameChange,
   isEditingMode = false,
   mainAgentModel = "",
+  mainAgentModelId = null,
   mainAgentMaxStep = 5,
   onModelChange,
   onMaxStepChange,
@@ -454,7 +456,10 @@ export default function AgentConfigModal({
         </label>
         <Select
           value={mainAgentModel || undefined}
-          onChange={(value) => onModelChange?.(value)}
+          onChange={(value, option) => {
+            const modelId = option && 'key' in option ? Number(option.key) : undefined;
+            onModelChange?.(value, modelId);
+          }}
           size="large"
           disabled={!isEditingMode}
           style={{ width: "100%" }}
@@ -512,7 +517,6 @@ export default function AgentConfigModal({
             maxHeight: "200px",
             boxShadow: "none",
           }}
-          bordered={false}
         />
       </div>
     </div>

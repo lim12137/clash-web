@@ -186,6 +186,7 @@ export interface PromptManagerProps {
   agentDescription?: string;
   agentDisplayName?: string;
   mainAgentModel?: string;
+  mainAgentModelId?: number | null;
   mainAgentMaxStep?: number;
 
   // Edit state
@@ -202,7 +203,7 @@ export interface PromptManagerProps {
   onAgentNameChange?: (name: string) => void;
   onAgentDescriptionChange?: (description: string) => void;
   onAgentDisplayNameChange?: (displayName: string) => void;
-  onModelChange?: (value: string) => void;
+  onModelChange?: (value: string, modelId?: number) => void;
   onMaxStepChange?: (value: number | null) => void;
   onGenerateAgent?: (model: ModelOption) => void;
   onSaveAgent?: () => void;
@@ -230,6 +231,7 @@ export default function PromptManager({
   agentDescription = "",
   agentDisplayName = "",
   mainAgentModel = "",
+  mainAgentModelId = null,
   mainAgentMaxStep = 5,
   isEditingMode = false,
   isGeneratingAgent = false,
@@ -354,7 +356,8 @@ export default function PromptManager({
         dutyContent,
         constraintContent,
         fewShotsContent,
-        agentDisplayName
+        agentDisplayName,
+        mainAgentModelId ?? undefined
       );
 
       if (result.success) {
@@ -506,6 +509,7 @@ export default function PromptManager({
             onAgentDisplayNameChange={onAgentDisplayNameChange}
             isEditingMode={isEditingMode}
             mainAgentModel={mainAgentModel}
+            mainAgentModelId={mainAgentModelId}
             mainAgentMaxStep={mainAgentMaxStep}
             onModelChange={onModelChange}
             onMaxStepChange={onMaxStepChange}

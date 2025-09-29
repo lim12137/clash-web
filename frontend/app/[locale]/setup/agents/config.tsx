@@ -47,6 +47,7 @@ export default function AgentConfig() {
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false);
   const [mainAgentModel, setMainAgentModel] = useState<string | null>(null);
+  const [mainAgentModelId, setMainAgentModelId] = useState<number | null>(null);
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5);
   const [tools, setTools] = useState<any[]>([]);
   const [mainAgentId, setMainAgentId] = useState<string | null>(null);
@@ -434,6 +435,8 @@ export default function AgentConfig() {
               setIsCreatingNewAgent={setIsCreatingNewAgent}
               mainAgentModel={mainAgentModel}
               setMainAgentModel={setMainAgentModel}
+              mainAgentModelId={mainAgentModelId}
+              setMainAgentModelId={setMainAgentModelId}
               mainAgentMaxStep={mainAgentMaxStep}
               setMainAgentMaxStep={setMainAgentMaxStep}
               tools={tools}
