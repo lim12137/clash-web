@@ -11,6 +11,7 @@ export interface Agent {
   display_name?: string;
   description: string;
   model: string;
+  model_id?: number;
   max_step: number;
   provide_run_summary: boolean;
   tools: Tool[];
@@ -85,6 +86,8 @@ export interface AgentSetupOrchestratorProps {
   setIsCreatingNewAgent: (value: boolean) => void;
   mainAgentModel: string | null;
   setMainAgentModel: (value: string | null) => void;
+  mainAgentModelId: number | null;
+  setMainAgentModelId: (value: number | null) => void;
   mainAgentMaxStep: number;
   setMainAgentMaxStep: (value: number) => void;
   tools: Tool[];
