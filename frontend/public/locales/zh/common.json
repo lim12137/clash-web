@@ -612,11 +612,11 @@
   "appConfig.icon.saveErrorLog": "保存图标设置失败:",
 
   "modelConfig.category.llm": "大语言模型",
-  "modelConfig.category.embedding": "向量化模型",
+  "modelConfig.category.embedding": "向量模型",
   "modelConfig.category.reranker": "重排模型",
   "modelConfig.category.multimodal": "多模态模型",
   "modelConfig.category.voice": "语音模型",
-  "modelConfig.option.mainModel": "模型",
+  "modelConfig.option.mainModel": "大语言模型",
   "modelConfig.option.embeddingModel": "向量模型",
   "modelConfig.option.multiEmbeddingModel": "多模态向量模型",
   "modelConfig.option.rerankerModel": "重排模型",
