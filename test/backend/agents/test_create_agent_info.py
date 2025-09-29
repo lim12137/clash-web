@@ -295,7 +295,8 @@ class TestCreateAgentConfig:
                 patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
                 patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
-                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
+                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates, \
+                patch('backend.agents.create_agent_info.get_model_by_model_id') as mock_get_model_by_id:
 
             # Set mock return values
             mock_search_agent.return_value = {
@@ -305,7 +306,7 @@ class TestCreateAgentConfig:
                 "constraint_prompt": "test constraint",
                 "few_shots_prompt": "test few shots",
                 "max_steps": 5,
-                "model_name": "test_model",
+                "model_id": 123,
                 "provide_run_summary": True
             }
             mock_query_sub.return_value = []
@@ -324,6 +325,7 @@ class TestCreateAgentConfig:
             mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {
                 "system_prompt": "populated_system_prompt"}
+            mock_get_model_by_id.return_value = {"display_name": "test_model"}
 
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
 
@@ -350,7 +352,8 @@ class TestCreateAgentConfig:
                 patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
                 patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
-                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
+                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates, \
+                patch('backend.agents.create_agent_info.get_model_by_model_id') as mock_get_model_by_id:
 
             # Set mock return values
             mock_search_agent.return_value = {
@@ -360,7 +363,7 @@ class TestCreateAgentConfig:
                 "constraint_prompt": "test constraint",
                 "few_shots_prompt": "test few shots",
                 "max_steps": 5,
-                "model_name": "test_model",
+                "model_id": 123,
                 "provide_run_summary": True
             }
             mock_query_sub.return_value = ["sub_agent_1"]
@@ -379,6 +382,7 @@ class TestCreateAgentConfig:
             mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {
                 "system_prompt": "populated_system_prompt"}
+            mock_get_model_by_id.return_value = {"display_name": "test_model"}
 
             # Mock sub-agent configuration
             mock_sub_agent_config = Mock()
@@ -415,7 +419,8 @@ class TestCreateAgentConfig:
                 patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
                 patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
-                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
+                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates, \
+                patch('backend.agents.create_agent_info.get_model_by_model_id') as mock_get_model_by_id:
 
             # Set mock return values
             mock_search_agent.return_value = {
@@ -425,7 +430,7 @@ class TestCreateAgentConfig:
                 "constraint_prompt": "test constraint",
                 "few_shots_prompt": "test few shots",
                 "max_steps": 5,
-                "model_name": "test_model",
+                "model_id": 123,
                 "provide_run_summary": True
             }
             mock_query_sub.return_value = []
@@ -453,6 +458,7 @@ class TestCreateAgentConfig:
             mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {
                 "system_prompt": "populated_system_prompt"}
+            mock_get_model_by_id.return_value = {"display_name": "test_model"}
 
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
 
@@ -488,6 +494,9 @@ class TestCreateAgentConfig:
                 "backend.agents.create_agent_info.build_memory_context"
             ) as mock_build_memory,
             patch(
+                "backend.agents.create_agent_info.get_model_by_model_id"
+            ) as mock_get_model_by_id,
+            patch(
                 "backend.agents.create_agent_info.search_memory_in_levels",
                 new_callable=AsyncMock,
             ) as mock_search_memory,
@@ -505,7 +514,7 @@ class TestCreateAgentConfig:
                 "constraint_prompt": "test constraint",
                 "few_shots_prompt": "test few shots",
                 "max_steps": 5,
-                "model_name": "test_model",
+                "model_id": 123,
                 "provide_run_summary": True,
             }
             mock_query_sub.return_value = []
@@ -536,6 +545,7 @@ class TestCreateAgentConfig:
             mock_prepare_templates.return_value = {
                 "system_prompt": "populated_system_prompt"
             }
+            mock_get_model_by_id.return_value = {"display_name": "test_model"}
 
             await create_agent_config(
                 "agent_1",
@@ -547,6 +557,62 @@ class TestCreateAgentConfig:
             )
 
             mock_search_memory.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_agent_config_model_id_none(self):
+        """Test case for creating agent configuration when model_id is None"""
+        with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
+                patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
+                patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
+                patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template, \
+                patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
+                patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
+                patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
+                patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates, \
+                patch('backend.agents.create_agent_info.get_model_by_model_id') as mock_get_model_by_id:
+
+            # Set mock return values
+            mock_search_agent.return_value = {
+                "name": "test_agent",
+                "description": "test description",
+                "duty_prompt": "test duty",
+                "constraint_prompt": "test constraint",
+                "few_shots_prompt": "test few shots",
+                "max_steps": 5,
+                "model_id": None,  # Test None case
+                "provide_run_summary": True
+            }
+            mock_query_sub.return_value = []
+            mock_create_tools.return_value = []
+            mock_get_template.return_value = {
+                "system_prompt": "{{duty}} {{constraint}} {{few_shots}}"}
+            mock_tenant_config.get_app_config.side_effect = [
+                "TestApp", "Test Description"]
+            mock_build_memory.return_value = Mock(
+                user_config=Mock(memory_switch=False),
+                memory_config={},
+                tenant_id="tenant_1",
+                user_id="user_1",
+                agent_id="agent_1"
+            )
+            mock_knowledge.return_value = []
+            mock_prepare_templates.return_value = {
+                "system_prompt": "populated_system_prompt"}
+            mock_get_model_by_id.return_value = None  # Model not found
+
+            result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
+
+            # Verify that AgentConfig was called with "main_model" as fallback
+            mock_agent_config.assert_called_with(
+                name="test_agent",
+                description="test description",
+                prompt_templates={"system_prompt": "populated_system_prompt"},
+                tools=[],
+                max_steps=5,
+                model_name="main_model",  # Should fallback to "main_model"
+                provide_run_summary=True,
+                managed_agents=[]
+            )
 
     @pytest.mark.asyncio
     async def test_create_agent_config_memory_exception(self):
@@ -588,7 +654,7 @@ class TestCreateAgentConfig:
                 "constraint_prompt": "test constraint",
                 "few_shots_prompt": "test few shots",
                 "max_steps": 5,
-                "model_name": "test_model",
+                "model_id": 123,
                 "provide_run_summary": True,
             }
             mock_query_sub.return_value = []
