@@ -7,20 +7,11 @@ name = "nexent"
 version = "0.1.2"
 description = "Nexent Agent Framework"
 authors = [
-    { name = "Shuangrui Chen" },
-    { name = "Simeng Bian" },
-    { name = "Jingyuan Li" },
-    { name = "Mingchen Wan" },
-    { name = "Yichen Xia" },
-    { name = "Tao Liu" },
-    { name = "Peiling Jiang" },
-    { name = "Yu Lin" }
+    { name = "Nexent Dev Team" }
 ]
-readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["agent", "ai", "framework"]
 classifiers = [
-    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -76,8 +67,22 @@ quality = [
 data_process = [
     "unstructured[all-docs]"
 ]
+performance = [
+    # OpenTelemetry Core Components
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    # OpenTelemetry Instrumentation
+    "opentelemetry-instrumentation",
+    "opentelemetry-instrumentation-fastapi",
+    "opentelemetry-instrumentation-requests",
+    # OpenTelemetry Exporters
+    "opentelemetry-exporter-jaeger",
+    "opentelemetry-exporter-prometheus",
+    # Additional monitoring dependencies
+    "prometheus-client"
+]
 dev = [
-    "nexent[dev, data_process]"
+    "nexent[quality, data_process, performance]"
 ]
 
 [tool.setuptools.packages.find]

@@ -87,7 +87,6 @@ class SingleModelConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     llm: SingleModelConfig
-    llmSecondary: SingleModelConfig
     embedding: SingleModelConfig
     multiEmbedding: SingleModelConfig
     rerank: SingleModelConfig
@@ -189,6 +188,7 @@ class OpinionRequest(BaseModel):
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
+    model_id: int
 
 
 class GenerateTitleRequest(BaseModel):
@@ -204,6 +204,7 @@ class AgentInfoRequest(BaseModel):
     description: Optional[str] = None
     business_description: Optional[str] = None
     model_name: Optional[str] = None
+    model_id: Optional[int] = None
     max_steps: Optional[int] = None
     provide_run_summary: Optional[bool] = None
     duty_prompt: Optional[str] = None
@@ -261,7 +262,6 @@ class ExportAndImportAgentInfo(BaseModel):
     display_name: Optional[str] = None
     description: str
     business_description: str
-    model_name: str
     max_steps: int
     provide_run_summary: bool
     duty_prompt: Optional[str] = None
@@ -314,3 +314,29 @@ class MemoryAgentShareMode(str, Enum):
     @classmethod
     def default(cls) -> "MemoryAgentShareMode":
         return cls.NEVER
+
+
+# Voice Service Data Models
+# ---------------------------------------------------------------------------
+class VoiceConnectivityRequest(BaseModel):
+    """Request model for voice service connectivity check"""
+    model_type: str = Field(..., description="Type of model to check ('stt' or 'tts')")
+
+
+class VoiceConnectivityResponse(BaseModel):
+    """Response model for voice service connectivity check"""
+    connected: bool = Field(..., description="Whether the service is connected")
+    model_type: str = Field(..., description="Type of model checked")
+    message: str = Field(..., description="Status message")
+
+
+class TTSRequest(BaseModel):
+    """Request model for TTS text-to-speech conversion"""
+    text: str = Field(..., min_length=1, description="Text to convert to speech")
+    stream: bool = Field(True, description="Whether to stream the audio")
+
+
+class TTSResponse(BaseModel):
+    """Response model for TTS conversion"""
+    status: str = Field(..., description="Status of the TTS conversion")
+    message: Optional[str] = Field(None, description="Additional message")

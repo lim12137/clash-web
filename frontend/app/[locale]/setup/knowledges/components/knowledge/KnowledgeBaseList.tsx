@@ -154,32 +154,34 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
           {selectedIds.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
               {selectedIds.map((id) => {
-                const kb = knowledgeBases.find((kb) => kb.id === id)
+                const kb = knowledgeBases.find((kb) => kb.id === id);
                 return kb ? (
                   <span
                     key={id}
-                    className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md text-sm font-medium group"
-                    style={{ maxWidth: 'fit-content' }}
+                    className="inline-flex items-center justify-center bg-blue-100 text-blue-800 rounded text-sm font-medium group"
+                    style={{ maxWidth: "fit-content", padding: "2px 6px" }}
                   >
                     <span
                       className="truncate"
                       style={{
-                        maxWidth: '150px',
-                        ...KB_LAYOUT.KB_NAME_OVERFLOW
+                        maxWidth: "150px",
+                        ...KB_LAYOUT.KB_NAME_OVERFLOW,
                       }}
                       title={kb.name}
                     >
                       {kb.name}
                     </span>
                     <button
-                      className="ml-1.5 text-blue-600 hover:text-blue-800 flex-shrink-0"
+                      className="ml-1.5 text-blue-600 hover:text-blue-800 flex-shrink-0 text-sm leading-none"
                       onClick={() => onSelect(id)}
-                      aria-label={t('knowledgeBase.button.removeKb', { name: kb.name })}
+                      aria-label={t("knowledgeBase.button.removeKb", {
+                        name: kb.name,
+                      })}
                     >
                       ×
                     </button>
                   </span>
-                ) : null
+                ) : null;
               })}
             </div>
           )}

@@ -42,13 +42,13 @@ def service_mocks():
 class TestHandleModelConfig:
     """Test cases for handle_model_config function"""
 
-    def test_handle_model_config_delete(self, service_mocks):
-        """Test handle_model_config when model_id is 0 and config exists"""
+    def test_handle_model_config_zero_sets(self, service_mocks):
+        """Test handle_model_config when model_id is 0 and config exists (delete then set)"""
         # Setup
         tenant_id = "test_tenant_id"
         user_id = "test_user_id"
         config_key = "LLM_ID"
-        model_id = 0  # 0 means delete
+        model_id = 0
         tenant_config_dict = {"LLM_ID": "123"}
 
         # Execute
@@ -58,7 +58,9 @@ class TestHandleModelConfig:
         # Assert
         service_mocks['tenant_config_manager'].delete_single_config.assert_called_once_with(
             tenant_id, config_key)
-        service_mocks['tenant_config_manager'].set_single_config.assert_not_called()
+        service_mocks['tenant_config_manager'].set_single_config.assert_called_once_with(
+            user_id, tenant_id, config_key, model_id
+        )
 
     def test_handle_model_config_update_same_value(self, service_mocks):
         """Test handle_model_config when model_id is same as existing"""
@@ -764,16 +766,21 @@ class TestLoadConfigImpl:
         # Mock model configurations with max_tokens and model_type
         embedding_config = {
             "max_tokens": 1536,
-            "model_type": "embedding"
+            "model_type": "embedding",
+            "base_url": "http://test.com",
+            "api_key": "test_key",
+            "dimension": 1536
         }
         multi_embedding_config = {
             "max_tokens": 768,
-            "model_type": "multi_embedding"
+            "model_type": "multi_embedding",
+            "base_url": "http://test.com",
+            "api_key": "test_key",
+            "dimension": 768
         }
 
         service_mocks['tenant_config_manager'].get_model_config.side_effect = [
             {},          # LLM_ID
-            {},          # LLM_SECONDARY_ID
             embedding_config,  # EMBEDDING_ID
             multi_embedding_config,  # MULTI_EMBEDDING_ID
             {},          # RERANK_ID
@@ -788,7 +795,6 @@ class TestLoadConfigImpl:
         # Mock model name conversion to return string values
         service_mocks['get_model_name'].side_effect = [
             "",          # LLM_ID
-            "",          # LLM_SECONDARY_ID
             "text-embedding-ada-002",  # EMBEDDING_ID
             "text-embedding-3-small",  # MULTI_EMBEDDING_ID
             "",          # RERANK_ID
@@ -836,21 +842,22 @@ class TestLoadConfigImpl:
 
         # Mock build_app_config to raise an exception
         with patch('backend.services.config_sync_service.build_app_config') as mock_build_app_config:
-            mock_build_app_config.side_effect = Exception("Database connection failed")
+            mock_build_app_config.side_effect = Exception(
+                "Database connection failed")
 
             # Execute and assert that exception is raised
             with pytest.raises(Exception) as exc_info:
                 await load_config_impl(language, tenant_id)
 
             # Verify the exception message
-            assert f"Failed to load config for tenant {tenant_id}." in str(exc_info.value)
+            assert f"Failed to load config for tenant {tenant_id}." in str(
+                exc_info.value)
 
             # Verify that logger.error was called
             service_mocks['logger'].error.assert_called_once_with(
                 f"Failed to load config for tenant {tenant_id}: Database connection failed"
             )
 
-    @pytest.mark.asyncio
     def test_build_models_config_partial_success(self, service_mocks):
         """Test build_models_config with some successful and some failed configs"""
         # Setup

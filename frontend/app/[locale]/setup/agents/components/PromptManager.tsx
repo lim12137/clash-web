@@ -2,80 +2,59 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Badge, Input, App } from "antd";
+import { Modal, Badge, Input, App, Dropdown, Button } from "antd";
 import {
   ThunderboltOutlined,
   LoadingOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
-import { MilkdownProvider, Milkdown, useEditor } from "@milkdown/react";
-import { defaultValueCtx, Editor, rootCtx } from "@milkdown/kit/core";
-import { commonmark } from "@milkdown/kit/preset/commonmark";
-import { nord } from "@milkdown/theme-nord";
-import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 
 import {
   SimplePromptEditorProps,
   ExpandEditModalProps,
 } from "@/types/agentConfig";
 import { updateAgent } from "@/services/agentConfigService";
+import { modelService } from "@/services/modelService";
+import { ModelOption } from "@/types/modelConfig";
 
 import AgentConfigModal from "./agent/AgentConfigModal";
 
-import "@/styles/milkdown-nord.css";
 import log from "@/lib/logger";
 
 export function SimplePromptEditor({
   value,
   onChange,
-  height = "100%",
+  height,
+  bordered = false,
 }: SimplePromptEditorProps) {
   const [internalValue, setInternalValue] = useState(value);
-  const [editorKey, setEditorKey] = useState(0);
   const isInternalChange = useRef(false);
 
-  // Update editor when external value changes
   useEffect(() => {
-    if (value !== internalValue) {
-      // Only force update editor when change comes from external source
-      if (!isInternalChange.current) {
-        setInternalValue(value);
-        setEditorKey((prev) => prev + 1);
-      }
+    if (value !== internalValue && !isInternalChange.current) {
+      setInternalValue(value);
     }
-
-    // Reset the flag after each value or internalValue change if marked as internal change.
-    // This ensures that the next external change can be correctly identified after internal editing.
     if (isInternalChange.current) {
       isInternalChange.current = false;
     }
   }, [value, internalValue]);
 
-  const { get } = useEditor(
-    (root) =>
-      Editor.make()
-        .config((ctx) => {
-          ctx.set(rootCtx, root);
-          ctx.set(defaultValueCtx, internalValue || "");
-        })
-        .config(nord)
-        .use(commonmark)
-        .use(listener)
-        .config((ctx) => {
-          const listenerManager = ctx.get(listenerCtx);
-          listenerManager.markdownUpdated((ctx, markdown) => {
-            isInternalChange.current = true;
-            setInternalValue(markdown);
-            onChange(markdown);
-          });
-        }),
-    [editorKey]
-  ); // Only recreate when editorKey changes
-
   return (
-    <div className="milkdown-editor-container" style={{ height }}>
-      <Milkdown key={editorKey} />
-    </div>
+    <Input.TextArea
+      value={internalValue}
+      onChange={(e) => {
+        isInternalChange.current = true;
+        setInternalValue(e.target.value);
+        onChange(e.target.value);
+      }}
+      style={
+        height
+          ? { height, resize: "none", overflow: "auto" }
+          : { resize: "none", overflow: "hidden" }
+      }
+      autoSize={height ? false : { minRows: 8 }}
+      bordered={bordered}
+    />
   );
 }
 
@@ -162,15 +141,30 @@ function ExpandEditModal({
       }}
     >
       <div
-        className="flex flex-col"
+        className="flex flex-col expand-edit-gray-textarea"
         style={{ height: `${calculateModalHeight(editContent)}vh` }}
       >
-        <div className="flex-1 border border-gray-200 rounded-md overflow-y-auto">
+        <style jsx global>{`
+          .expand-edit-gray-textarea .ant-input,
+          .expand-edit-gray-textarea .ant-input:hover,
+          .expand-edit-gray-textarea .ant-input:focus,
+          .expand-edit-gray-textarea .ant-input-focused,
+          .expand-edit-gray-textarea .ant-input-textarea,
+          .expand-edit-gray-textarea .ant-input-textarea:hover,
+          .expand-edit-gray-textarea .ant-input-textarea:focus,
+          .expand-edit-gray-textarea .ant-input-textarea:focus-within {
+            border-color: #d9d9d9 !important;
+            box-shadow: none !important;
+          }
+        `}</style>
+        <div className="flex-1 min-h-0">
           <SimplePromptEditor
             value={editContent}
             onChange={(newContent) => {
               setEditContent(newContent);
             }}
+            bordered={true}
+            height={"100%"}
           />
         </div>
       </div>
@@ -192,6 +186,7 @@ export interface PromptManagerProps {
   agentDescription?: string;
   agentDisplayName?: string;
   mainAgentModel?: string;
+  mainAgentModelId?: number | null;
   mainAgentMaxStep?: number;
 
   // Edit state
@@ -208,9 +203,9 @@ export interface PromptManagerProps {
   onAgentNameChange?: (name: string) => void;
   onAgentDescriptionChange?: (description: string) => void;
   onAgentDisplayNameChange?: (displayName: string) => void;
-  onModelChange?: (value: string) => void;
+  onModelChange?: (value: string, modelId?: number) => void;
   onMaxStepChange?: (value: number | null) => void;
-  onGenerateAgent?: () => void;
+  onGenerateAgent?: (model: ModelOption) => void;
   onSaveAgent?: () => void;
   onDebug?: () => void;
   onExportAgent?: () => void;
@@ -220,6 +215,10 @@ export interface PromptManagerProps {
 
   // Agent being edited
   editingAgent?: any;
+
+  // Model selection callbacks
+  onModelSelect?: (model: ModelOption | null) => void;
+  selectedGenerateModel?: ModelOption | null;
 }
 
 export default function PromptManager({
@@ -232,6 +231,7 @@ export default function PromptManager({
   agentDescription = "",
   agentDisplayName = "",
   mainAgentModel = "",
+  mainAgentModelId = null,
   mainAgentMaxStep = 5,
   isEditingMode = false,
   isGeneratingAgent = false,
@@ -254,6 +254,7 @@ export default function PromptManager({
   onDeleteSuccess,
   getButtonTitle,
   editingAgent,
+  onModelSelect,
 }: PromptManagerProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -261,6 +262,61 @@ export default function PromptManager({
   // Modal states
   const [expandModalOpen, setExpandModalOpen] = useState(false);
   const [expandIndex, setExpandIndex] = useState(0);
+
+  // Model selection states
+  const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+
+  // Load available models on component mount
+  useEffect(() => {
+    loadAvailableModels();
+  }, []);
+
+  const loadAvailableModels = async () => {
+    setLoadingModels(true);
+    try {
+      const models = await modelService.getLLMModels();
+      setAvailableModels(models);
+    } catch (error) {
+      log.error("Failed to load available models:", error);
+      message.error(t("businessLogic.config.error.loadModelsFailed"));
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  // Handle model selection and auto-generate
+  const handleModelSelect = (model: ModelOption) => {
+    onModelSelect?.(model);
+    setShowModelDropdown(false);
+
+    // Auto-trigger generation after model selection
+    if (onGenerateAgent) {
+      onGenerateAgent(model);
+    }
+  };
+
+  // Handle generate button click - show model dropdown
+  const handleGenerateClick = () => {
+    if (availableModels.length === 0) {
+      message.warning(t("businessLogic.config.error.noAvailableModels"));
+      return;
+    }
+
+    setShowModelDropdown(true);
+  };
+
+  // Create dropdown items with disabled state for unavailable models
+  const modelDropdownItems = availableModels.map((model) => {
+    const isAvailable = model.connect_status === 'available';
+    return {
+      key: model.id,
+      label: model.displayName || model.name,
+      disabled: !isAvailable,
+      onClick: () => handleModelSelect(model),
+    };
+  });
 
   // Handle expand edit
   const handleExpandCard = (index: number) => {
@@ -300,7 +356,8 @@ export default function PromptManager({
         dutyContent,
         constraintContent,
         fewShotsContent,
-        agentDisplayName
+        agentDisplayName,
+        mainAgentModelId ?? undefined
       );
 
       if (result.success) {
@@ -319,55 +376,54 @@ export default function PromptManager({
   };
 
   return (
-    <MilkdownProvider>
-      <div className="flex flex-col h-full relative">
-        <style jsx global>{`
-          @media (max-width: 768px) {
-            .system-prompt-container {
-              overflow-y: auto !important;
-              max-height: none !important;
-            }
-            .system-prompt-content {
-              min-height: auto !important;
-              max-height: none !important;
-            }
+    <div className="flex flex-col h-full relative">
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .system-prompt-container {
+            overflow-y: auto !important;
+            max-height: none !important;
           }
-          @media (max-width: 1024px) {
-            .system-prompt-business-logic {
-              min-height: 100px !important;
-              max-height: 150px !important;
-            }
+          .system-prompt-content {
+            min-height: auto !important;
+            max-height: none !important;
           }
-        `}</style>
+        }
+        @media (max-width: 1024px) {
+          .system-prompt-business-logic {
+            min-height: 100px !important;
+            max-height: 150px !important;
+          }
+        }
+      `}</style>
 
-        {/* Non-editing mode overlay */}
-        {!isEditingMode && (
-          <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 transition-all duration-300 ease-out animate-in fade-in-0">
-            <div className="text-center space-y-4 animate-in fade-in-50 duration-400 delay-50">
-              <InfoCircleOutlined className="text-6xl text-gray-400 transition-all duration-300 animate-in zoom-in-75 delay-100" />
-              <div className="animate-in slide-in-from-bottom-2 duration-300 delay-150">
-                <h3 className="text-lg font-medium text-gray-700 mb-2 transition-all duration-300">
-                  {t("systemPrompt.nonEditing.title")}
-                </h3>
-                <p className="text-sm text-gray-500 transition-all duration-300">
-                  {t("systemPrompt.nonEditing.subtitle")}
-                </p>
-              </div>
+      {/* Non-editing mode overlay */}
+      {!isEditingMode && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 transition-all duration-300 ease-out animate-in fade-in-0">
+          <div className="text-center space-y-4 animate-in fade-in-50 duration-400 delay-50">
+            <InfoCircleOutlined className="text-6xl text-gray-400 transition-all duration-300 animate-in zoom-in-75 delay-100" />
+            <div className="animate-in slide-in-from-bottom-2 duration-300 delay-150">
+              <h3 className="text-lg font-medium text-gray-700 mb-2 transition-all duration-300">
+                {t("systemPrompt.nonEditing.title")}
+              </h3>
+              <p className="text-sm text-gray-500 transition-all duration-300">
+                {t("systemPrompt.nonEditing.subtitle")}
+              </p>
             </div>
-          </div>
-        )}
-
-        {/* Main title */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-              3
-            </div>
-            <h2 className="text-lg font-medium">
-              {t("guide.steps.describeBusinessLogic.title")}
-            </h2>
           </div>
         </div>
+      )}
+
+      {/* Main title */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            3
+          </div>
+          <h2 className="text-lg font-medium">
+            {t("guide.steps.describeBusinessLogic.title")}
+          </h2>
+        </div>
+      </div>
 
         {/* Main content */}
         <div className="flex-1 flex flex-col border-t pt-2 system-prompt-container overflow-hidden">
@@ -398,94 +454,109 @@ export default function PromptManager({
               />
               {/* Generate button */}
               <div className="absolute bottom-2 right-2">
-                <button
-                  onClick={onGenerateAgent}
-                  disabled={isGeneratingAgent}
-                  className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ border: "none" }}
-                >
-                  {isGeneratingAgent ? (
-                    <>
-                      <LoadingOutlined spin className="mr-1" />
-                      {t("businessLogic.config.button.generating")}
-                    </>
-                  ) : (
-                    <>
-                      <ThunderboltOutlined className="mr-1" />
+                {isGeneratingAgent ? (
+                  <button
+                    disabled={true}
+                    className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ border: "none" }}
+                  >
+                    <LoadingOutlined spin className="mr-1" />
+                    {t("businessLogic.config.button.generating")}
+                  </button>
+                ) : (
+                  <Dropdown
+                    menu={{ items: modelDropdownItems }}
+                    open={showModelDropdown}
+                    onOpenChange={setShowModelDropdown}
+                    disabled={loadingModels || availableModels.length === 0}
+                    placement="bottomRight"
+                    trigger={['click']}
+                  >
+                    <button
+                      onClick={handleGenerateClick}
+                      disabled={loadingModels || availableModels.length === 0}
+                      className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ border: "none" }}
+                    >
+                      {loadingModels ? (
+                        <LoadingOutlined className="mr-1" />
+                      ) : (
+                        <ThunderboltOutlined className="mr-1" />
+                      )}
                       {t("businessLogic.config.button.generatePrompt")}
-                    </>
-                  )}
-                </button>
+                    </button>
+                  </Dropdown>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Agent configuration section */}
-          <div className="flex-1 min-h-0 system-prompt-content">
-            <AgentConfigModal
-              agentId={agentId}
-              dutyContent={dutyContent}
-              constraintContent={constraintContent}
-              fewShotsContent={fewShotsContent}
-              onDutyContentChange={onDutyContentChange}
-              onConstraintContentChange={onConstraintContentChange}
-              onFewShotsContentChange={onFewShotsContentChange}
-              agentName={agentName}
-              agentDescription={agentDescription}
-              onAgentNameChange={onAgentNameChange}
-              onAgentDescriptionChange={onAgentDescriptionChange}
-              agentDisplayName={agentDisplayName}
-              onAgentDisplayNameChange={onAgentDisplayNameChange}
-              isEditingMode={isEditingMode}
-              mainAgentModel={mainAgentModel}
-              mainAgentMaxStep={mainAgentMaxStep}
-              onModelChange={onModelChange}
-              onMaxStepChange={onMaxStepChange}
-              onSavePrompt={handleSavePrompt}
-              onExpandCard={handleExpandCard}
-              isGeneratingAgent={isGeneratingAgent}
-              onDebug={onDebug}
-              onExportAgent={onExportAgent}
-              onDeleteAgent={onDeleteAgent}
-              onDeleteSuccess={onDeleteSuccess}
-              onSaveAgent={onSaveAgent}
-              isCreatingNewAgent={isCreatingNewAgent}
-              editingAgent={editingAgent}
-              canSaveAgent={canSaveAgent}
-              getButtonTitle={getButtonTitle}
-            />
-          </div>
+        {/* Agent configuration section */}
+        <div className="flex-1 min-h-0 system-prompt-content">
+          <AgentConfigModal
+            agentId={agentId}
+            dutyContent={dutyContent}
+            constraintContent={constraintContent}
+            fewShotsContent={fewShotsContent}
+            onDutyContentChange={onDutyContentChange}
+            onConstraintContentChange={onConstraintContentChange}
+            onFewShotsContentChange={onFewShotsContentChange}
+            agentName={agentName}
+            agentDescription={agentDescription}
+            onAgentNameChange={onAgentNameChange}
+            onAgentDescriptionChange={onAgentDescriptionChange}
+            agentDisplayName={agentDisplayName}
+            onAgentDisplayNameChange={onAgentDisplayNameChange}
+            isEditingMode={isEditingMode}
+            mainAgentModel={mainAgentModel}
+            mainAgentModelId={mainAgentModelId}
+            mainAgentMaxStep={mainAgentMaxStep}
+            onModelChange={onModelChange}
+            onMaxStepChange={onMaxStepChange}
+            onSavePrompt={handleSavePrompt}
+            onExpandCard={handleExpandCard}
+            isGeneratingAgent={isGeneratingAgent}
+            onDebug={onDebug}
+            onExportAgent={onExportAgent}
+            onDeleteAgent={onDeleteAgent}
+            onDeleteSuccess={onDeleteSuccess}
+            onSaveAgent={onSaveAgent}
+            isCreatingNewAgent={isCreatingNewAgent}
+            editingAgent={editingAgent}
+            canSaveAgent={canSaveAgent}
+            getButtonTitle={getButtonTitle}
+          />
         </div>
-
-        {/* Expand edit modal */}
-        <ExpandEditModal
-          key={`expand-modal-${expandIndex}-${
-            expandModalOpen ? "open" : "closed"
-          }`}
-          title={
-            expandIndex === 1
-              ? t("systemPrompt.expandEdit.backgroundInfo")
-              : expandIndex === 2
-              ? t("systemPrompt.card.duty.title")
-              : expandIndex === 3
-              ? t("systemPrompt.card.constraint.title")
-              : t("systemPrompt.card.fewShots.title")
-          }
-          open={expandModalOpen}
-          content={
-            expandIndex === 1
-              ? businessLogic
-              : expandIndex === 2
-              ? dutyContent
-              : expandIndex === 3
-              ? constraintContent
-              : fewShotsContent
-          }
-          index={expandIndex}
-          onClose={() => setExpandModalOpen(false)}
-          onSave={handleExpandSave}
-        />
       </div>
-    </MilkdownProvider>
+
+      {/* Expand edit modal */}
+      <ExpandEditModal
+        key={`expand-modal-${expandIndex}-${
+          expandModalOpen ? "open" : "closed"
+        }`}
+        title={
+          expandIndex === 1
+            ? t("systemPrompt.expandEdit.backgroundInfo")
+            : expandIndex === 2
+            ? t("systemPrompt.card.duty.title")
+            : expandIndex === 3
+            ? t("systemPrompt.card.constraint.title")
+            : t("systemPrompt.card.fewShots.title")
+        }
+        open={expandModalOpen}
+        content={
+          expandIndex === 1
+            ? businessLogic
+            : expandIndex === 2
+            ? dutyContent
+            : expandIndex === 3
+            ? constraintContent
+            : fewShotsContent
+        }
+        index={expandIndex}
+        onClose={() => setExpandModalOpen(false)}
+        onSave={handleExpandSave}
+      />
+    </div>
   );
 }

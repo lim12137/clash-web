@@ -287,6 +287,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     description VARCHAR,
     business_description VARCHAR,
     model_name VARCHAR(100),
+    model_id INTEGER,
     max_steps INTEGER,
     duty_prompt TEXT,
     constraint_prompt TEXT,
@@ -325,7 +326,8 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.name IS 'Agent name';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.display_name IS 'Agent display name';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.description IS 'Description';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.business_description IS 'Manually entered by the user to describe the entire business process';
-COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS 'Name of the model used';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS '[DEPRECATED] Name of the model used, use model_id instead';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_id IS 'Model ID, foreign key reference to model_record_t.model_id';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.max_steps IS 'Maximum number of steps';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.duty_prompt IS 'Duty prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.constraint_prompt IS 'Constraint prompt';

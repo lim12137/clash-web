@@ -4,15 +4,19 @@ import type React from "react";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { App } from "antd";
-import { InfoCircleFilled } from "@ant-design/icons";
-import { DOCUMENT_ACTION_TYPES } from "@/const/knowledgeBase";
+import { App, Modal } from "antd";
+import { InfoCircleFilled, WarningFilled } from "@ant-design/icons";
+import {
+  DOCUMENT_ACTION_TYPES,
+  KNOWLEDGE_BASE_ACTION_TYPES,
+} from "@/const/knowledgeBase";
 import { useConfirmModal } from "@/hooks/useConfirmModal";
 import log from "@/lib/logger";
 import knowledgeBaseService from "@/services/knowledgeBaseService";
 import knowledgeBasePollingService from "@/services/knowledgeBasePollingService";
 import { API_ENDPOINTS } from "@/services/api";
-import { KnowledgeBase} from "@/types/knowledgeBase";
+import { KnowledgeBase } from "@/types/knowledgeBase";
+import { useConfig } from "@/hooks/useConfig";
 import {
   SETUP_PAGE_CONTAINER,
   FLEX_TWO_COLUMN_LAYOUT,
@@ -30,7 +34,6 @@ import {
   DocumentProvider,
 } from "./contexts/DocumentContext";
 import { useUIContext, UIProvider } from "./contexts/UIStateContext";
-
 
 // EmptyState component defined directly in this file
 interface EmptyStateProps {
@@ -76,7 +79,7 @@ interface AppProviderProps {
 
 /**
  * AppProvider - Provides global state management for the application
- * 
+ *
  * Combines knowledge base, document and UI state management together for easy one-time import of all contexts
  */
 const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
@@ -112,6 +115,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const { confirm } = useConfirmModal();
+  const { modelConfig } = useConfig();
 
   // Clear cache when component initializes
   useEffect(() => {
@@ -131,6 +135,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     refreshKnowledgeBaseData,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases,
+    dispatch: kbDispatch,
   } = useKnowledgeBaseContext();
 
   const {
@@ -148,6 +153,15 @@ function DataConfig({ isActive }: DataConfigProps) {
   const [newKbName, setNewKbName] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
+  const [showEmbeddingWarning, setShowEmbeddingWarning] = useState(false);
+  const [showAutoDeselectModal, setShowAutoDeselectModal] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  // Open warning modal when single Embedding model is not configured (ignore multi-embedding)
+  useEffect(() => {
+    const singleEmbeddingModelName = modelConfig?.embedding?.modelName;
+    setShowEmbeddingWarning(!singleEmbeddingModelName);
+  }, [modelConfig?.embedding?.modelName]);
 
   // Add event listener for selecting new knowledge base
   useEffect(() => {
@@ -186,6 +200,8 @@ function DataConfig({ isActive }: DataConfigProps) {
   const savedSelectedIdsRef = useRef<string[]>([]); // Save currently selected knowledge base IDs
   const savedKnowledgeBasesRef = useRef<any[]>([]); // Save current knowledge base list
   const hasUserInteractedRef = useRef(false); // Track whether user has interacted (prevent saving empty state during initial load)
+  const hasCleanedRef = useRef(false); // Ensure auto-deselect runs only once per entry
+  const shouldPersistSelectionRef = useRef(false); // Flag to persist selection after change
 
   // Listen for isActive state changes
   useLayoutEffect(() => {
@@ -199,6 +215,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     if ((prevIsActive === null || !prevIsActive) && isActive) {
       hasLoadedRef.current = false; // Reset loading state
       hasUserInteractedRef.current = false; // Reset interaction state to prevent incorrect saving
+      hasCleanedRef.current = false; // Reset auto-clean flag on entering
     }
 
     // Save user configuration when leaving second page
@@ -298,6 +315,67 @@ function DataConfig({ isActive }: DataConfigProps) {
     }
   }, [isActive, kbState.knowledgeBases.length, kbState.isLoading]);
 
+  // Auto-deselect incompatible knowledge bases once after selections are loaded and page is active
+  useEffect(() => {
+    if (!isActive) return;
+    if (!hasLoadedRef.current) return; // ensure user selections loaded
+    if (kbState.isLoading) return; // avoid running during list loading
+    if (hasCleanedRef.current) return; // run once per entry
+
+    const embeddingName = modelConfig?.embedding?.modelName?.trim() || "";
+    const multiEmbeddingName =
+      modelConfig?.multiEmbedding?.modelName?.trim() || "";
+
+    const allowedModels = new Set<string>();
+    if (embeddingName) allowedModels.add(embeddingName);
+    if (multiEmbeddingName) allowedModels.add(multiEmbeddingName);
+
+    const currentSelected = kbState.selectedIds;
+    if (currentSelected.length === 0) {
+      hasCleanedRef.current = true;
+      return;
+    }
+
+    // If both empty, clear all
+    if (allowedModels.size === 0) {
+      shouldPersistSelectionRef.current = true;
+      kbDispatch({
+        type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE,
+        payload: [],
+      });
+      hasUserInteractedRef.current = true;
+      setShowAutoDeselectModal(true);
+      hasCleanedRef.current = true;
+      return;
+    }
+
+    const filtered = currentSelected.filter((id) => {
+      const kb = kbState.knowledgeBases.find((k) => k.id === id);
+      if (!kb) return false;
+      return allowedModels.has(kb.embeddingModel);
+    });
+
+    if (filtered.length !== currentSelected.length) {
+      shouldPersistSelectionRef.current = true;
+      kbDispatch({
+        type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE,
+        payload: filtered,
+      });
+      hasUserInteractedRef.current = true;
+      setShowAutoDeselectModal(true);
+    }
+
+    hasCleanedRef.current = true;
+  }, [
+    isActive,
+    kbState.isLoading,
+    kbState.selectedIds,
+    kbState.knowledgeBases,
+    modelConfig?.embedding?.modelName,
+    modelConfig?.multiEmbedding?.modelName,
+    kbDispatch,
+  ]);
+
   // Generate unique knowledge base name
   const generateUniqueKbName = (existingKbs: KnowledgeBase[]): string => {
     const baseNamePrefix = t("knowledgeBase.name.new");
@@ -349,7 +427,10 @@ function DataConfig({ isActive }: DataConfigProps) {
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
       // Set loading state before fetching documents
-      docDispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS, payload: true });
+      docDispatch({
+        type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS,
+        payload: true,
+      });
 
       // Get latest document data
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
@@ -540,10 +621,7 @@ function DataConfig({ isActive }: DataConfigProps) {
             }
           )
           .catch((pollingError) => {
-            log.error(
-              "Knowledge base creation polling failed:",
-              pollingError
-            );
+            log.error("Knowledge base creation polling failed:", pollingError);
           });
       } catch (error) {
         log.error(t("knowledgeBase.error.createUpload"), error);
@@ -617,6 +695,8 @@ function DataConfig({ isActive }: DataConfigProps) {
   const handleSelectKnowledgeBase = (id: string) => {
     hasUserInteractedRef.current = true; // Mark user interaction
     selectKnowledgeBase(id);
+    // Persist selection immediately after reducer updates state
+    shouldPersistSelectionRef.current = true;
 
     // When selecting knowledge base also get latest data (low priority background operation)
     setTimeout(async () => {
@@ -629,6 +709,27 @@ function DataConfig({ isActive }: DataConfigProps) {
       }
     }, 500); // Delay execution, lower priority
   };
+
+  // Persist user selection changes immediately when flagged
+  useEffect(() => {
+    if (!isActive) return;
+    if (!shouldPersistSelectionRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await saveUserSelectedKnowledgeBases();
+      } catch (error) {
+        log.error("保存用户选择的知识库失败:", error);
+      } finally {
+        if (!cancelled) {
+          shouldPersistSelectionRef.current = false;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [kbState.selectedIds, isActive, saveUserSelectedKnowledgeBases]);
 
   // Update active knowledge base ID in polling service when component initializes or active knowledge base changes
   useEffect(() => {
@@ -659,15 +760,66 @@ function DataConfig({ isActive }: DataConfigProps) {
   return (
     <>
       <div
-        className="w-full mx-auto"
+        className="w-full mx-auto relative"
         style={{
           maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
           padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`,
         }}
+        ref={contentRef}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {showEmbeddingWarning && (
+          <div className="absolute inset-0 bg-gray-500/45 z-40" />
+        )}
+        <Modal
+          open={showEmbeddingWarning && !!contentRef.current}
+          title={null}
+          footer={null}
+          closable={false}
+          maskClosable={false}
+          mask={false}
+          centered
+          getContainer={() => contentRef.current || document.body}
+          styles={{ body: { padding: 0 } }}
+          rootClassName="kb-embedding-warning"
+        >
+          <div className="py-2">
+            <div className="flex items-center">
+              <WarningFilled className="text-yellow-500 mt-1 mr-2 text-3xl" />
+              <div className="ml-3 mt-2">
+                <div className="text-base text-gray-800 font-semibold">
+                  {t("embedding.knowledgeBaseDisabledWarningModal.title")}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+        <Modal
+          open={showAutoDeselectModal}
+          title={t("embedding.knowledgeBaseAutoDeselectModal.title")}
+          onOk={() => setShowAutoDeselectModal(false)}
+          onCancel={() => setShowAutoDeselectModal(false)}
+          okText={t("common.confirm")}
+          cancelButtonProps={{ style: { display: "none" } }}
+          centered
+          getContainer={() => contentRef.current || document.body}
+        >
+          <div className="py-2">
+            <div className="flex items-center px-4">
+              <InfoCircleFilled
+                className="text-blue-500 mt-1 mr-2"
+                style={{ fontSize: "48px" }}
+              />
+              <div className="ml-3 mt-2">
+                <div className="text-sm leading-6">
+                  {t("embedding.knowledgeBaseAutoDeselectModal.content")}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
         <div
           className="flex h-full"
           style={{ gap: FLEX_TWO_COLUMN_LAYOUT.GAP }}

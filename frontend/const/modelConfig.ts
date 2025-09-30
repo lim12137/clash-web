@@ -19,7 +19,8 @@ export const MODEL_TYPES = {
 export const MODEL_SOURCES = {
   OPENAI: "openai",
   SILICON: "silicon",
-  OPENAI_API_COMPATIBLE: "OpenAI-API-Compatible"
+  OPENAI_API_COMPATIBLE: "OpenAI-API-Compatible",
+  CUSTOM: "custom"
 } as const;
 
 // Model status constants
@@ -35,6 +36,44 @@ export const ICON_TYPES = {
   PRESET: "preset",
   CUSTOM: "custom"
 } as const;
+
+// Provider detection and icon mapping
+export const MODEL_PROVIDER_KEYS = [
+  "qwen",
+  "openai",
+  "siliconflow",
+  "ponytoken",
+  "jina",
+  "deepseek",
+  "aliyuncs",
+] as const;
+
+export type ModelProviderKey = (typeof MODEL_PROVIDER_KEYS)[number];
+
+// Direct provider hint string mapping (no arrays)
+export const PROVIDER_HINTS: Record<ModelProviderKey, string> = {
+  qwen: "qwen",
+  openai: "openai",
+  siliconflow: "siliconflow",
+  ponytoken: "ponytoken",
+  jina: "jina",
+  deepseek: "deepseek",
+  aliyuncs: "aliyuncs",
+};
+
+// Icon filenames for providers
+export const PROVIDER_ICON_MAP: Record<ModelProviderKey, string> = {
+  qwen: "/qwen.png",
+  openai: "/openai.png",
+  siliconflow: "/siliconflow.png",
+  ponytoken: "/ponytoken.png",
+  jina: "/jina.png",
+  deepseek: "/deepseek.png",
+  aliyuncs: "/aliyuncs.png",
+};
+
+export const OFFICIAL_PROVIDER_ICON = "/modelengine-logo.png";
+export const DEFAULT_PROVIDER_ICON = "/default-icon.png";
 
 // User role constants
 export const USER_ROLES = {
@@ -114,14 +153,6 @@ export const defaultConfig: GlobalConfig = {
   },
   models: {
     llm: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    llmSecondary: {
       modelName: "",
       displayName: "",
       apiConfig: {

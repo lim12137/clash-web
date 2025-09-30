@@ -502,6 +502,8 @@ export const AppConfigSection: React.FC = () => {
                 style={{ display: "none" }}
                 accept="image/*"
                 onChange={handleFileUpload}
+                title={t('appConfig.icon.uploadHint')}
+                placeholder={t('appConfig.icon.uploadHint')}
               />
               
               <div className="text-xs text-gray-500 mt-2">

@@ -29,19 +29,46 @@ mock_models_module.ChatMessage = MagicMock()
 mock_models_module.MessageRole = MagicMock()
 mock_smolagents.models = mock_models_module
 
-# Assemble smolagents.* paths
+# Mock monitoring modules
+monitoring_manager_mock = MagicMock()
+
+# Define a decorator that simply returns the original function unchanged
+
+
+def pass_through_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+    return decorator
+
+
+monitoring_manager_mock.monitor_endpoint = pass_through_decorator
+monitoring_manager_mock.monitor_llm_call = pass_through_decorator
+monitoring_manager_mock.setup_fastapi_app = MagicMock(return_value=True)
+monitoring_manager_mock.configure = MagicMock()
+monitoring_manager_mock.add_span_event = MagicMock()
+monitoring_manager_mock.set_span_attributes = MagicMock()
+
+# Mock nexent.monitor modules
+nexent_monitor_mock = MagicMock()
+nexent_monitor_mock.get_monitoring_manager = lambda: monitoring_manager_mock
+nexent_monitor_mock.monitoring_manager = monitoring_manager_mock
+nexent_monitor_mock.MonitoringManager = MagicMock
+nexent_monitor_mock.MonitoringConfig = MagicMock
+
+# Assemble smolagents.* paths and monitoring mocks
 module_mocks = {
     "smolagents": mock_smolagents,
     "smolagents.models": mock_models_module,
     "openai.types": MagicMock(),
     "openai.types.chat": MagicMock(),
     "openai.types.chat.chat_completion_message": MagicMock(),
+    "nexent.monitor": nexent_monitor_mock,
+    "nexent.monitor.monitoring": nexent_monitor_mock,
 }
 
 with patch.dict("sys.modules", module_mocks):
     # Import after patching so dependencies are satisfied
     from sdk.nexent.core.models.openai_llm import OpenAIModel as ImportedOpenAIModel
-
 
     # -----------------------------------------------------------------------
     # Fixtures
@@ -68,7 +95,6 @@ with patch.dict("sys.modules", module_mocks):
         model.client = mock_client
 
         return model
-
 
     @pytest.fixture()
     def mock_chat_message():
@@ -152,6 +178,8 @@ def test_call_normal_operation(openai_model_instance):
     mock_chunk3.usage = MagicMock()
     mock_chunk3.usage.prompt_tokens = 10
     mock_chunk3.usage.total_tokens = 15
+    # Set completion_tokens for output token count
+    mock_chunk3.usage.completion_tokens = 5
 
     mock_stream = [mock_chunk1, mock_chunk2, mock_chunk3]
 
@@ -173,13 +201,15 @@ def test_call_normal_operation(openai_model_instance):
         mock_prepare.assert_called_once()
 
         # Verify observer calls
-        openai_model_instance.observer.add_model_new_token.assert_any_call("Hello")
-        openai_model_instance.observer.add_model_new_token.assert_any_call(" world")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            "Hello")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            " world")
         openai_model_instance.observer.flush_remaining_tokens.assert_called_once()
 
         # Verify token counts were set
         assert openai_model_instance.last_input_token_count == 10
-        assert openai_model_instance.last_output_token_count == 15
+        assert openai_model_instance.last_output_token_count == 5
 
 
 def test_call_with_no_think_token_addition(openai_model_instance):
@@ -207,7 +237,8 @@ def test_call_with_no_think_token_addition(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk]
 
         # Call the method
         openai_model_instance.__call__(messages)
@@ -241,7 +272,8 @@ def test_call_without_no_think_token(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk]
 
         # Call the method
         openai_model_instance.__call__(messages)
@@ -262,7 +294,8 @@ def test_call_stop_event_interruption(openai_model_instance):
     mock_chunk.choices[0].delta.role = "assistant"
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk]
 
         # Set the stop event before calling
         openai_model_instance.stop_event.set()
@@ -282,8 +315,8 @@ def test_call_context_length_exceeded_error(openai_model_instance):
         openai_model_instance.client.chat.completions.create.side_effect = Exception(
             "context_length_exceeded: token limit exceeded")
 
-        # Call the method and expect ValueError
-        with pytest.raises(ValueError, match="Token limit exceeded"):
+        # Call the method and expect the original Exception (since client.create error is not wrapped)
+        with pytest.raises(Exception, match="context_length_exceeded: token limit exceeded"):
             openai_model_instance.__call__(messages)
 
 
@@ -294,7 +327,8 @@ def test_call_general_exception(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}):
         # Mock the client to raise a general exception
-        openai_model_instance.client.chat.completions.create.side_effect = Exception("General error")
+        openai_model_instance.client.chat.completions.create.side_effect = Exception(
+            "General error")
 
         # Call the method and expect the same exception
         with pytest.raises(Exception, match="General error"):
@@ -320,7 +354,8 @@ def test_call_with_no_usage_info(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk]
 
         # Call the method
         openai_model_instance.__call__(messages)
@@ -356,13 +391,15 @@ def test_call_with_null_tokens(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk1, mock_chunk2]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk1, mock_chunk2]
 
         # Call the method
         openai_model_instance.__call__(messages)
 
         # Verify that null tokens are handled correctly (not added to observer)
-        openai_model_instance.observer.add_model_new_token.assert_called_once_with("Response")
+        openai_model_instance.observer.add_model_new_token.assert_called_once_with(
+            "Response")
 
 
 def test_call_with_reasoning_content(openai_model_instance):
@@ -393,7 +430,8 @@ def test_call_with_reasoning_content(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk1, mock_chunk2]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk1, mock_chunk2]
 
         # Call the method
         result = openai_model_instance.__call__(messages)
@@ -402,11 +440,14 @@ def test_call_with_reasoning_content(openai_model_instance):
         assert result == mock_result_message
 
         # Verify that reasoning_content was added to observer
-        openai_model_instance.observer.add_model_reasoning_content.assert_called_once_with("This is a reasoning step")
+        openai_model_instance.observer.add_model_reasoning_content.assert_called_once_with(
+            "This is a reasoning step")
 
         # Verify that normal tokens were also added
-        openai_model_instance.observer.add_model_new_token.assert_any_call("Let me think about this")
-        openai_model_instance.observer.add_model_new_token.assert_any_call("Response")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            "Let me think about this")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            "Response")
 
 
 def test_call_with_multiple_reasoning_content_chunks(openai_model_instance):
@@ -443,7 +484,8 @@ def test_call_with_multiple_reasoning_content_chunks(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk1, mock_chunk2, mock_chunk3]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk1, mock_chunk2, mock_chunk3]
 
         # Call the method
         result = openai_model_instance.__call__(messages)
@@ -452,13 +494,18 @@ def test_call_with_multiple_reasoning_content_chunks(openai_model_instance):
         assert result == mock_result_message
 
         # Verify that all reasoning_content chunks were added to observer
-        openai_model_instance.observer.add_model_reasoning_content.assert_any_call("First reasoning step")
-        openai_model_instance.observer.add_model_reasoning_content.assert_any_call("Second reasoning step")
+        openai_model_instance.observer.add_model_reasoning_content.assert_any_call(
+            "First reasoning step")
+        openai_model_instance.observer.add_model_reasoning_content.assert_any_call(
+            "Second reasoning step")
 
         # Verify that normal tokens were also added
-        openai_model_instance.observer.add_model_new_token.assert_any_call("Let me")
-        openai_model_instance.observer.add_model_new_token.assert_any_call(" think")
-        openai_model_instance.observer.add_model_new_token.assert_any_call(" about this")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            "Let me")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            " think")
+        openai_model_instance.observer.add_model_new_token.assert_any_call(
+            " about this")
 
 
 def test_call_with_reasoning_content_only(openai_model_instance):
@@ -489,7 +536,8 @@ def test_call_with_reasoning_content_only(openai_model_instance):
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk1, mock_chunk2]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk1, mock_chunk2]
 
         # Call the method
         result = openai_model_instance.__call__(messages)
@@ -498,10 +546,12 @@ def test_call_with_reasoning_content_only(openai_model_instance):
         assert result == mock_result_message
 
         # Verify that reasoning_content was added to observer
-        openai_model_instance.observer.add_model_reasoning_content.assert_called_once_with("Pure reasoning content")
+        openai_model_instance.observer.add_model_reasoning_content.assert_called_once_with(
+            "Pure reasoning content")
 
         # Verify that only the non-null content token was added
-        openai_model_instance.observer.add_model_new_token.assert_called_once_with("Final response")
+        openai_model_instance.observer.add_model_new_token.assert_called_once_with(
+            "Final response")
 
 
 def test_call_with_reasoning_content_and_content_together(openai_model_instance):
@@ -526,7 +576,8 @@ def test_call_with_reasoning_content_and_content_together(openai_model_instance)
 
     with patch.object(openai_model_instance, "_prepare_completion_kwargs", return_value={}), \
             patch.object(mock_models_module.ChatMessage, "from_dict", return_value=mock_result_message):
-        openai_model_instance.client.chat.completions.create.return_value = [mock_chunk]
+        openai_model_instance.client.chat.completions.create.return_value = [
+            mock_chunk]
 
         # Call the method
         result = openai_model_instance.__call__(messages)
@@ -537,7 +588,8 @@ def test_call_with_reasoning_content_and_content_together(openai_model_instance)
         # Verify that both reasoning_content and content were processed
         openai_model_instance.observer.add_model_reasoning_content.assert_called_once_with(
             "Reasoning alongside content")
-        openai_model_instance.observer.add_model_new_token.assert_called_once_with("Response text")
+        openai_model_instance.observer.add_model_new_token.assert_called_once_with(
+            "Response text")
 
 
 if __name__ == "__main__":

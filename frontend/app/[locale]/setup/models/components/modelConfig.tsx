@@ -6,72 +6,92 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
   SyncOutlined,
-  EditOutlined
-} from '@ant-design/icons'
+  EditOutlined,
+} from "@ant-design/icons";
 
-import { MODEL_TYPES, MODEL_STATUS, LAYOUT_CONFIG, CARD_THEMES } from '@/const/modelConfig'
-import { useConfig } from '@/hooks/useConfig'
-import { modelService } from '@/services/modelService'
-import { configService } from '@/services/configService'
-import { ModelOption, ModelType } from '@/types/modelConfig'
-import { configStore } from '@/lib/config'
+import {
+  MODEL_TYPES,
+  MODEL_STATUS,
+  LAYOUT_CONFIG,
+  CARD_THEMES,
+} from "@/const/modelConfig";
+import { useConfig } from "@/hooks/useConfig";
+import { modelService } from "@/services/modelService";
+import { configService } from "@/services/configService";
+import { ModelOption, ModelType } from "@/types/modelConfig";
+import { configStore } from "@/lib/config";
 import log from "@/lib/logger";
 
-import { ModelListCard } from './model/ModelListCard'
-import { ModelAddDialog } from './model/ModelAddDialog'
-import { ModelDeleteDialog } from './model/ModelDeleteDialog'
+import { ModelListCard } from "./model/ModelListCard";
+import { ModelAddDialog } from "./model/ModelAddDialog";
+import { ModelDeleteDialog } from "./model/ModelDeleteDialog";
+import EmbedderCheckModal from "./model/EmbedderCheckModal";
 
 // ModelConnectStatus type definition
-type ModelConnectStatus = typeof MODEL_STATUS[keyof typeof MODEL_STATUS];
+type ModelConnectStatus = (typeof MODEL_STATUS)[keyof typeof MODEL_STATUS];
 
 // Model data structure
 const getModelData = (t: any) => ({
   llm: {
-    title: t('modelConfig.category.llm'),
+    title: t("modelConfig.category.llm"),
     options: [
       { id: "main", name: t('modelConfig.option.mainModel') },
-      { id: "secondary", name: t('modelConfig.option.secondaryModel') },
     ],
   },
   embedding: {
-    title: t('modelConfig.category.embedding'),
+    title: t("modelConfig.category.embedding"),
     options: [
-      { id: MODEL_TYPES.EMBEDDING, name: t('modelConfig.option.embeddingModel') },
-      { id: MODEL_TYPES.MULTI_EMBEDDING, name: t('modelConfig.option.multiEmbeddingModel') },
+      {
+        id: MODEL_TYPES.EMBEDDING,
+        name: t("modelConfig.option.embeddingModel"),
+      },
+      {
+        id: MODEL_TYPES.MULTI_EMBEDDING,
+        name: t("modelConfig.option.multiEmbeddingModel"),
+      },
     ],
   },
   reranker: {
-    title: t('modelConfig.category.reranker'),
-    options: [
-      { id: "reranker", name: t('modelConfig.option.rerankerModel') },
-    ],
+    title: t("modelConfig.category.reranker"),
+    options: [{ id: "reranker", name: t("modelConfig.option.rerankerModel") }],
   },
   multimodal: {
-    title: t('modelConfig.category.multimodal'),
-    options: [
-      { id: MODEL_TYPES.VLM, name: t('modelConfig.option.vlmModel') },
-    ],
+    title: t("modelConfig.category.multimodal"),
+    options: [{ id: MODEL_TYPES.VLM, name: t("modelConfig.option.vlmModel") }],
   },
   voice: {
-    title: t('modelConfig.category.voice'),
+    title: t("modelConfig.category.voice"),
     options: [
-      { id: MODEL_TYPES.TTS, name: t('modelConfig.option.ttsModel') },
-      { id: MODEL_TYPES.STT, name: t('modelConfig.option.sttModel') },
+      { id: MODEL_TYPES.TTS, name: t("modelConfig.option.ttsModel") },
+      { id: MODEL_TYPES.STT, name: t("modelConfig.option.sttModel") },
     ],
   },
-})
+});
 
 // Define the methods exposed by the component
 export interface ModelConfigSectionRef {
   verifyModels: () => Promise<void>;
   getSelectedModels: () => Record<string, Record<string, string>>;
+  getEmbeddingConnectivity: () => {
+    embedding?: ModelConnectStatus;
+    multi_embedding?: ModelConnectStatus;
+  };
+  // Programmatically simulate a dropdown change and trigger onChange logic
+  simulateDropdownChange: (
+    category: string,
+    option: string,
+    displayName: string
+  ) => Promise<void>;
 }
 
 interface ModelConfigSectionProps {
   skipVerification?: boolean;
 }
 
-export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigSectionProps>((props, ref): ReactNode => {
+export const ModelConfigSection = forwardRef<
+  ModelConfigSectionRef,
+  ModelConfigSectionProps
+>((props, ref): ReactNode => {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const { skipVerification = false } = props;
@@ -85,6 +105,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isModifyWarningOpen, setIsModifyWarningOpen] = useState(false);
 
   // Error state management
   const [errorFields, setErrorFields] = useState<{ [key: string]: boolean }>({
@@ -97,14 +118,35 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   const abortControllerRef = useRef<AbortController | null>(null);
   // Throttle timer
   const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Debounced auto-save timer
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingChangeRef = useRef<{
+    category: string;
+    option: string;
+    displayName: string;
+  } | null>(null);
+
+  // Debounced auto-save scheduler
+  const scheduleAutoSave = () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const currentConfig = configStore.getConfig();
+        await configService.saveConfigToBackend(currentConfig as any);
+      } catch (e) {
+        // Errors are logged in configService
+      } finally {
+        saveTimerRef.current = null;
+      }
+    }, 600);
+  };
 
   // Model selection state
   const [selectedModels, setSelectedModels] = useState<
     Record<string, Record<string, string>>
   >({
-    llm: { main: "", secondary: "" },
+    llm: { main: "" },
     embedding: { embedding: "", multi_embedding: "" },
     reranker: { reranker: "" },
     multimodal: { vlm: "" },
@@ -164,10 +206,53 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     };
   }, []);
 
+  // Compute current embedding connectivity from selected models and model lists
+  const getEmbeddingConnectivity = () => {
+    const result: {
+      embedding?: ModelConnectStatus;
+      multi_embedding?: ModelConnectStatus;
+    } = {};
+
+    const resolveStatus = (
+      displayName: string,
+      modelType: ModelType
+    ): ModelConnectStatus | undefined => {
+      if (!displayName) return undefined;
+      const isOfficial = officialModels.some(
+        (m) => m.displayName === displayName && m.type === modelType
+      );
+      if (isOfficial) return MODEL_STATUS.AVAILABLE;
+      const custom = customModels.find(
+        (m) => m.displayName === displayName && m.type === modelType
+      );
+      return custom?.connect_status as ModelConnectStatus | undefined;
+    };
+
+    result.embedding = resolveStatus(
+      selectedModels.embedding?.embedding,
+      MODEL_TYPES.EMBEDDING as unknown as ModelType
+    );
+    result.multi_embedding = resolveStatus(
+      selectedModels.embedding?.multi_embedding,
+      MODEL_TYPES.MULTI_EMBEDDING as unknown as ModelType
+    );
+
+    return result;
+  };
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     verifyModels,
     getSelectedModels: () => selectedModels,
+    getEmbeddingConnectivity,
+    simulateDropdownChange: async (
+      category: string,
+      option: string,
+      displayName: string
+    ) => {
+      // Directly apply model change to mimic Select onChange behavior
+      await applyModelChange(category, option, displayName);
+    },
   }));
 
   // Load model lists
@@ -201,12 +286,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           )
         : true;
 
-      const llmSecondary = modelConfig.llmSecondary.displayName;
-      const llmSecondaryExists = llmSecondary
-        ? allModels.some(
-            (m) => m.displayName === llmSecondary && m.type === MODEL_TYPES.LLM
-          )
-        : true;
 
       const embedding = modelConfig.embedding.displayName;
       const embeddingExists = embedding
@@ -257,7 +336,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       const updatedSelectedModels = {
         llm: {
           main: llmMainExists ? llmMain : "",
-          secondary: llmSecondaryExists ? llmSecondary : "",
         },
         embedding: {
           embedding: embeddingExists ? embedding : "",
@@ -289,13 +367,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         };
       }
 
-      if (!llmSecondaryExists && llmSecondary) {
-        configUpdates.llmSecondary = {
-          modelName: "",
-          displayName: "",
-          apiConfig: { apiKey: "", modelUrl: "" },
-        };
-      }
 
       if (!embeddingExists && embedding) {
         configUpdates.embedding = {
@@ -332,12 +403,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       // If there are configurations to update, update localStorage
       if (Object.keys(configUpdates).length > 0) {
         updateModelConfig(configUpdates);
+        // Persist cleared/adjusted selections
+        scheduleAutoSave();
       }
 
       // Check if there are configured models that need connectivity verification
       const hasConfiguredModels =
         !!modelConfig.llm.modelName ||
-        !!modelConfig.llmSecondary.modelName ||
         !!modelConfig.embedding.modelName ||
         !!modelConfig.multiEmbedding.modelName ||
         !!modelConfig.rerank.modelName ||
@@ -358,8 +430,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         }
       }
     } catch (error) {
-      log.error(t("modelConfig.error.loadList"), error)
-      message.error(t("modelConfig.error.loadListFailed"))
+      log.error(t("modelConfig.error.loadList"), error);
+      message.error(t("modelConfig.error.loadListFailed"));
     }
   };
 
@@ -398,7 +470,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     if (!hasSelectedModels) {
       // Directly check if each model exists in configuration
       const hasLlmMain = !!modelConfig.llm.modelName;
-      const hasLlmSecondary = !!modelConfig.llmSecondary.modelName;
       const hasEmbedding = !!modelConfig.embedding.modelName;
       const hasReranker = !!modelConfig.rerank.modelName;
       const hasVlm = !!modelConfig.vlm.modelName;
@@ -407,7 +478,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
       hasSelectedModels =
         hasLlmMain ||
-        hasLlmSecondary ||
         hasEmbedding ||
         hasReranker ||
         hasVlm ||
@@ -417,8 +487,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       if (hasSelectedModels) {
         // Override current selected models with models from configuration
         currentSelectedModels.llm.main = modelConfig.llm.modelName;
-        currentSelectedModels.llm.secondary =
-          modelConfig.llmSecondary.modelName;
         currentSelectedModels.embedding.embedding =
           modelConfig.embedding.modelName;
         currentSelectedModels.embedding.multi_embedding =
@@ -646,8 +714,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }, 1000);
   };
 
-  // Handle model changes
-  const handleModelChange = async (
+  // Apply model change logic (used by confirm modal)
+  const applyModelChange = async (
     category: string,
     option: string,
     displayName: string
@@ -700,9 +768,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
     // Update configuration
     let configKey = category;
-    if (category === MODEL_TYPES.LLM && option === "secondary") {
-      configKey = "llmSecondary";
-    } else if (
+    if (
       category === MODEL_TYPES.EMBEDDING &&
       option === MODEL_TYPES.MULTI_EMBEDDING
     ) {
@@ -718,21 +784,42 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }
 
     const apiConfig = modelInfo?.apiKey
-      ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || "",
-        }
-      : {
-          apiKey: "",
-          modelUrl: "",
-        };
+      ? { apiKey: modelInfo.apiKey, modelUrl: modelInfo.apiUrl || "" }
+      : { apiKey: "", modelUrl: "" };
 
-    let configUpdate: any = {
-      [configKey]: {
-        modelName: modelInfo?.name,
-        displayName: displayName,
-        apiConfig,
-      },
+    let configUpdate: any;
+    if (!displayName) {
+      // Clearing selection should actively clear stored config
+      if (configKey === "embedding" || configKey === "multiEmbedding") {
+        configUpdate = {
+          [configKey]: {
+            modelName: "",
+            displayName: "",
+            apiConfig: { apiKey: "", modelUrl: "" },
+            dimension: 0,
+          },
+        };
+      } else {
+        configUpdate = {
+          [configKey]: {
+            modelName: "",
+            displayName: "",
+            apiConfig: { apiKey: "", modelUrl: "" },
+          },
+        };
+      }
+    } else {
+      configUpdate = {
+        [configKey]: {
+          modelName: modelInfo?.name || "",
+          displayName: displayName,
+          apiConfig,
+        },
+      };
+      // embedding needs dimension field
+      if (configKey === "embedding" || configKey === "multiEmbedding") {
+        configUpdate[configKey].dimension = modelInfo?.maxTokens || 0;
+      }
     };
 
     // embedding needs dimension field
@@ -749,19 +836,54 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }
 
     // Schedule auto-save of the updated configuration to backend
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        const currentConfig = configStore.getConfig();
-        await configService.saveConfigToBackend(currentConfig as any);
-      } catch (e) {
-        // Silent fail; errors are logged by service
-      } finally {
-        saveTimerRef.current = null;
+    scheduleAutoSave();
+  };
+
+  // Handle model changes (with confirmation for embedding changes)
+  const handleModelChange = async (
+    category: string,
+    option: string,
+    displayName: string,
+    skipConfirm: boolean = false
+  ) => {
+    const isEmbeddingCategory =
+      category === MODEL_TYPES.EMBEDDING &&
+      (option === MODEL_TYPES.EMBEDDING ||
+        option === MODEL_TYPES.MULTI_EMBEDDING);
+
+    if (isEmbeddingCategory && !skipConfirm) {
+      const currentValue = selectedModels[category]?.[option] || "";
+      // Only prompt when modifying from a non-empty value to a different value
+      if (currentValue && currentValue !== displayName) {
+        pendingChangeRef.current = { category, option, displayName };
+        setIsModifyWarningOpen(true);
+        return;
       }
-    }, 600);
+      if (currentValue === displayName) {
+        return;
+      }
+    }
+
+    await applyModelChange(category, option, displayName);
+  };
+
+  const handleModifyOk = async () => {
+    const pending = pendingChangeRef.current;
+    if (pending) {
+      await handleModelChange(
+        pending.category,
+        pending.option,
+        pending.displayName,
+        true
+      );
+    }
+    pendingChangeRef.current = null;
+    setIsModifyWarningOpen(false);
+  };
+
+  const handleModifyCancel = () => {
+    pendingChangeRef.current = null;
+    setIsModifyWarningOpen(false);
   };
 
   // Only update local UI state, no database operations involved
@@ -971,7 +1093,19 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           }}
           customModels={customModels}
         />
+
+        <EmbedderCheckModal
+          emptyWarningOpen={false}
+          onEmptyOk={() => {}}
+          onEmptyCancel={() => {}}
+          connectivityWarningOpen={false}
+          onConnectivityOk={() => {}}
+          onConnectivityCancel={() => {}}
+          modifyWarningOpen={isModifyWarningOpen}
+          onModifyOk={handleModifyOk}
+          onModifyCancel={handleModifyCancel}
+        />
       </div>
     </>
   );
-}) 
+});

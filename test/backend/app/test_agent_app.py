@@ -1,3 +1,5 @@
+import atexit
+from unittest.mock import patch, Mock, MagicMock
 import os
 import sys
 import types
@@ -7,10 +9,31 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
-# Dynamically determine the backend path
+# Dynamically determine the backend path - MUST BE FIRST
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-sys.path.append(backend_dir)
+sys.path.insert(0, backend_dir)
+
+# Mock boto3 before importing backend modules
+boto3_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
+
+# Import target endpoints with all external dependencies patched
+with patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
+    minio_mock.return_value = MagicMock()
+    
+    from apps.agent_app import router
+
+# Apply patches before importing any app modules (similar to test_base_app.py)
+
+patches = [
+    # Mock database sessions
+    patch('backend.database.client.get_db_session', return_value=Mock())
+]
+
+for p in patches:
+    p.start()
 
 # Mock external dependencies before importing the modules that use them
 # Stub nexent.core.agents.agent_model.ToolConfig to satisfy type imports in consts.model
@@ -23,15 +46,52 @@ class ToolConfig:  # minimal stub for type reference
 
 agent_model_stub.ToolConfig = ToolConfig
 
+# Mock monitoring modules
+monitoring_stub = types.ModuleType("monitor")
+monitoring_manager_mock = pytest.importorskip("unittest.mock").MagicMock()
+
+# Define a decorator that simply returns the original function unchanged
+
+
+def pass_through_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+    return decorator
+
+
+monitoring_manager_mock.monitor_endpoint = pass_through_decorator
+monitoring_manager_mock.monitor_llm_call = pass_through_decorator
+monitoring_manager_mock.setup_fastapi_app = pytest.importorskip(
+    "unittest.mock").MagicMock(return_value=True)
+monitoring_manager_mock.configure = pytest.importorskip(
+    "unittest.mock").MagicMock()
+monitoring_manager_mock.add_span_event = pytest.importorskip(
+    "unittest.mock").MagicMock()
+monitoring_manager_mock.set_span_attributes = pytest.importorskip(
+    "unittest.mock").MagicMock()
+
+monitoring_stub.get_monitoring_manager = lambda: monitoring_manager_mock
+monitoring_stub.monitoring_manager = monitoring_manager_mock
+monitoring_stub.MonitoringManager = pytest.importorskip(
+    "unittest.mock").MagicMock
+monitoring_stub.MonitoringConfig = pytest.importorskip(
+    "unittest.mock").MagicMock
+
 # Ensure module hierarchy exists in sys.modules
 sys.modules['nexent'] = types.ModuleType('nexent')
 sys.modules['nexent.core'] = types.ModuleType('nexent.core')
 sys.modules['nexent.core.agents'] = types.ModuleType('nexent.core.agents')
 sys.modules['nexent.core.agents.agent_model'] = agent_model_stub
-sys.modules['database.client'] = pytest.importorskip("unittest.mock").MagicMock()
-sys.modules['database.agent_db'] = pytest.importorskip("unittest.mock").MagicMock()
-sys.modules['agents.create_agent_info'] = pytest.importorskip("unittest.mock").MagicMock()
-sys.modules['nexent.core.agents.run_agent'] = pytest.importorskip("unittest.mock").MagicMock()
+sys.modules['nexent.monitor'] = monitoring_stub
+sys.modules['nexent.monitor.monitoring'] = monitoring_stub
+sys.modules['database.client'] = pytest.importorskip(
+    "unittest.mock").MagicMock()
+sys.modules['database.agent_db'] = pytest.importorskip(
+    "unittest.mock").MagicMock()
+sys.modules['agents.create_agent_info'] = pytest.importorskip(
+    "unittest.mock").MagicMock()
+sys.modules['nexent.core.agents.run_agent'] = pytest.importorskip(
+    "unittest.mock").MagicMock()
 sys.modules['supabase'] = pytest.importorskip("unittest.mock").MagicMock()
 sys.modules['utils.auth_utils'] = pytest.importorskip(
     "unittest.mock").MagicMock()
@@ -39,6 +99,12 @@ sys.modules['utils.config_utils'] = pytest.importorskip(
     "unittest.mock").MagicMock()
 sys.modules['utils.thread_utils'] = pytest.importorskip(
     "unittest.mock").MagicMock()
+# Mock utils.monitoring to return our monitoring_manager_mock
+utils_monitoring_mock = pytest.importorskip("unittest.mock").MagicMock()
+utils_monitoring_mock.monitoring_manager = monitoring_manager_mock
+utils_monitoring_mock.setup_fastapi_app = pytest.importorskip(
+    "unittest.mock").MagicMock(return_value=True)
+sys.modules['utils.monitoring'] = utils_monitoring_mock
 sys.modules['agents.agent_run_manager'] = pytest.importorskip(
     "unittest.mock").MagicMock()
 sys.modules['services.agent_service'] = pytest.importorskip(
@@ -48,7 +114,17 @@ sys.modules['services.conversation_management_service'] = pytest.importorskip(
 sys.modules['services.memory_config_service'] = pytest.importorskip(
     "unittest.mock").MagicMock()
 
-from apps.agent_app import router
+# Now safe to import app modules after all mocks are set up
+
+# Stop all patches at the end of the module
+
+
+def stop_patches():
+    for p in patches:
+        p.stop()
+
+
+atexit.register(stop_patches)
 
 # Create FastAPI app for testing
 app = FastAPI()
@@ -108,7 +184,7 @@ def test_agent_stop_api_success(mocker, mock_conversation_id):
     # Mock the authentication function to return user_id
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
     mock_get_user_id.return_value = ("test_user_id", "test_tenant_id")
-    
+
     mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
     mock_stop_tasks.return_value = {"status": "success"}
 
@@ -119,7 +195,8 @@ def test_agent_stop_api_success(mocker, mock_conversation_id):
 
     assert response.status_code == 200
     mock_get_user_id.assert_called_once_with("Bearer test_token")
-    mock_stop_tasks.assert_called_once_with(mock_conversation_id, "test_user_id")
+    mock_stop_tasks.assert_called_once_with(
+        mock_conversation_id, "test_user_id")
     assert response.json()["status"] == "success"
 
 
@@ -128,7 +205,7 @@ def test_agent_stop_api_not_found(mocker, mock_conversation_id):
     # Mock the authentication function to return user_id
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
     mock_get_user_id.return_value = ("test_user_id", "test_tenant_id")
-    
+
     mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
     mock_stop_tasks.return_value = {"status": "error"}  # Simulate not found
 
@@ -140,7 +217,8 @@ def test_agent_stop_api_not_found(mocker, mock_conversation_id):
     # The app should raise HTTPException for non-success status
     assert response.status_code == 400
     mock_get_user_id.assert_called_once_with("Bearer test_token")
-    mock_stop_tasks.assert_called_once_with(mock_conversation_id, "test_user_id")
+    mock_stop_tasks.assert_called_once_with(
+        mock_conversation_id, "test_user_id")
     assert "no running agent or preprocess tasks found" in response.json()[
         "detail"]
 

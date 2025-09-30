@@ -1,5 +1,3 @@
-from fastapi import Request
-from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 import sys
 import asyncio
 import json
@@ -7,6 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 import pytest
 from fastapi.responses import StreamingResponse
+from fastapi import Request
 
 # Import the actual ToolConfig model for testing before any mocking
 from nexent.core.agents.agent_model import ToolConfig
@@ -15,17 +14,38 @@ from nexent.core.agents.agent_model import ToolConfig
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Mock Elasticsearch
-elasticsearch_client_mock = MagicMock()
-patch('elasticsearch._sync.client.Elasticsearch',
-      return_value=elasticsearch_client_mock).start()
-patch('elasticsearch.Elasticsearch',
-      return_value=elasticsearch_client_mock).start()
+# Mock external dependencies before importing backend modules that might initialize them
+with patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
+    minio_mock.return_value = MagicMock()
+    
+    import backend.services.agent_service as agent_service
+    from backend.services.agent_service import update_agent_info_impl
+    from backend.services.agent_service import get_creating_sub_agent_info_impl
+    from backend.services.agent_service import list_all_agent_info_impl
+    from backend.services.agent_service import get_agent_info_impl
+    from backend.services.agent_service import get_creating_sub_agent_id_service
+    from backend.services.agent_service import get_enable_tool_id_by_agent_id
+    from backend.services.agent_service import (
+        get_agent_call_relationship_impl,
+        delete_agent_impl,
+        export_agent_impl,
+        export_agent_by_agent_id,
+        import_agent_by_agent_id,
+        insert_related_agent_impl,
+        load_default_agents_json_file,
+        clear_agent_memory,
+        import_agent_impl,
+        get_agent_id_by_name,
+        save_messages,
+        prepare_agent_run,
+        run_agent_stream,
+        stop_agent_tasks,
+    )
+    from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
-# Mock ElasticSearchCore
-elasticsearch_core_mock = MagicMock()
-patch('sdk.nexent.vector_database.elasticsearch_core.ElasticSearchCore',
-      return_value=elasticsearch_core_mock).start()
+# Mock Elasticsearch (already done in the import section above, but keeping for reference)
+elasticsearch_client_mock = MagicMock()
 
 
 # Mock memory-related modules
@@ -36,6 +56,31 @@ sys.modules['nexent.core.agents'] = MagicMock()
 # Don't mock agent_model yet, we need to import ToolConfig first
 sys.modules['nexent.memory'] = MagicMock()
 sys.modules['nexent.memory.memory_service'] = MagicMock()
+
+# Mock monitoring modules
+monitoring_manager_mock = MagicMock()
+
+# Define a decorator that simply returns the original function unchanged
+
+
+def pass_through_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+    return decorator
+
+
+monitoring_manager_mock.monitor_endpoint = pass_through_decorator
+monitoring_manager_mock.monitor_llm_call = pass_through_decorator
+monitoring_manager_mock.setup_fastapi_app = MagicMock(return_value=True)
+monitoring_manager_mock.configure = MagicMock()
+monitoring_manager_mock.add_span_event = MagicMock()
+monitoring_manager_mock.set_span_attributes = MagicMock()
+
+# Mock nexent.monitor modules
+sys.modules['nexent.monitor'] = MagicMock()
+sys.modules['nexent.monitor.monitoring'] = MagicMock()
+sys.modules['nexent.monitor'].get_monitoring_manager = lambda: monitoring_manager_mock
+sys.modules['nexent.monitor'].monitoring_manager = monitoring_manager_mock
 
 # Mock other dependencies
 sys.modules['agents'] = MagicMock()
@@ -53,32 +98,15 @@ sys.modules['utils'] = MagicMock()
 sys.modules['utils.auth_utils'] = MagicMock()
 sys.modules['utils.memory_utils'] = MagicMock()
 sys.modules['utils.thread_utils'] = MagicMock()
+# Mock utils.monitoring to return our monitoring_manager_mock
+utils_monitoring_mock = MagicMock()
+utils_monitoring_mock.monitoring_manager = monitoring_manager_mock
+utils_monitoring_mock.setup_fastapi_app = MagicMock(return_value=True)
+sys.modules['utils.monitoring'] = utils_monitoring_mock
 sys.modules['agents.agent_run_manager'] = MagicMock()
 sys.modules['agents.preprocess_manager'] = MagicMock()
 sys.modules['nexent.core.agents.run_agent'] = MagicMock()
 
-from backend.services.agent_service import (
-    get_agent_call_relationship_impl,
-    delete_agent_impl,
-    export_agent_impl,
-    export_agent_by_agent_id,
-    import_agent_by_agent_id,
-    insert_related_agent_impl,
-    load_default_agents_json_file,
-    clear_agent_memory,
-    import_agent_impl,
-    get_agent_id_by_name,
-    save_messages,
-    prepare_agent_run,
-    run_agent_stream,
-    stop_agent_tasks,
-)
-from backend.services.agent_service import get_enable_tool_id_by_agent_id
-from backend.services.agent_service import get_creating_sub_agent_id_service
-from backend.services.agent_service import get_agent_info_impl
-from backend.services.agent_service import list_all_agent_info_impl
-from backend.services.agent_service import get_creating_sub_agent_info_impl
-from backend.services.agent_service import update_agent_info_impl
 
 original_agent_model = sys.modules['nexent.core.agents.agent_model']
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
@@ -189,11 +217,12 @@ async def test_get_creating_sub_agent_id_service_new_agent(mock_search, mock_cre
     )
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
 @patch('backend.services.agent_service.query_sub_agents_id_list')
 @patch('backend.services.agent_service.search_tools_for_sub_agent')
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
 @pytest.mark.asyncio
-async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id):
+async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
     """
     Test successful retrieval of an agent's information by ID.
 
@@ -206,7 +235,7 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
     # Setup
     mock_agent_info = {
         "agent_id": 123,
-        "model_name": "gpt-4",
+        "model_id": None,
         "business_description": "Test agent"
     }
     mock_search_agent_info.return_value = mock_agent_info
@@ -216,6 +245,9 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
 
     mock_sub_agent_ids = [456, 789]
     mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+    
+    # Mock get_model_by_model_id - return None for model_id=None
+    mock_get_model_by_model_id.return_value = None
 
     # Execute
     result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
@@ -223,10 +255,11 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
     # Assert
     expected_result = {
         "agent_id": 123,
-        "model_name": "gpt-4",
+        "model_id": None,
         "business_description": "Test agent",
         "tools": mock_tools,
-        "sub_agent_id_list": mock_sub_agent_ids
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": None
     }
     assert result == expected_result
     mock_search_agent_info.assert_called_once_with(123, "test_tenant")
@@ -236,6 +269,7 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
         main_agent_id=123, tenant_id="test_tenant")
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
 @patch('backend.services.agent_service.query_sub_agents_id_list')
 @patch('backend.services.agent_service.get_enable_tool_id_by_agent_id')
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
@@ -244,7 +278,7 @@ async def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_t
 @pytest.mark.asyncio
 async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_info, mock_get_creating_sub_agent,
                                                         mock_search_agent_info, mock_get_enable_tools,
-                                                        mock_query_sub_agents_id):
+                                                        mock_query_sub_agents_id, mock_get_model_by_model_id):
     """
     Test successful retrieval of creating sub-agent information.
 
@@ -259,11 +293,11 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "test_user", "test_tenant", "en")
     mock_get_creating_sub_agent.return_value = 456
     mock_search_agent_info.return_value = {
-        "model_id": 456,
+        "model_id": None,
+        "model_name": "test_model",
         "name": "agent_name",
         "display_name": "display name",
         "description": "description...",
-        "model_name": "gpt-4",
         "max_steps": 5,
         "business_description": "Sub agent",
         "duty_prompt": "Sub duty prompt",
@@ -272,6 +306,9 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
     }
     mock_get_enable_tools.return_value = [1, 2]
     mock_query_sub_agents_id.return_value = [789]
+    
+    # Mock get_model_by_model_id - return None for model_id=None
+    mock_get_model_by_model_id.return_value = None
 
     # Execute
     # Ensure the sub agent id remains as initially configured (456)
@@ -285,7 +322,8 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "display_name": "display name",
         "description": "description...",
         "enable_tool_id_list": [1, 2],
-        "model_name": "gpt-4",
+        "model_name": "test_model",
+        "model_id": None,
         "max_steps": 5,
         "business_description": "Sub agent",
         "duty_prompt": "Sub duty prompt",
@@ -314,7 +352,7 @@ async def test_update_agent_info_impl_success(mock_get_current_user_info, mock_u
     # Create a mock AgentInfoRequest object since consts.model is mocked
     request = MagicMock()
     request.agent_id = 123
-    request.model_name = "gpt-4"
+    request.model_id = None
     request.business_description = "Updated agent"
     request.display_name = "Updated Display Name"
 
@@ -394,7 +432,7 @@ async def test_update_agent_info_impl_exception_handling(mock_get_current_user_i
     # Create a mock AgentInfoRequest object since consts.model is mocked
     request = MagicMock()
     request.agent_id = 123
-    request.model_name = "gpt-4"
+    request.model_id = None
     request.display_name = "Test Display Name"
 
     # Execute & Assert
@@ -462,7 +500,6 @@ async def test_export_agent_impl_success(mock_get_current_user_info, mock_export
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -488,7 +525,6 @@ async def test_export_agent_impl_success(mock_get_current_user_info, mock_export
                 "display_name": "Test Agent Display",
                 "description": "A test agent",
                 "business_description": "For testing purposes",
-                "model_name": "main_model",
                 "max_steps": 10,
                 "provide_run_summary": True,
                 "duty_prompt": "Test duty prompt",
@@ -563,7 +599,6 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_info, mock_e
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -586,7 +621,6 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_info, mock_e
                 "display_name": "Test Agent Display",
                 "description": "A test agent",
                 "business_description": "For testing purposes",
-                "model_name": "main_model",
                 "max_steps": 10,
                 "provide_run_summary": True,
                 "duty_prompt": "Test duty prompt",
@@ -623,8 +657,9 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_info, mock_e
     mock_export_data_format.assert_called_once()
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
-async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info):
+async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info, mock_get_model_by_model_id):
     """
     Test get_agent_info_impl with an error in retrieving tool information.
 
@@ -636,7 +671,7 @@ async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info):
     # Setup
     mock_agent_info = {
         "agent_id": 123,
-        "model_name": "gpt-4",
+        "model_id": None,
         "business_description": "Test agent"
     }
     mock_search_agent_info.return_value = mock_agent_info
@@ -646,6 +681,7 @@ async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info):
             patch('backend.services.agent_service.query_sub_agents_id_list') as mock_query_sub_agents_id:
         mock_search_tools.side_effect = Exception("Tool search error")
         mock_query_sub_agents_id.return_value = []
+        mock_get_model_by_model_id.return_value = None
 
         # Execute
         result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
@@ -654,7 +690,201 @@ async def test_get_agent_info_impl_with_tool_error(mock_search_agent_info):
         assert result["agent_id"] == 123
         assert result["tools"] == []
         assert result["sub_agent_id_list"] == []
+        assert result["model_name"] is None
         mock_search_agent_info.assert_called_once_with(123, "test_tenant")
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_sub_agent_error(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with an error in retrieving sub agent id list.
+
+    This test verifies that:
+    1. The function correctly gets the agent information
+    2. When an error occurs retrieving sub agent id list
+    3. The function returns the agent information with an empty sub_agent_id_list
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": None,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    # Mock query_sub_agents_id_list to raise an exception
+    mock_query_sub_agents_id.side_effect = Exception("Sub agent query error")
+    mock_get_model_by_model_id.return_value = None
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    assert result["agent_id"] == 123
+    assert result["tools"] == mock_tools
+    assert result["sub_agent_id_list"] == []
+    assert result["model_name"] is None
+    mock_search_agent_info.assert_called_once_with(123, "test_tenant")
+    mock_search_tools.assert_called_once_with(
+        agent_id=123, tenant_id="test_tenant")
+    mock_query_sub_agents_id.assert_called_once_with(
+        main_agent_id=123, tenant_id="test_tenant")
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_success(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with a valid model_id.
+
+    This test verifies that:
+    1. The function correctly retrieves model information when model_id is not None
+    2. It sets model_name from the model's display_name
+    3. It handles the case when model_info is None
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock model info with display_name
+    mock_model_info = {
+        "model_id": 456,
+        "display_name": "GPT-4",
+        "provider": "openai"
+    }
+    mock_get_model_by_model_id.return_value = mock_model_info
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": "GPT-4"
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_no_display_name(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with model_id but model has no display_name.
+
+    This test verifies that:
+    1. The function correctly retrieves model information when model_id is not None
+    2. It sets model_name to None when model_info exists but has no display_name
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock model info without display_name
+    mock_model_info = {
+        "model_id": 456,
+        "provider": "openai"
+        # No display_name field
+    }
+    mock_get_model_by_model_id.return_value = mock_model_info
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": None
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
+
+
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_model_id_none_model_info(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with model_id but get_model_by_model_id returns None.
+
+    This test verifies that:
+    1. The function correctly handles when model_id is not None but get_model_by_model_id returns None
+    2. It sets model_name to None when model_info is None
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [789]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock get_model_by_model_id to return None
+    mock_get_model_by_model_id.return_value = None
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": None
+    }
+    assert result == expected_result
+    mock_get_model_by_model_id.assert_called_once_with(456)
 
 
 async def test_list_all_agent_info_impl_success():
@@ -822,7 +1052,6 @@ async def test_export_agent_by_agent_id_success(mock_search_agent_info, mock_cre
         "display_name": "Test Agent Display",
         "description": "A test agent",
         "business_description": "For testing purposes",
-        "model_name": "main_model",
         "max_steps": 10,
         "provide_run_summary": True,
         "duty_prompt": "Test duty prompt",
@@ -956,7 +1185,6 @@ async def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_creat
         display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
-        model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
         duty_prompt="Imported duty prompt",
@@ -1026,7 +1254,6 @@ async def test_import_agent_by_agent_id_invalid_tool(mock_query_all_tools, mock_
         display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
-        model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
         duty_prompt="Imported duty prompt",
@@ -1093,7 +1320,6 @@ async def test_import_agent_by_agent_id_with_mcp_tool(mock_query_all_tools, mock
         display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
-        model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
         duty_prompt="Imported duty prompt",
@@ -1198,7 +1424,6 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
         "display_name": "Agent 1 Display",
         "description": "Agent 1 description",
         "business_description": "Business description",
-        "model_name": "main_model",
         "max_steps": 10,
         "provide_run_summary": true,
         "duty_prompt": "Agent 1 prompt",
@@ -1213,7 +1438,6 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
         "display_name": "Agent 2 Display",
         "description": "Agent 2 description",
         "business_description": "Business description",
-        "model_name": "sub_model",
         "max_steps": 5,
         "provide_run_summary": false,
         "duty_prompt": "Agent 2 prompt",
@@ -1237,7 +1461,6 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
                 "display_name": "Agent 1 Display",
                 "description": "Agent 1 description",
                 "business_description": "Business description",
-                "model_name": "main_model",
                 "max_steps": 10,
                 "provide_run_summary": True,
                 "duty_prompt": "Agent 1 prompt",
@@ -1251,7 +1474,6 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
                 "display_name": "Agent 2 Display",
                 "description": "Agent 2 description",
                 "business_description": "Business description",
-                "model_name": "sub_model",
                 "max_steps": 5,
                 "provide_run_summary": False,
                 "duty_prompt": "Agent 2 prompt",
@@ -1428,7 +1650,6 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mo
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1504,7 +1725,6 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_info,
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1574,7 +1794,6 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1616,7 +1835,6 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     mock_import_agent.assert_called_once()
 
 
-
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
@@ -1649,7 +1867,6 @@ async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_info, moc
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1701,7 +1918,6 @@ async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1749,7 +1965,6 @@ async def test_import_agent_impl_no_mcp_info(mock_get_current_user_info, mock_up
         display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
-        model_name="main_model",
         max_steps=10,
         provide_run_summary=True,
         duty_prompt="Test duty prompt",
@@ -1938,7 +2153,8 @@ def test_stop_agent_tasks(mock_preprocess_manager, mock_agent_run_manager):
     assert result["status"] == "success"
     assert "successfully stopped agent run and preprocess tasks" in result["message"]
 
-    mock_agent_run_manager.stop_agent_run.assert_called_once_with(123, "test_user")
+    mock_agent_run_manager.stop_agent_run.assert_called_once_with(
+        123, "test_user")
 
     # Test only agent stopped
     mock_agent_run_manager.stop_agent_run.return_value = True
@@ -2305,8 +2521,6 @@ def test_get_agent_call_relationship_impl_tool_name_fallback(mock_query_sub_agen
 # Additional tests for newer logic in agent_service.py
 #############################
 
-import backend.services.agent_service as agent_service
-
 
 @pytest.mark.asyncio
 async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
@@ -2326,7 +2540,8 @@ async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
         yield "chunk1"
         yield "chunk2"
 
-    monkeypatch.setitem(sys.modules, "nexent.core.agents.run_agent", MagicMock())
+    monkeypatch.setitem(
+        sys.modules, "nexent.core.agents.run_agent", MagicMock())
     monkeypatch.setattr(
         "backend.services.agent_service.agent_run", fake_agent_run, raising=False
     )
@@ -2383,7 +2598,7 @@ async def test__stream_agent_chunks_emits_error_chunk_on_run_failure(monkeypatch
         is_debug=True,  # avoid persisting messages to focus on error path
     )
 
-    async def failing_agent_run(*_, **__):
+    def failing_agent_run(*_, **__):
         raise Exception("oops")
 
     monkeypatch.setattr(
@@ -2674,6 +2889,7 @@ async def test_generate_stream_with_memory_unexpected_exception_emits_error(monk
     assert out and out[0].startswith(
         "data: {") and "\"type\": \"error\"" in out[0]
 
+
 async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
     """generate_stream_no_memory should prepare run info, register it and stream data without memory tokens."""
     # Prepare AgentRequest & Request
@@ -2698,7 +2914,7 @@ async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
         AsyncMock(return_value=MagicMock()),
         raising=False,
     )
-    
+
     registered = {}
 
     def fake_register(conv_id, run_info, user_id):
@@ -2819,7 +3035,8 @@ async def test_generate_stream_with_memory_emits_tokens_and_unregisters(monkeypa
     # Enable memory switch in preview
     monkeypatch.setattr(
         "backend.services.agent_service.build_memory_context",
-        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        MagicMock(return_value=MagicMock(
+            user_config=MagicMock(memory_switch=True))),
         raising=False,
     )
 
@@ -2893,7 +3110,8 @@ async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
     # Enable memory
     monkeypatch.setattr(
         "backend.services.agent_service.build_memory_context",
-        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        MagicMock(return_value=MagicMock(
+            user_config=MagicMock(memory_switch=True))),
         raising=False,
     )
 
@@ -2944,7 +3162,7 @@ async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
 async def test_list_all_agent_info_impl_with_disabled_agents():
     """
     Test list_all_agent_info_impl with disabled agents.
-    
+
     This test verifies that:
     1. Agents with enabled=False are skipped and not included in the result
     2. Only enabled agents are processed and returned
@@ -2997,7 +3215,7 @@ async def test_list_all_agent_info_impl_with_disabled_agents():
         assert result[0]["name"] == "Enabled Agent 1"
         assert result[0]["display_name"] == "Display Enabled Agent 1"
         assert result[0]["is_available"] == True
-        
+
         assert result[1]["agent_id"] == 3
         assert result[1]["name"] == "Enabled Agent 2"
         assert result[1]["display_name"] == "Display Enabled Agent 2"
@@ -3019,7 +3237,7 @@ async def test_list_all_agent_info_impl_with_disabled_agents():
 async def test_list_all_agent_info_impl_all_disabled_agents():
     """
     Test list_all_agent_info_impl with all agents disabled.
-    
+
     This test verifies that:
     1. When all agents are disabled, an empty list is returned
     2. No tool queries are made since no agents are processed

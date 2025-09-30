@@ -12,7 +12,6 @@ from consts.model import (
     TaskRequest,
 )
 from data_process.tasks import process_and_forward, process_sync
-from data_process.utils import get_task_info
 from services.data_process_service import get_data_process_service
 
 logger = logging.getLogger("data_process.app")

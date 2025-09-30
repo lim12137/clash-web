@@ -33,7 +33,7 @@ Nexent supports multiple file formats, including:
 It is recommended to configure an accurate and complete summary for each knowledge base. This helps agents accurately select the appropriate knowledge base for search.
 
 1. Click the "Details" button to view detailed content of the knowledge base
-2. Click the "Auto Summary" button to automatically generate a summary
+2. Select one LLM and click the "Auto Summary" button to automatically generate a summary
 3. You can edit the generated summary for greater accuracy
 4. Don’t forget to click "Save" to save your changes
 
