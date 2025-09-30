@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from consts.const import (
     APP_DESCRIPTION,
@@ -7,7 +8,6 @@ from consts.const import (
     CUSTOM_ICON_URL,
     DEFAULT_APP_DESCRIPTION_EN,
     DEFAULT_APP_DESCRIPTION_ZH,
-    DEFAULT_APP_ICON_URL,
     DEFAULT_APP_NAME_EN,
     DEFAULT_APP_NAME_ZH,
     ICON_TYPE,
@@ -25,7 +25,7 @@ from utils.config_utils import (
 logger = logging.getLogger("config_sync_service")
 
 
-def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
+def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: Optional[int], tenant_config_dict: dict) -> None:
     """
     Handle model configuration updates, deletions, and settings operations
 
@@ -36,30 +36,29 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
         model_id: Model ID
         tenant_config_dict: Tenant configuration dictionary
     """
-    if not model_id and config_key in tenant_config_dict:
-        tenant_config_manager.delete_single_config(tenant_id, config_key)
-    elif config_key in tenant_config_dict:
-        try:
-            existing_model_id = int(
-                tenant_config_dict[config_key]) if tenant_config_dict[config_key] else None
-            if existing_model_id == model_id:
-                tenant_config_manager.update_single_config(
-                    tenant_id, config_key)
-            else:
-                tenant_config_manager.delete_single_config(
-                    tenant_id, config_key)
-                if model_id:
-                    tenant_config_manager.set_single_config(
-                        user_id, tenant_id, config_key, model_id)
-        except (ValueError, TypeError):
+    # Delete the config if the model_id is None
+    if model_id is None:
+        if config_key in tenant_config_dict:
             tenant_config_manager.delete_single_config(tenant_id, config_key)
-            if model_id:
-                tenant_config_manager.set_single_config(
-                    user_id, tenant_id, config_key, model_id)
-    else:
-        if model_id:
-            tenant_config_manager.set_single_config(
-                user_id, tenant_id, config_key, model_id)
+        return
+
+    # If the config key does not exist, set directly
+    if config_key not in tenant_config_dict:
+        tenant_config_manager.set_single_config(
+            user_id, tenant_id, config_key, model_id)
+        return
+
+    current_model_id = tenant_config_dict.get(config_key)
+    current_model_id = int(current_model_id) if str(current_model_id).isdigit() else None
+
+    if current_model_id == model_id:
+        tenant_config_manager.update_single_config(tenant_id, config_key)
+        return
+
+    # Delete the config first, then set the new value
+    tenant_config_manager.delete_single_config(tenant_id, config_key)
+    tenant_config_manager.set_single_config(
+        user_id, tenant_id, config_key, model_id)
 
 
 async def save_config_impl(config, tenant_id, user_id):
@@ -90,15 +89,11 @@ async def save_config_impl(config, tenant_id, user_id):
         if not model_config:
             continue
 
-        model_name = model_config.get("modelName")
         model_display_name = model_config.get("displayName")
 
         config_key = get_env_key(model_type) + "_ID"
         model_id = get_model_id_by_display_name(
             model_display_name, tenant_id)
-
-        if not model_name:
-            continue
 
         handle_model_config(tenant_id, user_id, config_key,
                             model_id, tenant_config_dict)
@@ -128,7 +123,8 @@ async def load_config_impl(language: str, tenant_id: str):
 
 def build_app_config(language: str, tenant_id: str) -> dict:
     default_app_name = DEFAULT_APP_NAME_ZH if language == LANGUAGE["ZH"] else DEFAULT_APP_NAME_EN
-    default_app_description = DEFAULT_APP_DESCRIPTION_ZH if language == LANGUAGE["ZH"] else DEFAULT_APP_DESCRIPTION_EN
+    default_app_description = DEFAULT_APP_DESCRIPTION_ZH if language == LANGUAGE[
+        "ZH"] else DEFAULT_APP_DESCRIPTION_EN
 
     return {
         "name": tenant_config_manager.get_app_config(APP_NAME, tenant_id=tenant_id) or default_app_name,
@@ -136,8 +132,7 @@ def build_app_config(language: str, tenant_id: str) -> dict:
                                                             tenant_id=tenant_id) or default_app_description,
         "icon": {
             "type": tenant_config_manager.get_app_config(ICON_TYPE, tenant_id=tenant_id) or "preset",
-            "avatarUri": tenant_config_manager.get_app_config(AVATAR_URI,
-                                                              tenant_id=tenant_id) or DEFAULT_APP_ICON_URL,
+            "avatarUri": tenant_config_manager.get_app_config(AVATAR_URI, tenant_id=tenant_id) or "",
             "customUrl": tenant_config_manager.get_app_config(CUSTOM_ICON_URL, tenant_id=tenant_id) or ""
         }
     }

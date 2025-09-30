@@ -10,9 +10,18 @@ import {
   ModelSource,
 } from "@/types/modelConfig";
 
-import { getAuthHeaders } from '@/lib/auth'
-import {STATUS_CODES} from "@/const/auth";
-import { MODEL_TYPES, MODEL_SOURCES } from '@/const/modelConfig';
+import { getAuthHeaders } from "@/lib/auth";
+import { STATUS_CODES } from "@/const/auth";
+import {
+  MODEL_TYPES,
+  MODEL_SOURCES,
+  MODEL_PROVIDER_KEYS,
+  PROVIDER_HINTS,
+  PROVIDER_ICON_MAP,
+  DEFAULT_PROVIDER_ICON,
+  OFFICIAL_PROVIDER_ICON,
+  ModelProviderKey,
+} from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 // Error class
@@ -43,7 +52,7 @@ export const modelService = {
         headers: getAuthHeaders(),
       });
       const result = await response.json();
-      
+
       if (response.status === STATUS_CODES.SUCCESS && result.data) {
         const modelOptions: ModelOption[] = [];
         const typeMap: Record<string, ModelType> = {
@@ -422,14 +431,77 @@ export const modelService = {
         log.warn("Model configuration connectivity verification cancelled");
         throw error;
       }
-      log.error(
-        "Model configuration connectivity verification failed:",
-        error
-      );
+      log.error("Model configuration connectivity verification failed:", error);
       return {
         connectivity: false,
         model_name: "UNKNOWN_MODEL",
       };
     }
   },
+
+  // Get LLM model list for generation
+  getLLMModels: async (): Promise<ModelOption[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.llmModelList, {
+        headers: getAuthHeaders(),
+      });
+      const result = await response.json();
+
+      if (response.status === STATUS_CODES.SUCCESS && result.data) {
+        // Return all models, not just available ones
+        return result.data.map((model: any) => ({
+          id: model.model_id || model.id,
+          name: model.model_name || model.name,
+          type: MODEL_TYPES.LLM,
+          maxTokens: model.max_tokens || 0,
+          source: model.model_factory || MODEL_SOURCES.OPENAI_API_COMPATIBLE,
+          apiKey: model.api_key || "",
+          apiUrl: model.base_url || "",
+          displayName: model.display_name || model.model_name || model.name,
+          connect_status: model.connect_status as ModelConnectStatus,
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      log.warn("Failed to load LLM models:", error);
+      return [];
+    }
+  },
 };
+
+// -------- Provider detection helpers (for UI rendering) --------
+
+/**
+ * Detect provider key from the given base URL by substring matching using single hint strings.
+ */
+export function detectProviderFromUrl(
+  apiUrl: string | undefined | null
+): ModelProviderKey | null {
+  if (!apiUrl) return null;
+  const lower = apiUrl.toLowerCase();
+  for (const key of MODEL_PROVIDER_KEYS) {
+    const hint = PROVIDER_HINTS[key];
+    if (lower.includes(hint)) return key;
+  }
+  return null;
+}
+
+/**
+ * Get provider icon path from a base URL, falling back to default icon when unknown.
+ */
+export function getProviderIconByUrl(
+  apiUrl: string | undefined | null
+): string {
+  const key = detectProviderFromUrl(apiUrl);
+  return key
+    ? PROVIDER_ICON_MAP[key] || DEFAULT_PROVIDER_ICON
+    : DEFAULT_PROVIDER_ICON;
+}
+
+/**
+ * Get icon for official ModelEngine items explicitly.
+ */
+export function getOfficialProviderIcon(): string {
+  return OFFICIAL_PROVIDER_ICON;
+}

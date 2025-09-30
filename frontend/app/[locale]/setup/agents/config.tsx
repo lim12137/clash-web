@@ -8,7 +8,7 @@ import {
   GENERATE_PROMPT_STREAM_TYPES,
 } from "@/const/agentConfig";
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/const/layoutConstants";
-import { OpenAIModel } from "@/types/modelConfig";
+import { ModelOption } from "@/types/modelConfig";
 import {
   LayoutConfig,
   AgentConfigDataResponse,
@@ -24,6 +24,7 @@ import {
 import { generatePromptStream } from "@/services/promptService";
 import { updateToolList } from "@/services/mcpService";
 import log from "@/lib/logger";
+import { configStore } from "@/lib/config";
 
 import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
 import DebugConfig from "./components/DebugConfig";
@@ -45,7 +46,8 @@ export default function AgentConfig() {
   const [selectedTools, setSelectedTools] = useState<any[]>([]);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false);
-  const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel);
+  const [mainAgentModel, setMainAgentModel] = useState<string | null>(null);
+  const [mainAgentModelId, setMainAgentModelId] = useState<number | null>(null);
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5);
   const [tools, setTools] = useState<any[]>([]);
   const [mainAgentId, setMainAgentId] = useState<string | null>(null);
@@ -69,12 +71,13 @@ export default function AgentConfig() {
 
   // Add state for business logic and action buttons
   const [isGeneratingAgent, setIsGeneratingAgent] = useState(false);
+  const [isEmbeddingConfigured, setIsEmbeddingConfigured] = useState(false);
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false);
 
   // Handle generate agent
-  const handleGenerateAgent = async () => {
+  const handleGenerateAgent = async (selectedModel?: ModelOption) => {
     if (!businessLogic || businessLogic.trim() === "") {
       message.warning(
         t("businessLogic.config.error.businessDescriptionRequired")
@@ -98,6 +101,7 @@ export default function AgentConfig() {
         {
           agent_id: Number(currentAgentId),
           task_description: businessLogic,
+          model_id: selectedModel?.id?.toString() || "",
         },
         (data) => {
           // Process streaming response data
@@ -186,7 +190,7 @@ export default function AgentConfig() {
         );
       }
     } catch (error) {
-      log.error(t("debug.log.exportAgentFailed"), error);
+      log.error(t("agentConfig.agents.exportFailed"), error);
       message.error(t("businessLogic.config.error.agentExportFailed"));
     }
   };
@@ -225,13 +229,21 @@ export default function AgentConfig() {
         );
       }
     } catch (error) {
-      log.error(t("debug.log.deleteAgentFailed"), error);
+      log.error(t("agentConfig.agents.deleteFailed"), error);
       message.error(t("businessLogic.config.message.agentDeleteFailed"));
     }
   };
 
   // Load tools when page is loaded
   useEffect(() => {
+    // Check embedding configuration once when entering the page
+    try {
+      const modelConfig = configStore.getModelConfig();
+      setIsEmbeddingConfigured(!!modelConfig?.embedding?.modelName);
+    } catch (e) {
+      setIsEmbeddingConfigured(false);
+    }
+
     const loadTools = async () => {
       try {
         const result = await fetchTools();
@@ -276,7 +288,7 @@ export default function AgentConfig() {
         // Clear other states since we don't have detailed info yet
         setMainAgentId(null);
         // No longer manually clear enabledAgentIds, completely rely on backend returned sub_agent_id_list
-        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentModel(null);
         setMainAgentMaxStep(5);
         setBusinessLogic("");
         setDutyContent("");
@@ -387,7 +399,7 @@ export default function AgentConfig() {
         message.error(t("agentConfig.tools.refreshFailed"));
       }
     } catch (error) {
-      log.error(t("agentConfig.debug.refreshToolsFailed"), error);
+      log.error(t("agentConfig.tools.refreshFailedDebug"), error);
       message.error(t("agentConfig.tools.refreshFailed"));
     }
   };
@@ -423,6 +435,8 @@ export default function AgentConfig() {
               setIsCreatingNewAgent={setIsCreatingNewAgent}
               mainAgentModel={mainAgentModel}
               setMainAgentModel={setMainAgentModel}
+              mainAgentModelId={mainAgentModelId}
+              setMainAgentModelId={setMainAgentModelId}
               mainAgentMaxStep={mainAgentMaxStep}
               setMainAgentMaxStep={setMainAgentMaxStep}
               tools={tools}
@@ -488,6 +502,7 @@ export default function AgentConfig() {
               onDeleteAgent={handleDeleteAgent}
               editingAgent={editingAgent}
               onExitCreation={handleExitCreation}
+              isEmbeddingConfigured={isEmbeddingConfigured}
             />
           </div>
         </div>

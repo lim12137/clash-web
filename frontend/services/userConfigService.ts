@@ -31,11 +31,14 @@ export class UserConfigService {
   // Update user selected knowledge base list
   async updateKnowledgeList(knowledgeList: string[]): Promise<boolean> {
     try {
-      const response = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ knowledge_list: knowledgeList }),
-      });
+      const response = await fetch(
+        API_ENDPOINTS.tenantConfig.updateKnowledgeList,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(knowledgeList),
+        }
+      );
 
       if (!response.ok) {
         return false;

@@ -112,7 +112,7 @@ export default function AgentSetupPage() {
       isCheckingConnection={isCheckingConnection}
       onCheckConnection={checkModelEngineConnection}
       title={t("setup.header.title")}
-      description={t("setup.agent.description")}
+      description={t("setup.header.description")}
       onBack={handleBack}
       onComplete={handleComplete}
       isSaving={isSaving}

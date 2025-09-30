@@ -516,7 +516,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Connectivity verification area */}
         {!form.isBatchImport && (
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
@@ -537,7 +537,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               size="small"
               type="default"
               onClick={handleVerifyConnectivity}
-              loading={verifyingConnectivity}
               disabled={!isFormValid() || verifyingConnectivity}
             >
               {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
@@ -652,8 +651,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             <div className="mt-2 ml-6 flex items-center">
               <span>{t('model.dialog.label.currentlySupported')}</span>
               {form.isBatchImport && (
-                <Tooltip title="SiliconCloud">
-                  <img src="/siliconcloud-color.png" alt="SiliconCloud" className="h-4 ml-1.5" />
+                <Tooltip title="SiliconFlow">
+                  <img src="/siliconflow.png" alt="SiliconFlow" className="h-4 ml-1.5" />
                 </Tooltip>
               )}
               {form.type === 'llm' && !form.isBatchImport && (
@@ -662,13 +661,13 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                     <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Kimi">
-                    <img src="/kimi-color.png" alt="Kimi" className="h-4 ml-1.5" />
+                    <img src="/kimi.png" alt="Kimi" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Deepseek">
-                    <img src="/deepseek-color.png" alt="Deepseek" className="h-4 ml-1.5" />
+                    <img src="/deepseek.png" alt="Deepseek" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Qwen">
-                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                    <img src="/qwen.png" alt="Qwen" className="h-4 ml-1.5" />
                   </Tooltip>
                   <span className="ml-1.5">...</span>
                 </>
@@ -679,7 +678,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                     <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Qwen">
-                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                    <img src="/qwen.png" alt="Qwen" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Jina">
                     <img src="/jina.png" alt="Jina" className="h-4 ml-1.5" />
@@ -693,10 +692,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               {form.type === 'vlm' && !form.isBatchImport && (
                 <>
                   <Tooltip title="Qwen">
-                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                    <img src="/qwen.png" alt="Qwen" className="h-4 ml-1.5" />
                   </Tooltip>
                   <Tooltip title="Deepseek">
-                    <img src="/deepseek-color.png" alt="Deepseek" className="h-4 ml-1.5" />
+                    <img src="/deepseek.png" alt="Deepseek" className="h-4 ml-1.5" />
                   </Tooltip>
                   <span className="ml-1.5">...</span>
                 </>

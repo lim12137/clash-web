@@ -78,7 +78,8 @@ from backend.database.tool_db import (
     add_tool_field,
     search_tools_for_sub_agent,
     check_tool_is_available,
-    delete_tools_by_agent_id
+    delete_tools_by_agent_id,
+    search_last_tool_instance_by_tool_id
 )
 
 class MockToolInstance:
@@ -518,4 +519,129 @@ def test_delete_tools_by_agent_id_success(monkeypatch, mock_session):
     # Function returns no value, only verify successful execution
     delete_tools_by_agent_id(1, "tenant1", "user1")
     
-    mock_update.assert_called_once() 
+    mock_update.assert_called_once()
+
+
+def test_search_last_tool_instance_by_tool_id_found(monkeypatch, mock_session):
+    """Test successfully finding last tool instance by tool ID"""
+    session, query = mock_session
+    mock_tool_instance = MockToolInstance()
+    mock_tool_instance.params = {"param1": "value1", "param2": "value2"}
+    mock_tool_instance.update_time = "2023-01-01 12:00:00"
+    
+    mock_first = MagicMock()
+    mock_first.return_value = mock_tool_instance
+    mock_order_by = MagicMock()
+    mock_order_by.first = mock_first
+    mock_filter = MagicMock()
+    mock_filter.order_by.return_value = mock_order_by
+    query.filter.return_value = mock_filter
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.as_dict", lambda obj: obj.__dict__)
+    
+    result = search_last_tool_instance_by_tool_id(1, "tenant1", "user1")
+    
+    assert result["tool_instance_id"] == 1
+    assert result["tool_id"] == 1
+    assert result["params"] == {"param1": "value1", "param2": "value2"}
+
+def test_search_last_tool_instance_by_tool_id_not_found(monkeypatch, mock_session):
+    """Test searching for non-existent last tool instance"""
+    session, query = mock_session
+    mock_first = MagicMock()
+    mock_first.return_value = None
+    mock_order_by = MagicMock()
+    mock_order_by.first = mock_first
+    mock_filter = MagicMock()
+    mock_filter.order_by.return_value = mock_order_by
+    query.filter.return_value = mock_filter
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    
+    result = search_last_tool_instance_by_tool_id(999, "tenant1", "user1")
+    
+    assert result is None
+
+def test_search_last_tool_instance_by_tool_id_with_deleted_flag(monkeypatch, mock_session):
+    """Test searching for tool instance with deleted flag filter"""
+    session, query = mock_session
+    mock_tool_instance = MockToolInstance()
+    mock_tool_instance.delete_flag = "N"
+    
+    mock_first = MagicMock()
+    mock_first.return_value = mock_tool_instance
+    mock_order_by = MagicMock()
+    mock_order_by.first = mock_first
+    mock_filter = MagicMock()
+    mock_filter.order_by.return_value = mock_order_by
+    query.filter.return_value = mock_filter
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.as_dict", lambda obj: obj.__dict__)
+    
+    result = search_last_tool_instance_by_tool_id(1, "tenant1", "user1")
+    
+    assert result["delete_flag"] == "N"
+    # Verify that the filter was called with correct parameters
+    assert query.filter.call_count == 1
+
+def test_search_last_tool_instance_by_tool_id_ordering(monkeypatch, mock_session):
+    """Test that results are ordered by update_time desc"""
+    session, query = mock_session
+    mock_tool_instance = MockToolInstance()
+    
+    mock_first = MagicMock()
+    mock_first.return_value = mock_tool_instance
+    mock_order_by = MagicMock()
+    mock_order_by.first = mock_first
+    mock_filter = MagicMock()
+    mock_filter.order_by.return_value = mock_order_by
+    query.filter.return_value = mock_filter
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.as_dict", lambda obj: obj.__dict__)
+    
+    result = search_last_tool_instance_by_tool_id(1, "tenant1", "user1")
+    
+    # Verify that order_by was called (indicating proper ordering)
+    mock_filter.order_by.assert_called_once()
+    assert result is not None
+
+def test_search_last_tool_instance_by_tool_id_different_tenants(monkeypatch, mock_session):
+    """Test searching with different tenant and user IDs"""
+    session, query = mock_session
+    mock_tool_instance = MockToolInstance()
+    mock_tool_instance.tenant_id = "tenant2"
+    mock_tool_instance.user_id = "user2"
+    
+    mock_first = MagicMock()
+    mock_first.return_value = mock_tool_instance
+    mock_order_by = MagicMock()
+    mock_order_by.first = mock_first
+    mock_filter = MagicMock()
+    mock_filter.order_by.return_value = mock_order_by
+    query.filter.return_value = mock_filter
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.as_dict", lambda obj: obj.__dict__)
+    
+    result = search_last_tool_instance_by_tool_id(1, "tenant2", "user2")
+    
+    assert result["tenant_id"] == "tenant2"
+    assert result["user_id"] == "user2" 

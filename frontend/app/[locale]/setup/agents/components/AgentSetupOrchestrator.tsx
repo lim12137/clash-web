@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 
-import { App, Modal, Typography } from "antd";
+import { App, Modal, Typography, Button } from "antd";
+import { WarningFilled } from "@ant-design/icons";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -14,8 +15,9 @@ import {
   importAgent,
   deleteAgent,
   searchAgentInfo,
+  searchToolConfig,
+  updateToolConfig,
 } from "@/services/agentConfigService";
-import { OpenAIModel } from "@/types/modelConfig";
 import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
 import log from "@/lib/logger";
 
@@ -36,6 +38,8 @@ export default function AgentSetupOrchestrator({
   setIsCreatingNewAgent,
   mainAgentModel,
   setMainAgentModel,
+  mainAgentModelId,
+  setMainAgentModelId,
   mainAgentMaxStep,
   setMainAgentMaxStep,
   tools,
@@ -69,6 +73,7 @@ export default function AgentSetupOrchestrator({
   onDeleteAgent,
   editingAgent: editingAgentFromParent,
   onExitCreation,
+  isEmbeddingConfigured,
 }: AgentSetupOrchestratorProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -78,6 +83,11 @@ export default function AgentSetupOrchestrator({
   // Delete confirmation popup status
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+
+  // Embedding auto-unselect notice modal
+  const [isEmbeddingAutoUnsetOpen, setIsEmbeddingAutoUnsetOpen] =
+    useState(false);
+  const lastProcessedAgentIdForEmbedding = useRef<number | null>(null);
 
   // Edit agent related status
   const [isEditingAgent, setIsEditingAgent] = useState(false);
@@ -108,7 +118,7 @@ export default function AgentSetupOrchestrator({
         );
       }
     } catch (error) {
-      log.error(t("debug.log.fetchAgentListFailed"), error);
+      log.error(t("agentConfig.agents.listFetchFailedDebug"), error);
       message.error(t("businessLogic.config.error.agentListFailed"));
     } finally {
       setIsLoadingTools(false);
@@ -158,8 +168,10 @@ export default function AgentSetupOrchestrator({
           setEnabledAgentIds([]);
         }
         // Update the model
-        if (modelName) {
-          setMainAgentModel(modelName as OpenAIModel);
+        setMainAgentModel(modelName);
+        // Update the model ID if available
+        if (result.data.model_id) {
+          setMainAgentModelId(result.data.model_id);
         }
         // Update the maximum number of steps
         if (maxSteps) {
@@ -200,6 +212,8 @@ export default function AgentSetupOrchestrator({
       if (!isEditingAgent) {
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic("");
+        setMainAgentModel(null); // Clear model selection when creating new agent
+        setMainAgentModelId(null); // Clear model ID when creating new agent
         fetchSubAgentIdAndEnableToolList(t);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
@@ -209,7 +223,8 @@ export default function AgentSetupOrchestrator({
       // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
       if (!isEditingAgent && hasInitialized.current) {
         setBusinessLogic("");
-        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentModel(null);
+        setMainAgentModelId(null);
         setMainAgentMaxStep(5);
         // Delay refreshing agent list to avoid jumping
         setTimeout(() => {
@@ -231,6 +246,63 @@ export default function AgentSetupOrchestrator({
 
     setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
+
+  // Auto-unselect knowledge_base_search if embedding is not configured
+  useEffect(() => {
+    if (isEmbeddingConfigured) return;
+    if (!tools || tools.length === 0) return;
+
+    const kbTool = tools.find((tool) => tool.name === "knowledge_base_search");
+    if (!kbTool) return;
+
+    const currentAgentId = (
+      isEditingAgent && editingAgent
+        ? Number(editingAgent.id)
+        : mainAgentId
+        ? Number(mainAgentId)
+        : undefined
+    ) as number | undefined;
+
+    if (!currentAgentId) return;
+    if (lastProcessedAgentIdForEmbedding.current === currentAgentId) return;
+
+    const kbToolId = Number(kbTool.id);
+    if (!enabledToolIds || !enabledToolIds.includes(kbToolId)) {
+      lastProcessedAgentIdForEmbedding.current = currentAgentId;
+      return;
+    }
+
+    const run = async () => {
+      try {
+        // Fetch existing params to avoid losing saved configuration
+        const search = await searchToolConfig(kbToolId, currentAgentId);
+        const params =
+          search.success && search.data?.params ? search.data.params : {};
+        // Disable the tool
+        await updateToolConfig(kbToolId, currentAgentId, params, false);
+        // Update local state
+        setEnabledToolIds((prev) => prev.filter((id) => id !== kbToolId));
+        const nextSelected = selectedTools.filter(
+          (tool) => tool.id !== kbTool.id
+        );
+        setSelectedTools(nextSelected);
+      } catch (error) {
+        // Even if API fails, still inform user and prevent usage in UI
+      } finally {
+        setIsEmbeddingAutoUnsetOpen(true);
+        lastProcessedAgentIdForEmbedding.current = currentAgentId;
+      }
+    };
+
+    run();
+  }, [
+    isEmbeddingConfigured,
+    tools,
+    enabledToolIds,
+    isEditingAgent,
+    editingAgent,
+    mainAgentId,
+  ]);
 
   // Listen for refresh agent list events from parent component
   useEffect(() => {
@@ -323,7 +395,7 @@ export default function AgentSetupOrchestrator({
   const handleSaveNewAgent = async (
     name: string,
     description: string,
-    model: string,
+    model: string | null,
     max_step: number,
     business_description: string
   ) => {
@@ -336,7 +408,7 @@ export default function AgentSetupOrchestrator({
             Number(editingAgent.id),
             name,
             description,
-            model,
+            model === null ? undefined : model,
             max_step,
             false,
             true,
@@ -344,14 +416,15 @@ export default function AgentSetupOrchestrator({
             dutyContent,
             constraintContent,
             fewShotsContent,
-            agentDisplayName
+            agentDisplayName,
+            mainAgentModelId ?? undefined
           );
         } else {
           result = await updateAgent(
             Number(mainAgentId),
             name,
             description,
-            model,
+            model === null ? undefined : model,
             max_step,
             false,
             true,
@@ -359,7 +432,8 @@ export default function AgentSetupOrchestrator({
             dutyContent,
             constraintContent,
             fewShotsContent,
-            agentDisplayName
+            agentDisplayName,
+            mainAgentModelId ?? undefined
           );
         }
 
@@ -418,6 +492,11 @@ export default function AgentSetupOrchestrator({
       return;
     }
 
+    if (!mainAgentModel) {
+      message.warning(t("businessLogic.config.message.selectModelRequired"));
+      return;
+    }
+
     const hasPromptContent =
       dutyContent?.trim() ||
       constraintContent?.trim() ||
@@ -472,7 +551,8 @@ export default function AgentSetupOrchestrator({
       onEditingStateChange?.(true, agentDetail);
 
       // Load Agent data to interface
-      setMainAgentModel(agentDetail.model as OpenAIModel);
+      setMainAgentModel(agentDetail.model);
+      setMainAgentModelId(agentDetail.model_id);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || "");
 
@@ -504,7 +584,7 @@ export default function AgentSetupOrchestrator({
         setEnabledToolIds([]);
       }
     } catch (error) {
-      log.error(t("debug.log.loadAgentDetailsFailed"), error);
+      log.error(t("agentConfig.agents.detailsLoadFailed"), error);
       message.error(t("businessLogic.config.error.agentDetailFailed"));
       // If error occurs, reset editing state
       setIsEditingAgent(false);
@@ -515,7 +595,7 @@ export default function AgentSetupOrchestrator({
   };
 
   // Handle the update of the model
-  const handleModelChange = async (value: OpenAIModel) => {
+  const handleModelChange = async (value: string, modelId?: number) => {
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
@@ -523,7 +603,46 @@ export default function AgentSetupOrchestrator({
       message.error(t("businessLogic.config.error.noAgentId"));
       return;
     }
+    
+    // Update local state first
     setMainAgentModel(value);
+    if (modelId !== undefined) {
+      setMainAgentModelId(modelId);
+    }
+
+    // Call updateAgent API to save the model change
+    try {
+      const result = await updateAgent(
+        Number(targetAgentId),
+        undefined, // name
+        undefined, // description
+        value, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        undefined, // dutyPrompt
+        undefined, // constraintPrompt
+        undefined, // fewShotsPrompt
+        undefined, // displayName
+        modelId // modelId
+      );
+
+      if (!result.success) {
+        message.error(
+          result.message || t("businessLogic.config.error.modelUpdateFailed")
+        );
+        // Revert local state on failure
+        setMainAgentModel(mainAgentModel);
+        setMainAgentModelId(mainAgentModelId);
+      }
+    } catch (error) {
+      log.error("Error updating agent model:", error);
+      message.error(t("businessLogic.config.error.modelUpdateFailed"));
+      // Revert local state on failure
+      setMainAgentModel(mainAgentModel);
+      setMainAgentModelId(mainAgentModelId);
+    }
   };
 
   // Handle the update of the maximum number of steps
@@ -538,7 +657,40 @@ export default function AgentSetupOrchestrator({
 
     const newValue = value ?? 5;
 
+    // Update local state first
     setMainAgentMaxStep(newValue);
+
+    // Call updateAgent API to save the max steps change
+    try {
+      const result = await updateAgent(
+        Number(targetAgentId),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        newValue, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        undefined, // dutyPrompt
+        undefined, // constraintPrompt
+        undefined, // fewShotsPrompt
+        undefined, // displayName
+        undefined // modelId
+      );
+
+      if (!result.success) {
+        message.error(
+          result.message || t("businessLogic.config.error.maxStepsUpdateFailed")
+        );
+        // Revert local state on failure
+        setMainAgentMaxStep(mainAgentMaxStep);
+      }
+    } catch (error) {
+      log.error("Error updating agent max steps:", error);
+      message.error(t("businessLogic.config.error.maxStepsUpdateFailed"));
+      // Revert local state on failure
+      setMainAgentMaxStep(mainAgentMaxStep);
+    }
   };
 
   // Handle importing agent
@@ -584,7 +736,7 @@ export default function AgentSetupOrchestrator({
           );
         }
       } catch (error) {
-        log.error(t("debug.log.importAgentFailed"), error);
+        log.error(t("agentConfig.agents.importFailed"), error);
         message.error(t("businessLogic.config.error.agentImportFailed"));
       } finally {
         setIsImporting(false);
@@ -614,7 +766,7 @@ export default function AgentSetupOrchestrator({
         );
       }
     } catch (error) {
-      log.error(t("debug.log.deleteAgentFailed"), error);
+      log.error(t("agentConfig.agents.deleteFailed"), error);
       message.error(t("businessLogic.config.error.agentDeleteFailed"));
     } finally {
       setIsDeleteConfirmOpen(false);
@@ -660,6 +812,9 @@ export default function AgentSetupOrchestrator({
     if (!businessLogic || businessLogic.trim() === "") {
       return t("businessLogic.config.message.businessDescriptionRequired");
     }
+    if (!mainAgentModel) {
+      return t("businessLogic.config.message.selectModelRequired");
+    }
     if (
       !dutyContent?.trim() &&
       !constraintContent?.trim() &&
@@ -677,6 +832,7 @@ export default function AgentSetupOrchestrator({
   const localCanSaveAgent = !!(
     businessLogic?.trim() &&
     agentName?.trim() &&
+    mainAgentModel &&
     (dutyContent?.trim() ||
       constraintContent?.trim() ||
       fewShotsContent?.trim())
@@ -763,6 +919,7 @@ export default function AgentSetupOrchestrator({
                     onToolsRefresh={handleToolsRefresh}
                     isEditingMode={isEditingAgent || isCreatingNewAgent}
                     isGeneratingAgent={isGeneratingAgent}
+                    isEmbeddingConfigured={isEmbeddingConfigured}
                   />
                 </div>
               </div>
@@ -796,10 +953,11 @@ export default function AgentSetupOrchestrator({
               agentDisplayName={agentDisplayName}
               onAgentDisplayNameChange={setAgentDisplayName}
               isEditingMode={isEditingAgent || isCreatingNewAgent}
-              mainAgentModel={mainAgentModel}
+              mainAgentModel={mainAgentModel ?? undefined}
+              mainAgentModelId={mainAgentModelId}
               mainAgentMaxStep={mainAgentMaxStep}
-              onModelChange={(value: string) =>
-                handleModelChange(value as OpenAIModel)
+              onModelChange={(value: string, modelId?: number) =>
+                handleModelChange(value, modelId)
               }
               onMaxStepChange={handleMaxStepChange}
               onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
@@ -822,22 +980,16 @@ export default function AgentSetupOrchestrator({
           title={t("businessLogic.config.modal.deleteTitle")}
           open={isDeleteConfirmOpen}
           onCancel={() => setIsDeleteConfirmOpen(false)}
+          centered
           footer={
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-                style={{ border: "none" }}
-              >
-                {t("businessLogic.config.modal.button.cancel")}
-              </button>
-              <button
+              <Button
+                type="primary"
+                danger
                 onClick={() => handleConfirmDelete(t)}
-                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
-                style={{ border: "none" }}
               >
-                {t("businessLogic.config.modal.button.confirm")}
-              </button>
+                {t("common.confirm")}
+              </Button>
             </div>
           }
           width={400}
@@ -848,6 +1000,38 @@ export default function AgentSetupOrchestrator({
                 name: agentToDelete?.name,
               })}
             </Typography.Text>
+          </div>
+        </Modal>
+        {/* Auto unselect knowledge_base_search notice when embedding not configured */}
+        <Modal
+          title={t("embedding.agentToolAutoDeselectModal.title")}
+          open={isEmbeddingAutoUnsetOpen}
+          onCancel={() => setIsEmbeddingAutoUnsetOpen(false)}
+          centered
+          footer={
+            <div className="flex justify-end mt-6 gap-4">
+              <Button
+                type="primary"
+                onClick={() => setIsEmbeddingAutoUnsetOpen(false)}
+              >
+                {t("common.confirm")}
+              </Button>
+            </div>
+          }
+          width={520}
+        >
+          <div className="py-2">
+            <div className="flex items-center">
+              <WarningFilled
+                className="text-yellow-500 mt-1 mr-2"
+                style={{ fontSize: "48px" }}
+              />
+              <div className="ml-3 mt-2">
+                <div className="text-sm leading-6">
+                  {t("embedding.agentToolAutoDeselectModal.content")}
+                </div>
+              </div>
+            </div>
           </div>
         </Modal>
       </div>

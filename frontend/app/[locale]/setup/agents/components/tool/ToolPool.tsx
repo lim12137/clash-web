@@ -13,12 +13,12 @@ import {
 
 import { TOOL_SOURCE_TYPES } from "@/const/agentConfig";
 import {
-  Tooltip as CustomTooltip,
+  Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
 import log from "@/lib/logger";
-import { Tool, ToolPoolProps, ToolGroup} from "@/types/agentConfig";
+import { Tool, ToolPoolProps, ToolGroup } from "@/types/agentConfig";
 import {
   fetchTools,
   searchToolConfig,
@@ -42,6 +42,7 @@ function ToolPool({
   onToolsRefresh,
   isEditingMode = false, // New: Default not in editing mode
   isGeneratingAgent = false, // New: Default not in generating state
+  isEmbeddingConfigured = true,
 }: ToolPoolProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -146,6 +147,14 @@ function ToolPool({
         return;
       }
 
+      // Block knowledge_base_search when embedding model is not configured
+      const embeddingBlocked =
+        tool.name === "knowledge_base_search" && !isEmbeddingConfigured;
+      if (embeddingBlocked) {
+        message.warning(t("embedding.agentToolDisableTooltip.content"));
+        return;
+      }
+
       // Only block the action when attempting to select an unavailable tool.
       if (tool.is_available === false && isSelected) {
         message.error(t("tool.message.unavailable"));
@@ -233,7 +242,14 @@ function ToolPool({
         message.error(t("tool.error.updateRetry"));
       }
     },
-    [mainAgentId, onSelectTool, t, isGeneratingAgent, message]
+    [
+      mainAgentId,
+      onSelectTool,
+      t,
+      isGeneratingAgent,
+      message,
+      isEmbeddingConfigured,
+    ]
   );
 
   // Use useCallback to cache the tool configuration click processing function
@@ -325,7 +341,7 @@ function ToolPool({
         );
       }
     } catch (error) {
-      log.error(t("debug.log.refreshToolsFailed"), error);
+      log.error(t("agentConfig.tools.refreshFailedDebug"), error);
       message.error(t("toolManagement.message.refreshFailedRetry"));
     } finally {
       setIsRefreshing(false);
@@ -367,32 +383,41 @@ function ToolPool({
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
     const isSelected = selectedToolIds.has(tool.id);
     const isAvailable = tool.is_available !== false; // Default to true, only unavailable when explicitly false
-    const isDisabled = localIsGenerating || !isEditingMode || isGeneratingAgent; // Disable selection in non-editing mode or during generation
+    const isEmbeddingBlocked =
+      tool.name === "knowledge_base_search" && !isEmbeddingConfigured;
+    const isEffectivelyAvailable = isAvailable && !isEmbeddingBlocked;
+    const isDisabled = localIsGenerating || !isEditingMode || isGeneratingAgent; // Disable only during generation or view-only
 
-    return (
+    const item = (
       <div
         className={`border-2 rounded-md p-2 flex items-center transition-all duration-300 ease-in-out min-h-[45px] shadow-sm ${
-          !isAvailable
+          !isEffectivelyAvailable
             ? isSelected
               ? "bg-blue-100 border-blue-400 opacity-60"
               : "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
             : isSelected
             ? "bg-blue-100 border-blue-400 shadow-md"
             : "border-gray-200 hover:border-blue-300 hover:shadow-md"
-        } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-        title={
-          !isAvailable
-            ? isSelected
-              ? t("toolPool.tooltip.disabledTool")
-              : t("toolPool.tooltip.unavailableTool")
-            : !isEditingMode
-            ? t("toolPool.tooltip.viewOnlyMode")
-            : tool.name
-        }
+        } ${
+          isDisabled
+            ? "opacity-50 cursor-not-allowed"
+            : !isEffectivelyAvailable
+            ? "cursor-not-allowed"
+            : "cursor-pointer"
+        }`}
         onClick={(e) => {
-          if (isDisabled) return;
-          if (!isAvailable && !isSelected) {
-            message.warning(t("toolPool.message.unavailable"));
+          if (isDisabled) {
+            if (!isEditingMode) {
+              message.warning(t("toolPool.message.viewOnlyMode"));
+            }
+            return;
+          }
+          if (!isEffectivelyAvailable && !isSelected) {
+            message.warning(
+              isEmbeddingBlocked
+                ? t("embedding.agentToolDisableTooltip.content")
+                : t("toolPool.message.unavailable")
+            );
             return;
           }
           handleToolSelect(tool, !isSelected, e);
@@ -400,11 +425,9 @@ function ToolPool({
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <CustomTooltip>
-            <TooltipTrigger asChild>
-              <div
+          <div
                 className={`font-medium text-sm truncate transition-colors duration-300 ${
-                  !isAvailable && !isSelected ? "text-gray-400" : ""
+                  !isEffectivelyAvailable && !isSelected ? "text-gray-400" : ""
                 }`}
                 style={{
                   maxWidth: "300px",
@@ -416,10 +439,7 @@ function ToolPool({
                 }}
               >
                 {tool.name}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">{tool.name}</TooltipContent>
-          </CustomTooltip>
+          </div>
         </div>
         {/* Settings button right - Tag removed */}
         <div className="flex items-center gap-2 ml-2">
@@ -428,20 +448,28 @@ function ToolPool({
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering parent element click event
               if (localIsGenerating || isGeneratingAgent) return;
-              if (!isAvailable) {
+              if (!isEffectivelyAvailable) {
                 if (isSelected && isEditingMode) {
                   handleToolSelect(tool, false, e);
                 } else if (!isEditingMode) {
                   message.warning(t("toolPool.message.viewOnlyMode"));
                   return;
                 } else {
-                  message.warning(t("toolPool.message.unavailable"));
+                  message.warning(
+                    isEmbeddingBlocked
+                      ? t("embedding.agentToolDisableTooltip.content")
+                      : t("toolPool.message.unavailable")
+                  );
                 }
                 return;
               }
               handleConfigClick(tool, e);
             }}
             disabled={localIsGenerating || isGeneratingAgent}
+            aria-label={t("toolPool.button.settings", {
+              defaultValue: "Settings",
+            })}
+            title={t("toolPool.button.settings", { defaultValue: "Settings" })}
             className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
               localIsGenerating || isGeneratingAgent
                 ? "text-gray-300 cursor-not-allowed"
@@ -454,6 +482,8 @@ function ToolPool({
         </div>
       </div>
     );
+
+    return item;
   });
 
   // Generate Tabs configuration

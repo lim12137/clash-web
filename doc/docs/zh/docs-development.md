@@ -33,7 +33,7 @@ pnpm vitepress dev docs
 
 启动成功后，请通过以下地址访问：
 
-- `http://localhost:5173/doc`
+- `http://localhost:5173/doc/`
 
 ## ✍️ 新增与编辑文档
 - 中文文档放在 `doc/docs/zh`，英文文档放在 `doc/docs/en`。

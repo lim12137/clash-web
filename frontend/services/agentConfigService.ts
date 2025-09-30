@@ -49,7 +49,7 @@ export const fetchTools = async () => {
     return {
       success: false,
       data: [],
-      message: "agentConfig.error.fetchToolsFailed",
+      message: "agentConfig.tools.fetchFailed",
     };
   }
 };
@@ -87,7 +87,7 @@ export const fetchAgentList = async () => {
     return {
       success: false,
       data: [],
-      message: "agentConfig.error.fetchAgentListFailed",
+      message: "agentConfig.agents.listFetchFailed",
     };
   }
 };
@@ -118,6 +118,7 @@ export const getCreatingSubAgentId = async () => {
         description: data.description,
         enabledToolIds: data.enable_tool_id_list || [],
         modelName: data.model_name,
+        model_id: data.model_id,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
         dutyPrompt: data.duty_prompt,
@@ -132,7 +133,7 @@ export const getCreatingSubAgentId = async () => {
     return {
       success: false,
       data: null,
-      message: "agentConfig.error.fetchCreatingSubAgentIdFailed",
+      message: "agentConfig.agents.createSubAgentIdFailed",
     };
   }
 };
@@ -224,6 +225,38 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
 };
 
 /**
+ * load last tool config
+ * @param toolId tool id
+ * @returns last tool config info
+ */
+export const loadLastToolConfig = async (toolId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.tool.loadConfig(toolId), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data.message, // Backend returns config in message field
+      message: "",
+    };
+  } catch (error) {
+    log.error("Failed to load last tool configuration:", error);
+    return {
+      success: false,
+      data: null,
+      message: "Failed to load last tool configuration, please try again later",
+    };
+  }
+};
+
+/**
  * Update Agent information
  * @param agentId agent id
  * @param name agent name
@@ -245,7 +278,8 @@ export const updateAgent = async (
   dutyPrompt?: string,
   constraintPrompt?: string,
   fewShotsPrompt?: string,
-  displayName?: string
+  displayName?: string,
+  modelId?: number
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -257,6 +291,7 @@ export const updateAgent = async (
         description: description,
         display_name: displayName,
         model_name: modelName,
+        model_id: modelId,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
         enabled: enabled,
@@ -421,6 +456,7 @@ export const searchAgentInfo = async (agentId: number) => {
       display_name: data.display_name,
       description: data.description,
       model: data.model_name,
+      model_id: data.model_id,
       max_step: data.max_steps,
       duty_prompt: data.duty_prompt,
       constraint_prompt: data.constraint_prompt,
@@ -467,7 +503,7 @@ export const searchAgentInfo = async (agentId: number) => {
     return {
       success: false,
       data: null,
-      message: "agentConfig.error.fetchAgentDetailsFailed",
+      message: "agentConfig.agents.detailsFetchFailed",
     };
   }
 };
@@ -505,7 +541,7 @@ export const fetchAllAgents = async () => {
     return {
       success: false,
       data: [],
-      message: "agentConfig.error.fetchAgentListFailed",
+      message: "agentConfig.agents.listFetchFailed",
     };
   }
 };
@@ -628,7 +664,7 @@ export const fetchAgentCallRelationship = async (agentId: number) => {
     return {
       success: false,
       data: null,
-      message: 'agentConfig.error.fetchAgentCallRelationshipFailed'
+      message: 'agentConfig.agents.callRelationshipFetchFailed'
     };
   }
 };

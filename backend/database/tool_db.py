@@ -213,3 +213,14 @@ def delete_tools_by_agent_id(agent_id, tenant_id, user_id):
         ).update({
             ToolInstance.delete_flag: 'Y', 'updated_by': user_id
         })
+
+def search_last_tool_instance_by_tool_id(tool_id: int, tenant_id: str, user_id: str):
+    with get_db_session() as session:
+        query = session.query(ToolInstance).filter(
+            ToolInstance.tool_id == tool_id,
+            ToolInstance.tenant_id == tenant_id,
+            ToolInstance.user_id == user_id,
+            ToolInstance.delete_flag != 'Y'
+        ).order_by(ToolInstance.update_time.desc()) 
+        tool_instance = query.first()
+        return as_dict(tool_instance) if tool_instance else None

@@ -4,8 +4,7 @@ from contextlib import contextmanager
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
 import boto3
-import psycopg2.extras
-from psycopg2 import extensions
+import psycopg2
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine

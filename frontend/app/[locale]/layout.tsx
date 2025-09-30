@@ -8,6 +8,9 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper";
 
 import "@/styles/globals.css";
+import "@/styles/react-markdown.css";
+import "github-markdown-css/github-markdown.css";
+import "katex/dist/katex.min.css";
 import log from "@/lib/logger";
 
 const inter = Inter({ subsets: ["latin"] });

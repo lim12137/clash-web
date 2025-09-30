@@ -22,12 +22,16 @@ from services.agent_service import (
 )
 from utils.auth_utils import get_current_user_info, get_current_user_id
 
+# Import monitoring utilities
+from utils.monitoring import monitoring_manager
+
 router = APIRouter(prefix="/agent")
 logger = logging.getLogger("agent_app")
 
 
 # Define API route
 @router.post("/run")
+@monitoring_manager.monitor_endpoint("agent.run", exclude_params=["authorization"])
 async def agent_run_api(agent_request: AgentRequest, http_request: Request, authorization: str = Header(None)):
     """
     Agent execution API endpoint

@@ -15,7 +15,7 @@ On the Nexent homepage, you’ll see two main action buttons:
 
 ![Homepage](./assets/app/homepage.png)
 
-Additionally, you can switch languages (Simplified Chinese or English) in the upper right corner of the page as needed.
+Additionally, you can switch languages (Simplified Chinese or English) in the upper right corner of the page as needed. The current Nexent version number is displayed in the lower-left corner of the page, which can help you seek assistance when you encounter problems.
 
 ## 💡 Next Steps
 
@@ -26,6 +26,12 @@ Ready to get started? We recommend configuring in the following order:
 3. Next, go to **[Knowledge Base Configuration](./knowledge-base-configuration)** to upload your documents and data.
 4. After that, configure **[Agent Configuration](./agent-configuration)** to create your own agent.
 5. Once everything is set, you can interact with your agent on the **[Chat Interface](./chat-interface)**.
+
+## 🛠️ Local Tools
+
+Nexent provides a rich set of local tools to help agents complete various complex tasks. The following introduces some tools that have certain operational difficulty:
+
+- **[Terminal Tool](./local-tools/terminal-tool)**: Execute commands on remote servers through SSH connections, enabling server management and system monitoring
 
 ## 🧠 Advanced Features
 
