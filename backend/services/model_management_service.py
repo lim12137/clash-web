@@ -89,11 +89,11 @@ async def create_model_for_tenant(user_id: str, tenant_id: str, model_data: Dict
             create_model_record(embedding_data, user_id, tenant_id)
             logging.debug(
                 f"Embedding model {embedding_data['display_name']} created successfully")
-
-        # Non-multimodal
-        create_model_record(model_data, user_id, tenant_id)
-        logging.debug(
-            f"Model {model_data['display_name']} created successfully")
+        else:
+            # Non-multimodal
+            create_model_record(model_data, user_id, tenant_id)
+            logging.debug(
+                f"Model {model_data['display_name']} created successfully")
     except Exception as e:
         logging.error(f"Failed to create model: {str(e)}")
         raise Exception(f"Failed to create model: {str(e)}")
