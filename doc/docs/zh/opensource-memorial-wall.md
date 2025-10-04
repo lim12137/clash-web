@@ -120,3 +120,6 @@ Nexent的自然语言生成Agent以及多智能体协同是我一直在研究的
 ::: info JSH - 2025-09-30
 从ICT认识Nexent，希望可以从开源中学到更多
 :::
+:::info nowindbird - 2025-10-04
+从ict认识的nexent，希望可以学习到更多知识
+:::
