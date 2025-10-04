@@ -305,7 +305,7 @@ export function ChatAgentSelector({
                     <div
                       key={agent.agent_id}
                       className={`
-                      flex items-start gap-3 px-3.5 py-3 text-sm h-[60px]
+                      flex items-start gap-3 px-3.5 py-2.5 text-sm
                       transition-all duration-150 ease-in-out
                       ${
                         agent.is_available
@@ -367,21 +367,13 @@ export function ChatAgentSelector({
                           </div>
                         </div>
                         <div
-                          className={`text-xs mt-1 leading-relaxed overflow-hidden ${
+                          className={`text-xs mt-1 leading-relaxed ${
                             agent.is_available
                               ? selectedAgentId === agent.agent_id
                                 ? "text-blue-500"
                                 : "text-slate-500"
                               : "text-slate-300"
                           }`}
-                          style={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            maxHeight: '2rem'
-                          }}
                         >
                           {agent.description}
                           {!agent.is_available && (
