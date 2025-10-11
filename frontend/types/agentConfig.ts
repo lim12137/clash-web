@@ -26,6 +26,7 @@ export interface Agent {
 export interface Tool {
   id: string;
   name: string;
+  origin_name?: string;
   description: string;
   source: "local" | "mcp" | "langchain";
   initParams: ToolParam[];

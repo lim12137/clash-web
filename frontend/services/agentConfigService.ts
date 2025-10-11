@@ -62,6 +62,7 @@ export const fetchTools = async () => {
     const formattedTools = data.map((tool: any) => ({
       id: String(tool.tool_id),
       name: tool.name,
+      origin_name: tool.origin_name,
       description: tool.description,
       source: tool.source,
       is_available: tool.is_available,
@@ -778,7 +779,6 @@ export const checkAgentDisplayName = async (
  * @param name tool name
  * @param source tool source
  * @param usage tool usage URL
- * @param timeout timeout in seconds
  * @param inputs tool inputs
  * @param params tool configuration parameters
  * @returns validation result
@@ -787,7 +787,6 @@ export const validateTool = async (
   name: string,
   source: string,
   usage: string,
-  timeout: number = 2.0,
   inputs: Record<string, any> | null = null,
   params: Record<string, any> | null = null
 ) => {
@@ -798,7 +797,6 @@ export const validateTool = async (
       usage: usage,
       inputs: inputs,
       params: params,
-      timeout: timeout,
     };
 
     const response = await fetch(API_ENDPOINTS.tool.validate, {
