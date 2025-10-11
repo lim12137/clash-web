@@ -340,3 +340,14 @@ class TTSResponse(BaseModel):
     """Response model for TTS conversion"""
     status: str = Field(..., description="Status of the TTS conversion")
     message: Optional[str] = Field(None, description="Additional message")
+
+
+class ToolValidateRequest(BaseModel):
+    """Request model for tool validation"""
+    name: str = Field(..., description="Tool name to validate")
+    source: str = Field(..., description="Tool source (local, mcp, langchain)")
+    usage: Optional[str] = Field(None, description="Tool usage information")
+    inputs: Optional[Dict[str, Any]] = Field(
+        None, description="Tool inputs")
+    params: Optional[Dict[str, Any]] = Field(
+        None, description="Tool configuration parameters")
