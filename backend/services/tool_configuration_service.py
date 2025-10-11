@@ -13,7 +13,7 @@ import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
 from consts.const import DEFAULT_USER_ID, LOCAL_MCP_SERVER
-from consts.exceptions import MCPConnectionError, TimeoutException, ToolExecutionException, NotFoundException
+from consts.exceptions import MCPConnectionError, ToolExecutionException, NotFoundException
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum, ToolValidateRequest
 from database.remote_mcp_db import get_mcp_records_by_tenant, get_mcp_server_by_name_and_tenant
 from database.tool_db import (
@@ -576,8 +576,6 @@ def _validate_local_tool(
         # Call forward method with provided parameters
         result = tool_instance.forward(**(inputs or {}))
         return result
-    except NotFoundException:
-        raise
     except Exception as e:
         logger.error(f"Local tool validation failed for {tool_name}: {e}")
         raise ToolExecutionException(
@@ -620,8 +618,6 @@ def _validate_langchain_tool(
         # Execute the tool directly
         result = target_tool.invoke(inputs or {})
         return result
-    except NotFoundException:
-        raise
     except Exception as e:
         logger.error(f"LangChain tool '{tool_name}' validation failed: {e}")
         raise ToolExecutionException(
@@ -643,7 +639,6 @@ async def validate_remote_mcp_tool(
         Dict containing validation result - success returns tool result, failure returns error message
 
     Raises:
-        TimeoutException: If tool execution times out
         NotFoundException: If tool is not found
         MCPConnectionError: If MCP connection fails
         ToolExecutionException: If tool execution fails
@@ -664,9 +659,6 @@ async def validate_remote_mcp_tool(
         else:
             raise Exception(f"Unsupported tool source: {source}")
 
-    except asyncio.TimeoutError:
-        logger.error(f"Tool execution timeout.")
-        raise TimeoutException(f"Tool execution timeout")
     except NotFoundException as e:
         logger.error(f"Tool not found: {e}")
         raise NotFoundException(f"Tool not found: {str(e)}")
