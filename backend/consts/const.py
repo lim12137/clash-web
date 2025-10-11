@@ -67,7 +67,7 @@ DEFAULT_TENANT_ID = "tenant_id"
 DEPLOYMENT_VERSION = os.getenv("DEPLOYMENT_VERSION", "speed")
 IS_SPEED_MODE = DEPLOYMENT_VERSION == "speed"
 DEFAULT_APP_DESCRIPTION_ZH = "Nexent 是一个开源智能体平台，基于 MCP 工具生态系统，提供灵活的多模态问答、检索、数据分析、处理等能力。"
-DEFAULT_APP_DESCRIPTION_EN = "Nexent is an open-source agent SDK and platform, which can convert a single prompt into a complete multi-modal service - without orchestration, without complex drag-and-drop. Built on the MCP tool ecosystem, Nexent provides flexible model integration, scalable data processing, and powerful knowledge base management. Our goal is simple: to integrate data, models, and tools into a central intelligence hub, allowing anyone to easily integrate Nexent into their projects, making daily workflows smarter and more interconnected."
+DEFAULT_APP_DESCRIPTION_EN = "Nexent is an open-source agent platform built on the MCP tool ecosystem, providing flexible multi-modal Q&A, retrieval, data analysis, and processing capabilities."
 DEFAULT_APP_NAME_ZH = "Nexent 智能体"
 DEFAULT_APP_NAME_EN = "Nexent Agent"
 
