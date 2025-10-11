@@ -24,7 +24,6 @@ from database.tool_db import (
     search_last_tool_instance_by_tool_id
 )
 from database.user_tenant_db import get_all_tenant_ids
-from utils.langchain_utils import discover_langchain_modules
 
 logger = logging.getLogger("tool_configuration_service")
 
@@ -175,6 +174,8 @@ def get_langchain_tools() -> List[ToolInfo]:
     LangChain tools (based on presence of `name` & `description`).  Any valid
     tool is converted to ToolInfo with source = "langchain".
     """
+    from utils.langchain_utils import discover_langchain_modules
+
     tools_info: List[ToolInfo] = []
     # Discover all objects that look like LangChain tools
     discovered_tools = discover_langchain_modules()
@@ -601,6 +602,8 @@ def _validate_langchain_tool(
         ToolExecutionException: If tool execution fails
     """
     try:
+        from utils.langchain_utils import discover_langchain_modules
+
         # Discover all LangChain tools
         discovered_tools = discover_langchain_modules()
 
