@@ -1,6 +1,3 @@
-from apps.tool_config_app import validate_tool
-from consts.exceptions import MCPConnectionError, NotFoundException, ToolExecutionException
-from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest, ToolValidateRequest
 import asyncio
 import inspect
 import sys
@@ -21,8 +18,10 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         search_tool_info_impl,
         update_tool_info_impl,
         list_all_tools,
-        load_last_tool_config_impl, validate_tools
+        load_last_tool_config_impl, validate_tool_impl
 )
+from consts.exceptions import MCPConnectionError, NotFoundException, ToolExecutionException
+from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest, ToolValidateRequest
 
 
 class TestPythonTypeToJsonSchema:
@@ -1422,7 +1421,7 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        result = await validate_tools(request, "tenant1")
+        result = await validate_tool_impl(request, "tenant1")
 
         assert result == "nexent result"
         mock_validate_nexent.assert_called_once_with(
@@ -1440,7 +1439,7 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        result = await validate_tools(request, "tenant1")
+        result = await validate_tool_impl(request, "tenant1")
 
         assert result == "remote result"
         mock_validate_remote.assert_called_once_with(
@@ -1459,7 +1458,7 @@ class TestLoadLastToolConfigImpl:
             params={"config": "value"}
         )
 
-        result = await validate_tools(request, "tenant1")
+        result = await validate_tool_impl(request, "tenant1")
 
         assert result == "local result"
         mock_validate_local.assert_called_once_with(
@@ -1477,7 +1476,7 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        result = await validate_tools(request, "tenant1")
+        result = await validate_tool_impl(request, "tenant1")
 
         assert result == "langchain result"
         mock_validate_langchain.assert_called_once_with(
@@ -1493,7 +1492,7 @@ class TestLoadLastToolConfigImpl:
         )
 
         with pytest.raises(ToolExecutionException, match="Validate Tool failed"):
-            await validate_tools(request, "tenant1")
+            await validate_tool_impl(request, "tenant1")
 
     @patch('backend.services.tool_configuration_service._validate_mcp_tool_nexent')
     async def test_validate_tool_nexent_connection_error(self, mock_validate_nexent):
@@ -1508,10 +1507,8 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_tools
-
         with pytest.raises(MCPConnectionError, match="MCP connection failed: Connection failed"):
-            await validate_tools(request, "tenant1")
+            await validate_tool_impl(request, "tenant1")
 
     @patch('backend.services.tool_configuration_service._validate_local_tool')
     async def test_validate_tool_local_execution_error(self, mock_validate_local):
@@ -1526,10 +1523,8 @@ class TestLoadLastToolConfigImpl:
             params={"config": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_tools
-
         with pytest.raises(ToolExecutionException, match="Validate Tool failed"):
-            await validate_tools(request, "tenant1")
+            await validate_tool_impl(request, "tenant1")
 
 
 if __name__ == '__main__':
