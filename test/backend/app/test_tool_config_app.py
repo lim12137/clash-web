@@ -1,4 +1,3 @@
-from consts.exceptions import MCPConnectionError, NotFoundException
 from unittest.mock import patch, MagicMock
 import sys
 import os
@@ -10,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
 # Import exception classes
+from consts.exceptions import MCPConnectionError, NotFoundException
 
 # Mock dependencies before importing the actual app - using the same pattern as test_remote_mcp_app.py
 with patch('database.client.MinioClient', MagicMock()):
@@ -305,7 +305,7 @@ class TestErrorHandling:
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
     @patch('apps.tool_config_app.get_current_user_id')
-    @patch('apps.tool_config_app.validate_tools')
+    @patch('apps.tool_config_app.validate_tool_impl')
     def test_validate_tool_success(self, mock_validate_tool, mock_get_user_id):
         """Test successful tool validation"""
         mock_get_user_id.return_value = ("user123", "tenant456")
@@ -332,7 +332,7 @@ class TestErrorHandling:
         mock_validate_tool.assert_called_once()
 
     @patch('apps.tool_config_app.get_current_user_id')
-    @patch('apps.tool_config_app.validate_tools')
+    @patch('apps.tool_config_app.validate_tool_impl')
     def test_validate_tool_mcp_connection_error(self, mock_validate_tool, mock_get_user_id):
         """Test MCP connection error during tool validation"""
         mock_get_user_id.return_value = ("user123", "tenant456")
@@ -357,7 +357,7 @@ class TestErrorHandling:
         mock_validate_tool.assert_called_once()
 
     @patch('apps.tool_config_app.get_current_user_id')
-    @patch('apps.tool_config_app.validate_tools')
+    @patch('apps.tool_config_app.validate_tool_impl')
     def test_validate_tool_not_found_error(self, mock_validate_tool, mock_get_user_id):
         """Test tool not found error during validation"""
         mock_get_user_id.return_value = ("user123", "tenant456")
@@ -381,7 +381,7 @@ class TestErrorHandling:
         mock_validate_tool.assert_called_once()
 
     @patch('apps.tool_config_app.get_current_user_id')
-    @patch('apps.tool_config_app.validate_tools')
+    @patch('apps.tool_config_app.validate_tool_impl')
     def test_validate_tool_general_error(self, mock_validate_tool, mock_get_user_id):
         """Test general error during tool validation"""
         mock_get_user_id.return_value = ("user123", "tenant456")
@@ -426,7 +426,7 @@ class TestErrorHandling:
         mock_get_user_id.assert_called_once_with(None)
 
     @patch('apps.tool_config_app.get_current_user_id')
-    @patch('apps.tool_config_app.validate_tools')
+    @patch('apps.tool_config_app.validate_tool_impl')
     def test_validate_tool_with_authorization_header(self, mock_validate_tool, mock_get_user_id):
         """Test tool validation with authorization header"""
         mock_get_user_id.return_value = ("user123", "tenant456")

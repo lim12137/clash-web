@@ -628,7 +628,7 @@ def _validate_langchain_tool(
             f"LangChain tool '{tool_name}' validation failed: {e}")
 
 
-async def validate_tools(
+async def validate_tool_impl(
     request: ToolValidateRequest,
     tenant_id: Optional[str] = None
 ) -> Dict[str, Any]:
