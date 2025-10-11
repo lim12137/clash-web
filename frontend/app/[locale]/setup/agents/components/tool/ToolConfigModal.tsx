@@ -327,10 +327,9 @@ export default function ToolConfigModal({
 
       // Call validateTool with parameters
       const result = await validateTool(
-        tool.name, // Tool name
+        tool.origin_name || tool.name,
         tool.source, // Tool source
         tool.usage || "", // Tool usage
-        2.0, // timeout (default 2 seconds)
         toolParams, // tool input parameters
         configParams // tool configuration parameters
       );
@@ -501,7 +500,9 @@ export default function ToolConfigModal({
                 disabled={isLoading}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
               >
-                {isLoading ? t("common.button.saving") : t("common.button.save")}
+                {isLoading
+                  ? t("common.button.saving")
+                  : t("common.button.save")}
               </button>
             </div>
           </div>

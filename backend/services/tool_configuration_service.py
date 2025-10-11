@@ -104,7 +104,8 @@ def get_local_tools() -> List[ToolInfo]:
                               ensure_ascii=False),
             output_type=getattr(tool_class, 'output_type'),
             class_name=tool_class.__name__,
-            usage=None
+            usage=None,
+            origin_name=getattr(tool_class, 'name')
         )
         tools_info.append(tool_info)
     return tools_info
@@ -162,6 +163,7 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
         output_type=output_type,
         class_name=getattr(obj, "name", target_callable.__name__),
         usage=None,
+        origin_name=getattr(obj, "name", target_callable.__name__)
     )
     return tool_info
 
@@ -294,7 +296,8 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
                                      inputs=str(input_schema["properties"]),
                                      output_type="string",
                                      class_name=sanitized_tool_name,
-                                     usage=mcp_server_name)
+                                     usage=mcp_server_name,
+                                     origin_name=tool.name)
                 tools_info.append(tool_info)
             return tools_info
     except Exception as e:
@@ -340,6 +343,7 @@ async def list_all_tools(tenant_id: str):
         formatted_tool = {
             "tool_id": tool.get("tool_id"),
             "name": tool.get("name"),
+            "origin_name": tool.get("origin_name"),
             "description": tool.get("description"),
             "source": tool.get("source"),
             "is_available": tool.get("is_available"),
@@ -428,10 +432,43 @@ def load_last_tool_config_impl(tool_id: int, tenant_id: str, user_id: str):
     return tool_instance.get("params", {})
 
 
+async def _call_mcp_tool(
+    mcp_url: str,
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Common method to call MCP tool with connection handling.
+
+    Args:
+        mcp_url: MCP server URL
+        tool_name: Name of the tool to call
+        inputs: Parameters to pass to the tool
+
+    Returns:
+        Dict containing tool execution result
+
+    Raises:
+        MCPConnectionError: If MCP connection fails
+    """
+    client = Client(mcp_url)
+    async with client:
+        # Check if connected
+        if not client.is_connected():
+            logger.error("Failed to connect to MCP server")
+            raise MCPConnectionError("Failed to connect to MCP server")
+
+        # Call the tool
+        result = await client.call_tool(
+            name=tool_name,
+            arguments=inputs
+        )
+        return result[0].text
+
+
 async def _validate_mcp_tool_nexent(
     tool_name: str,
-    inputs: Optional[Dict[str, Any]],
-    timeout: float
+    inputs: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
     Validate MCP tool using local nexent server.
@@ -439,7 +476,6 @@ async def _validate_mcp_tool_nexent(
     Args:
         tool_name: Name of the tool to test
         inputs: Parameters to pass to the tool
-        timeout: Timeout in seconds
 
     Returns:
         Dict containing validation result
@@ -448,28 +484,14 @@ async def _validate_mcp_tool_nexent(
         MCPConnectionError: If MCP connection fails
     """
     actual_mcp_url = urljoin(LOCAL_MCP_SERVER, "sse")
-    client = Client(actual_mcp_url)
-    async with client:
-        # Check if connected
-        if not client.is_connected():
-            logger.error("Failed to connect to MCP server")
-            raise MCPConnectionError("Failed to connect to MCP server")
-
-        # Call the tool with timeout
-        result = await client.call_tool(
-            name=tool_name,
-            arguments=inputs,
-            timeout=timeout
-        )
-        return result[0].text
+    return await _call_mcp_tool(actual_mcp_url, tool_name, inputs)
 
 
 async def _validate_mcp_tool_remote(
     tool_name: str,
     inputs: Optional[Dict[str, Any]],
     usage: str,
-    tenant_id: Optional[str],
-    timeout: float
+    tenant_id: Optional[str]
 ) -> Dict[str, Any]:
     """
     Validate MCP tool using remote server from database.
@@ -479,7 +501,6 @@ async def _validate_mcp_tool_remote(
         inputs: Parameters to pass to the tool
         usage: MCP name for database lookup
         tenant_id: Tenant ID for database queries
-        timeout: Timeout in seconds
 
     Returns:
         Dict containing validation result
@@ -493,20 +514,7 @@ async def _validate_mcp_tool_remote(
     if not actual_mcp_url:
         raise NotFoundException(f"MCP server not found for name: {usage}")
 
-    client = Client(actual_mcp_url)
-    async with client:
-        # Check if connected
-        if not client.is_connected():
-            logger.error("Failed to connect to MCP server")
-            raise MCPConnectionError("Failed to connect to MCP server")
-
-        # Call the tool with timeout
-        result = await client.call_tool(
-            name=_restore_tool_name(tool_name),
-            arguments=inputs,
-            timeout=timeout
-        )
-        return result[0].text
+    return await _call_mcp_tool(actual_mcp_url, tool_name, inputs)
 
 
 def _get_tool_class_by_name(tool_name: str) -> Optional[type]:
@@ -622,8 +630,7 @@ def _validate_langchain_tool(
 
 async def validate_remote_mcp_tool(
     request: ToolValidateRequest,
-    tenant_id: Optional[str] = None,
-    timeout: float = 2.0
+    tenant_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Validate a tool from various sources (MCP, local, or LangChain).
@@ -631,7 +638,6 @@ async def validate_remote_mcp_tool(
     Args:
         request: Tool validation request containing tool details
         tenant_id: Tenant ID for database queries (optional)
-        timeout: Timeout in seconds (default 2.0)
 
     Returns:
         Dict containing validation result - success returns tool result, failure returns error message
@@ -648,9 +654,9 @@ async def validate_remote_mcp_tool(
             request.name, request.inputs, request.source, request.usage, request.params)
         if source == ToolSourceEnum.MCP.value:
             if usage == "nexent":
-                return await _validate_mcp_tool_nexent(tool_name, inputs, timeout)
+                return await _validate_mcp_tool_nexent(tool_name, inputs)
             else:
-                return await _validate_mcp_tool_remote(tool_name, inputs, usage, tenant_id, timeout)
+                return await _validate_mcp_tool_remote(tool_name, inputs, usage, tenant_id)
         elif source == ToolSourceEnum.LOCAL.value:
             return _validate_local_tool(tool_name, inputs, params)
         elif source == ToolSourceEnum.LANGCHAIN.value:
@@ -659,8 +665,8 @@ async def validate_remote_mcp_tool(
             raise Exception(f"Unsupported tool source: {source}")
 
     except asyncio.TimeoutError:
-        logger.error(f"Tool execution exceeded {timeout}s timeout.")
-        raise TimeoutException(f"Tool execution exceeded {timeout}s timeout")
+        logger.error(f"Tool execution timeout.")
+        raise TimeoutException(f"Tool execution timeout")
     except NotFoundException as e:
         logger.error(f"Tool not found: {e}")
         raise NotFoundException(f"Tool not found: {str(e)}")
@@ -670,17 +676,3 @@ async def validate_remote_mcp_tool(
     except Exception as e:
         logger.error(f"Validate Tool failed: {e}")
         raise ToolExecutionException(f"Validate Tool failed: {str(e)}")
-
-
-def _restore_tool_name(sanitized_name):
-    # Remove underscore suffix if it was added for Python keyword
-    if sanitized_name.endswith('_'):
-        base_name = sanitized_name[:-1]
-        if keyword.iskeyword(base_name):
-            sanitized_name = base_name
-
-    # Remove underscore prefix if it was added for leading digit
-    if sanitized_name.startswith('_') and len(sanitized_name) > 1 and sanitized_name[1].isdigit():
-        sanitized_name = sanitized_name[1:]
-
-    return sanitized_name.replace("_", "-")
