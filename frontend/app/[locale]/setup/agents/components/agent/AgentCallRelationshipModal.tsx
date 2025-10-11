@@ -27,15 +27,15 @@ const NODE_H = 60;
 /* ================== New/Adjusted: Unified dimensions and compact layout (minimal changes) ================== */
 const AGENT_W = 160; // Agent unified width
 const AGENT_H = 56; // Agent unified height
-const TOOL_SIZE = 86; // Tool gear unified diameter
+const TOOL_SIZE = 100; // Tool gear unified diameter
 const TOOL_TEETH = 10; // Number of teeth (more rounded)
 const TOOL_TEETH_DEPTH_RATIO = 0.085; // Teeth depth ratio
 
-const MAX_TOOL_NAME_CHARS = 10; // Maximum display characters for tool names
+const MAX_TOOL_NAME_CHARS = 24; // Maximum display characters for tool names
 
 const TREE_DEPTH_FACTOR = 120; // More compact layer spacing
-const TREE_SEP_SIB = 1.15;
-const TREE_SEP_NON = 1.35;
+const TREE_SEP_SIB = 1.5; // Minimum spacing between sibling nodes
+const TREE_SEP_NON = 1.8; // Minimum spacing between non-sibling nodes
 
 /* Simple and stable code point truncation (compatible with basic emoji scenarios) */
 function truncateByCodePoints(s: string, max: number) {
