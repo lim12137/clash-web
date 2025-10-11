@@ -152,17 +152,17 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
         output_type = python_type_to_json_schema(return_schema)
     except (TypeError, ValueError):
         output_type = "string"
-
+    tool_name = getattr(obj, "name", target_callable.__name__)
     tool_info = ToolInfo(
-        name=getattr(obj, "name", target_callable.__name__),
+        name=tool_name,
         description=getattr(obj, "description", ""),
         params=[],
         source=ToolSourceEnum.LANGCHAIN.value,
         inputs=json.dumps(inputs, ensure_ascii=False),
         output_type=output_type,
-        class_name=getattr(obj, "name", target_callable.__name__),
+        class_name=tool_name,
         usage=None,
-        origin_name=getattr(obj, "name", target_callable.__name__)
+        origin_name=tool_name
     )
     return tool_info
 
@@ -554,7 +554,8 @@ def _validate_local_tool(
         params: Configuration parameters for tool initialization
 
     Returns:
-        validation result
+        Dict[str, Any]: The actual result returned by the tool's forward method, 
+                       serving as proof that the tool works correctly
 
     Raises:
         NotFoundException: If tool class not found
@@ -627,7 +628,7 @@ def _validate_langchain_tool(
             f"LangChain tool '{tool_name}' validation failed: {e}")
 
 
-async def validate_remote_mcp_tool(
+async def validate_tools(
     request: ToolValidateRequest,
     tenant_id: Optional[str] = None
 ) -> Dict[str, Any]:

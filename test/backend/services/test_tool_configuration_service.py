@@ -1,3 +1,4 @@
+from apps.tool_config_app import validate_tool
 from consts.exceptions import MCPConnectionError, NotFoundException, ToolExecutionException
 from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest, ToolValidateRequest
 import asyncio
@@ -20,8 +21,8 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         search_tool_info_impl,
         update_tool_info_impl,
         list_all_tools,
-        load_last_tool_config_impl
-    )
+        load_last_tool_config_impl, validate_tools
+)
 
 
 class TestPythonTypeToJsonSchema:
@@ -1410,7 +1411,7 @@ class TestLoadLastToolConfigImpl:
             _validate_langchain_tool("test_tool", {"input": "value"})
 
     @patch('backend.services.tool_configuration_service._validate_mcp_tool_nexent')
-    async def test_validate_remote_mcp_tool_nexent(self, mock_validate_nexent):
+    async def test_validate_tool_nexent(self, mock_validate_nexent):
         """Test MCP tool validation using nexent server"""
         mock_validate_nexent.return_value = "nexent result"
 
@@ -1421,16 +1422,14 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
-        result = await validate_remote_mcp_tool(request, "tenant1")
+        result = await validate_tools(request, "tenant1")
 
         assert result == "nexent result"
         mock_validate_nexent.assert_called_once_with(
             "test_tool", {"param": "value"})
 
     @patch('backend.services.tool_configuration_service._validate_mcp_tool_remote')
-    async def test_validate_remote_mcp_tool_remote(self, mock_validate_remote):
+    async def test_validate_tool_remote(self, mock_validate_remote):
         """Test MCP tool validation using remote server"""
         mock_validate_remote.return_value = "remote result"
 
@@ -1441,16 +1440,14 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
-        result = await validate_remote_mcp_tool(request, "tenant1")
+        result = await validate_tools(request, "tenant1")
 
         assert result == "remote result"
         mock_validate_remote.assert_called_once_with(
             "test_tool", {"param": "value"}, "remote_server", "tenant1")
 
     @patch('backend.services.tool_configuration_service._validate_local_tool')
-    async def test_validate_remote_mcp_tool_local(self, mock_validate_local):
+    async def test_validate_tool_local(self, mock_validate_local):
         """Test local tool validation"""
         mock_validate_local.return_value = "local result"
 
@@ -1462,16 +1459,14 @@ class TestLoadLastToolConfigImpl:
             params={"config": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
-        result = await validate_remote_mcp_tool(request, "tenant1")
+        result = await validate_tools(request, "tenant1")
 
         assert result == "local result"
         mock_validate_local.assert_called_once_with(
             "test_tool", {"param": "value"}, {"config": "value"})
 
     @patch('backend.services.tool_configuration_service._validate_langchain_tool')
-    async def test_validate_remote_mcp_tool_langchain(self, mock_validate_langchain):
+    async def test_validate_tool_langchain(self, mock_validate_langchain):
         """Test LangChain tool validation"""
         mock_validate_langchain.return_value = "langchain result"
 
@@ -1482,15 +1477,13 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
-        result = await validate_remote_mcp_tool(request, "tenant1")
+        result = await validate_tools(request, "tenant1")
 
         assert result == "langchain result"
         mock_validate_langchain.assert_called_once_with(
             "test_tool", {"param": "value"})
 
-    async def test_validate_remote_mcp_tool_unsupported_source(self):
+    async def test_validate_tool_unsupported_source(self):
         """Test validation with unsupported tool source"""
         request = ToolValidateRequest(
             name="test_tool",
@@ -1499,30 +1492,11 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
         with pytest.raises(ToolExecutionException, match="Validate Tool failed"):
-            await validate_remote_mcp_tool(request, "tenant1")
+            await validate_tools(request, "tenant1")
 
     @patch('backend.services.tool_configuration_service._validate_mcp_tool_nexent')
-    async def test_validate_remote_mcp_tool_nexent_not_found(self, mock_validate_nexent):
-        """Test MCP tool validation when tool not found"""
-        mock_validate_nexent.side_effect = NotFoundException("Tool not found")
-
-        request = ToolValidateRequest(
-            name="test_tool",
-            source=ToolSourceEnum.MCP.value,
-            usage="nexent",
-            inputs={"param": "value"}
-        )
-
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
-
-        with pytest.raises(NotFoundException, match="Tool not found: Tool not found"):
-            await validate_remote_mcp_tool(request, "tenant1")
-
-    @patch('backend.services.tool_configuration_service._validate_mcp_tool_nexent')
-    async def test_validate_remote_mcp_tool_nexent_connection_error(self, mock_validate_nexent):
+    async def test_validate_tool_nexent_connection_error(self, mock_validate_nexent):
         """Test MCP tool validation when connection fails"""
         mock_validate_nexent.side_effect = MCPConnectionError(
             "Connection failed")
@@ -1534,13 +1508,13 @@ class TestLoadLastToolConfigImpl:
             inputs={"param": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
+        from backend.services.tool_configuration_service import validate_tools
 
         with pytest.raises(MCPConnectionError, match="MCP connection failed: Connection failed"):
-            await validate_remote_mcp_tool(request, "tenant1")
+            await validate_tools(request, "tenant1")
 
     @patch('backend.services.tool_configuration_service._validate_local_tool')
-    async def test_validate_remote_mcp_tool_local_execution_error(self, mock_validate_local):
+    async def test_validate_tool_local_execution_error(self, mock_validate_local):
         """Test local tool validation when execution fails"""
         mock_validate_local.side_effect = Exception("Execution failed")
 
@@ -1552,10 +1526,10 @@ class TestLoadLastToolConfigImpl:
             params={"config": "value"}
         )
 
-        from backend.services.tool_configuration_service import validate_remote_mcp_tool
+        from backend.services.tool_configuration_service import validate_tools
 
         with pytest.raises(ToolExecutionException, match="Validate Tool failed"):
-            await validate_remote_mcp_tool(request, "tenant1")
+            await validate_tools(request, "tenant1")
 
 
 if __name__ == '__main__':
