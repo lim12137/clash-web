@@ -2,7 +2,6 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  base: "/doc/",
   title: "Nexent Doc",
   description:
     "A zero-code platform for auto-generating agents  no orchestration, no complex drag-and-drop required.",
