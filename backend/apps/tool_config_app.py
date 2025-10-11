@@ -13,7 +13,7 @@ from services.tool_configuration_service import (
     update_tool_list,
     list_all_tools,
     load_last_tool_config_impl,
-    validate_remote_mcp_tool,
+    validate_tools,
 )
 from utils.auth_utils import get_current_user_id
 
@@ -110,7 +110,7 @@ async def validate_tool(
     """Validate specific tool based on source type"""
     try:
         _, tenant_id = get_current_user_id(authorization)
-        result = await validate_remote_mcp_tool(request, tenant_id)
+        result = await validate_tools(request, tenant_id)
 
         return JSONResponse(
             status_code=HTTPStatus.OK,

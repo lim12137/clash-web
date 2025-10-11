@@ -244,6 +244,7 @@ export default function ToolConfigModal({
               break;
             case "array":
             case "object":
+              // JSON.stringify with indentation of 2 spaces for better readability
               initialValues[paramName] = JSON.stringify(
                 paramInfo.default,
                 null,
