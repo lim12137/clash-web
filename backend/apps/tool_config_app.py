@@ -128,11 +128,6 @@ async def validate_tool(
             status_code=HTTPStatus.NOT_FOUND,
             detail=str(e)
         )
-    except TimeoutException as e:
-        raise HTTPException(
-            status_code=HTTPStatus.REQUEST_TIMEOUT,
-            detail=str(e)
-        )
     except Exception as e:
         logger.error(f"Failed to validate tool: {e}")
         raise HTTPException(
