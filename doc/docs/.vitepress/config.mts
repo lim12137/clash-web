@@ -357,7 +357,7 @@ export default defineConfig({
   },
 
   themeConfig: {
-    logo: (globalThis as any).process?.env?.GITHUB_PAGES ? "/nexent/Nexent Logo.jpg" : "/Nexent Logo.jpg",
+    logo: "/Nexent Logo.jpg",
     socialLinks: [
       { icon: "github", link: "https://github.com/ModelEngine-Group/nexent" },
     ],
