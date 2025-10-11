@@ -486,7 +486,7 @@ export default function ToolConfigModal({
                 disabled={!tool}
                 className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
               >
-                工具测试
+                {t("toolConfig.button.testTool")}
               </button>
             )}
             <div className="flex gap-2">
@@ -501,7 +501,7 @@ export default function ToolConfigModal({
                 disabled={isLoading}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
               >
-                {isLoading ? "保存中..." : t("common.button.save")}
+                {isLoading ? t("common.button.saving") : t("common.button.save")}
               </button>
             </div>
           </div>
