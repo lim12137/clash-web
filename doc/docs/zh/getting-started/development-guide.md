@@ -111,8 +111,12 @@ pnpm run dev
 ```bash
 # 在项目backend目录下执行
 cd backend
-source .venv/Scripts/activate  # 激活虚拟环境
+source .venv/bin/activate  # 激活虚拟环境
 ```
+
+::: warning 重要提示
+Windows操作系统需执行`source .venv/Scripts/activate`命令激活虚拟环境。
+:::
 
 Nexent 包含三个核心后端服务，需要分别启动：
 

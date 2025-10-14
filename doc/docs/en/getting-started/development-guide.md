@@ -111,8 +111,12 @@ Before starting services, you need to activate the virtual environment:
 ```bash
 # Execute in the project backend directory
 cd backend
-source .venv/Scripts/activate  # Activate virtual environment
+source .venv/bin/activate  # Activate virtual environment
 ```
+
+::: warning Important Notes
+On Windows, you need to execute the `source .venv/Scripts/activate` command to activate the virtual environment.
+:::
 
 Nexent includes three core backend services that need to be started separately:
 
