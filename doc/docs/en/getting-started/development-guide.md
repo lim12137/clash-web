@@ -114,6 +114,10 @@ cd backend
 source .venv/bin/activate  # Activate virtual environment
 ```
 
+::: warning Important Notes
+On Windows, you need to execute the `source .venv/Scripts/activate` command to activate the virtual environment.
+:::
+
 Nexent includes three core backend services that need to be started separately:
 
 ```bash
