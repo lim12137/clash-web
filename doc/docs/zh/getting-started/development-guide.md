@@ -114,6 +114,10 @@ cd backend
 source .venv/bin/activate  # 激活虚拟环境
 ```
 
+::: warning 重要提示
+Windows操作系统需执行`source .venv/Scripts/activate`命令激活虚拟环境。
+:::
+
 Nexent 包含三个核心后端服务，需要分别启动：
 
 ```bash
