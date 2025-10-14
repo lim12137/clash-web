@@ -53,6 +53,7 @@ nexent/
 在开始后端开发之前，需要先部署基础设施服务。这些服务包括数据库、缓存、文件存储等核心组件。
 
 ```bash
+# 在项目根目录的docker目录下执行
 cd docker
 ./deploy.sh --mode infrastructure
 ```
@@ -63,6 +64,7 @@ cd docker
 
 ### 后端设置
 ```bash
+# 在项目根目录的backend目录下执行
 cd backend
 uv sync --all-extras
 uv pip install ../sdk
@@ -100,6 +102,7 @@ uv pip install ../sdk --index https://pypi.tuna.tsinghua.edu.cn/simple --index h
 
 ### 前端设置
 ```bash
+# 在项目根目录的frontend目录下执行
 cd frontend
 pnpm install
 pnpm run dev
@@ -109,7 +112,7 @@ pnpm run dev
 在启动服务之前，需要先激活虚拟环境：
 
 ```bash
-# 在项目backend目录下执行
+# 在项目根目录的backend目录下执行
 cd backend
 source .venv/bin/activate  # 激活虚拟环境
 ```
