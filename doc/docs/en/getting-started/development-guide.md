@@ -111,7 +111,7 @@ Before starting services, you need to activate the virtual environment:
 ```bash
 # Execute in the project backend directory
 cd backend
-source .venv/bin/activate  # Activate virtual environment
+source .venv/Scripts/activate  # Activate virtual environment
 ```
 
 Nexent includes three core backend services that need to be started separately:
