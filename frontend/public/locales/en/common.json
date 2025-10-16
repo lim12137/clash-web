@@ -381,6 +381,7 @@
   "toolPool.group.local": "Local",
   "toolPool.group.langchain": "LangChain",
   "toolPool.group.other": "Other Tools",
+  "toolPool.category.other": "other",
   "toolPool.noTools": "No tools available",
   "toolPool.error.requiredFields": "The following required fields are not filled: {{fields}}",
 

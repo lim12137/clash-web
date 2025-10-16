@@ -382,6 +382,7 @@
   "toolPool.group.local": "本地工具",
   "toolPool.group.langchain": "LangChain",
   "toolPool.group.other": "其他工具",
+  "toolPool.category.other": "其他",
   "toolPool.noTools": "暂无可用工具",
   "toolPool.error.requiredFields": "以下必填字段未填写: {{fields}}",
 
