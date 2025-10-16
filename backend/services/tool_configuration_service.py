@@ -469,7 +469,7 @@ async def _call_mcp_tool(
             name=tool_name,
             arguments=inputs
         )
-        return result[0].text
+        return result.content[0].text
 
 
 async def _validate_mcp_tool_nexent(
