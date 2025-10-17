@@ -1139,10 +1139,12 @@ class TestLoadLastToolConfigImpl:
         mock_client.__aexit__.return_value = None
         mock_client.is_connected.return_value = True
 
-        # Mock tool result
+        # Mock tool result structure to match what _call_mcp_tool expects
+        mock_content_item = Mock()
+        mock_content_item.text = "test result"
         mock_result = Mock()
-        mock_result.text = "test result"
-        mock_client.call_tool.return_value = [mock_result]
+        mock_result.content = [mock_content_item]
+        mock_client.call_tool.return_value = mock_result
 
         mock_client_cls.return_value = mock_client
 
