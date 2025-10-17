@@ -3,7 +3,7 @@ import importlib
 import inspect
 import json
 import logging
-from typing import Any, List
+from typing import Any, List, Optional, Dict
 from urllib.parse import urljoin
 
 from pydantic_core import PydanticUndefined
@@ -12,9 +12,9 @@ import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
 from consts.const import DEFAULT_USER_ID, LOCAL_MCP_SERVER
-from consts.exceptions import MCPConnectionError
-from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
-from database.remote_mcp_db import get_mcp_records_by_tenant
+from consts.exceptions import MCPConnectionError, ToolExecutionException, NotFoundException
+from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum, ToolValidateRequest
+from database.remote_mcp_db import get_mcp_records_by_tenant, get_mcp_server_by_name_and_tenant
 from database.tool_db import (
     create_or_update_tool_by_tool_info,
     query_all_tools,
@@ -23,6 +23,8 @@ from database.tool_db import (
     search_last_tool_instance_by_tool_id
 )
 from database.user_tenant_db import get_all_tenant_ids
+from services.elasticsearch_service import get_embedding_model, elastic_core
+from services.tenant_config_service import get_selected_knowledge_list
 
 logger = logging.getLogger("tool_configuration_service")
 
@@ -101,8 +103,10 @@ def get_local_tools() -> List[ToolInfo]:
             inputs=json.dumps(getattr(tool_class, 'inputs'),
                               ensure_ascii=False),
             output_type=getattr(tool_class, 'output_type'),
+            category=getattr(tool_class, 'category'),
             class_name=tool_class.__name__,
-            usage=None
+            usage=None,
+            origin_name=getattr(tool_class, 'name')
         )
         tools_info.append(tool_info)
     return tools_info
@@ -150,16 +154,18 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
         output_type = python_type_to_json_schema(return_schema)
     except (TypeError, ValueError):
         output_type = "string"
-
+    tool_name = getattr(obj, "name", target_callable.__name__)
     tool_info = ToolInfo(
-        name=getattr(obj, "name", target_callable.__name__),
+        name=tool_name,
         description=getattr(obj, "description", ""),
         params=[],
         source=ToolSourceEnum.LANGCHAIN.value,
         inputs=json.dumps(inputs, ensure_ascii=False),
         output_type=output_type,
-        class_name=getattr(obj, "name", target_callable.__name__),
+        class_name=tool_name,
         usage=None,
+        origin_name=tool_name,
+        category=None
     )
     return tool_info
 
@@ -294,7 +300,9 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
                                      inputs=str(input_schema["properties"]),
                                      output_type="string",
                                      class_name=sanitized_tool_name,
-                                     usage=mcp_server_name)
+                                     usage=mcp_server_name,
+                                     origin_name=tool.name,
+                                     category=None)
                 tools_info.append(tool_info)
             return tools_info
     except Exception as e:
@@ -340,12 +348,15 @@ async def list_all_tools(tenant_id: str):
         formatted_tool = {
             "tool_id": tool.get("tool_id"),
             "name": tool.get("name"),
+            "origin_name": tool.get("origin_name"),
             "description": tool.get("description"),
             "source": tool.get("source"),
             "is_available": tool.get("is_available"),
             "create_time": tool.get("create_time"),
             "usage": tool.get("usage"),
-            "params": tool.get("params", [])
+            "params": tool.get("params", []),
+            "inputs": tool.get("inputs", {}),
+            "category": tool.get("category")
         }
         formatted_tools.append(formatted_tool)
 
@@ -416,6 +427,7 @@ async def initialize_tools_on_startup():
         logger.error(f"❌ Tool initialization failed: {str(e)}")
         raise
 
+
 def load_last_tool_config_impl(tool_id: int, tenant_id: str, user_id: str):
     """
     Load the last tool configuration for a given tool ID
@@ -424,3 +436,280 @@ def load_last_tool_config_impl(tool_id: int, tenant_id: str, user_id: str):
     if tool_instance is None:
         raise ValueError(f"Tool configuration not found for tool ID: {tool_id}")
     return tool_instance.get("params", {})
+
+
+async def _call_mcp_tool(
+    mcp_url: str,
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Common method to call MCP tool with connection handling.
+
+    Args:
+        mcp_url: MCP server URL
+        tool_name: Name of the tool to call
+        inputs: Parameters to pass to the tool
+
+    Returns:
+        Dict containing tool execution result
+
+    Raises:
+        MCPConnectionError: If MCP connection fails
+    """
+    client = Client(mcp_url)
+    async with client:
+        # Check if connected
+        if not client.is_connected():
+            logger.error("Failed to connect to MCP server")
+            raise MCPConnectionError("Failed to connect to MCP server")
+
+        # Call the tool
+        result = await client.call_tool(
+            name=tool_name,
+            arguments=inputs
+        )
+        return result.content[0].text
+
+
+async def _validate_mcp_tool_nexent(
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Validate MCP tool using local nexent server.
+
+    Args:
+        tool_name: Name of the tool to test
+        inputs: Parameters to pass to the tool
+
+    Returns:
+        Dict containing validation result
+
+    Raises:
+        MCPConnectionError: If MCP connection fails
+    """
+    actual_mcp_url = urljoin(LOCAL_MCP_SERVER, "sse")
+    return await _call_mcp_tool(actual_mcp_url, tool_name, inputs)
+
+
+async def _validate_mcp_tool_remote(
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]],
+    usage: str,
+    tenant_id: Optional[str]
+) -> Dict[str, Any]:
+    """
+    Validate MCP tool using remote server from database.
+
+    Args:
+        tool_name: Name of the tool to test
+        inputs: Parameters to pass to the tool
+        usage: MCP name for database lookup
+        tenant_id: Tenant ID for database queries
+
+    Returns:
+        Dict containing validation result
+
+    Raises:
+        NotFoundException: If MCP server not found
+        MCPConnectionError: If MCP connection fails
+    """
+    # Query mcp_record_t table to get mcp_server by mcp_name
+    actual_mcp_url = get_mcp_server_by_name_and_tenant(usage, tenant_id)
+    if not actual_mcp_url:
+        raise NotFoundException(f"MCP server not found for name: {usage}")
+
+    return await _call_mcp_tool(actual_mcp_url, tool_name, inputs)
+
+
+def _get_tool_class_by_name(tool_name: str) -> Optional[type]:
+    """
+    Get tool class by tool name from nexent.core.tools package.
+
+    Args:
+        tool_name: Name of the tool to find
+
+    Returns:
+        Tool class if found, None otherwise
+    """
+    try:
+        tools_package = importlib.import_module('nexent.core.tools')
+        for name in dir(tools_package):
+            obj = getattr(tools_package, name)
+            if inspect.isclass(obj) and hasattr(obj, 'name') and obj.name == tool_name:
+                return obj
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get tool class for {tool_name}: {e}")
+        return None
+
+
+def _validate_local_tool(
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]] = None,
+    params: Optional[Dict[str, Any]] = None,
+    tenant_id: Optional[str] = None,
+    user_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Validate local tool by actually instantiating and calling it.
+
+    Args:
+        tool_name: Name of the tool to test
+        inputs: Parameters to pass to the tool's forward method
+        params: Configuration parameters for tool initialization
+        tenant_id: Tenant ID for knowledge base tools (optional)
+        user_id: User ID for knowledge base tools (optional)
+
+    Returns:
+        Dict[str, Any]: The actual result returned by the tool's forward method, 
+                       serving as proof that the tool works correctly
+
+    Raises:
+        NotFoundException: If tool class not found
+        ToolExecutionException: If tool execution fails
+    """
+    try:
+        # Get tool class by name
+        tool_class = _get_tool_class_by_name(tool_name)
+        if not tool_class:
+            raise NotFoundException(f"Tool class not found for {tool_name}")
+
+        # Parse instantiation parameters first
+        instantiation_params = params or {}
+        # Get signature and extract default values for all parameters
+        sig = inspect.signature(tool_class.__init__)
+
+        # Extract default values for all parameters not provided in instantiation_params
+        for param_name, param in sig.parameters.items():
+            if param_name == "self":
+                continue
+
+            # If parameter not provided, extract default value
+            if param_name not in instantiation_params:
+                if param.default is PydanticUndefined:
+                    continue
+                elif hasattr(param.default, 'default'):
+                    # This is a Field object, extract its default value
+                    if param.default.default is not PydanticUndefined:
+                        instantiation_params[param_name] = param.default.default
+                else:
+                    instantiation_params[param_name] = param.default
+
+        if tool_name == "knowledge_base_search":
+            if not tenant_id or not user_id:
+                raise ToolExecutionException(f"Tenant ID and User ID are required for {tool_name} validation")
+            knowledge_info_list = get_selected_knowledge_list(
+                tenant_id=tenant_id, user_id=user_id)
+            index_names = [knowledge_info.get("index_name")
+                           for knowledge_info in knowledge_info_list]
+            embedding_model = get_embedding_model(tenant_id=tenant_id)
+            params = {
+                **instantiation_params,
+                'index_names': index_names,
+                'es_core': elastic_core,
+                'embedding_model': embedding_model
+            }
+            tool_instance = tool_class(**params)
+        else:
+            tool_instance = tool_class(**instantiation_params)
+
+        result = tool_instance.forward(**(inputs or {}))
+        return result
+    except Exception as e:
+        logger.error(f"Local tool validation failed for {tool_name}: {e}")
+        raise ToolExecutionException(
+            f"Local tool {tool_name} validation failed: {str(e)}")
+
+
+def _validate_langchain_tool(
+    tool_name: str,
+    inputs: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Validate LangChain tool by actually executing it.
+
+    Args:
+        tool_name: Name of the tool to test
+        inputs: Parameters to pass to the tool for execution test
+
+    Returns:
+        Dict containing validation result - success returns result
+
+    Raises:
+        NotFoundException: If tool not found in LangChain tools
+        ToolExecutionException: If tool execution fails
+    """
+    try:
+        from utils.langchain_utils import discover_langchain_modules
+
+        # Discover all LangChain tools
+        discovered_tools = discover_langchain_modules()
+
+        # Find the target tool by name
+        target_tool = None
+        for obj, filename in discovered_tools:
+            if hasattr(obj, 'name') and obj.name == tool_name:
+                target_tool = obj
+                break
+
+        if not target_tool:
+            raise NotFoundException(
+                f"Tool '{tool_name}' not found in LangChain tools")
+
+        # Execute the tool directly
+        result = target_tool.invoke(inputs or {})
+        return result
+    except Exception as e:
+        logger.error(f"LangChain tool '{tool_name}' validation failed: {e}")
+        raise ToolExecutionException(
+            f"LangChain tool '{tool_name}' validation failed: {e}")
+
+
+async def validate_tool_impl(
+    request: ToolValidateRequest,
+    tenant_id: Optional[str] = None,
+    user_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Validate a tool from various sources (MCP, local, or LangChain).
+
+    Args:
+        request: Tool validation request containing tool details
+        tenant_id: Tenant ID for database queries (optional)
+        user_id: User ID for database queries (optional)
+
+    Returns:
+        Dict containing validation result - success returns tool result, failure returns error message
+
+    Raises:
+        NotFoundException: If tool is not found
+        MCPConnectionError: If MCP connection fails
+        ToolExecutionException: If tool execution fails
+        Exception: If unsupported tool source is provided
+    """
+    try:
+        tool_name, inputs, source, usage, params = (
+            request.name, request.inputs, request.source, request.usage, request.params)
+        if source == ToolSourceEnum.MCP.value:
+            if usage == "nexent":
+                return await _validate_mcp_tool_nexent(tool_name, inputs)
+            else:
+                return await _validate_mcp_tool_remote(tool_name, inputs, usage, tenant_id)
+        elif source == ToolSourceEnum.LOCAL.value:
+            return _validate_local_tool(tool_name, inputs, params, tenant_id, user_id)
+        elif source == ToolSourceEnum.LANGCHAIN.value:
+            return _validate_langchain_tool(tool_name, inputs)
+        else:
+            raise Exception(f"Unsupported tool source: {source}")
+
+    except NotFoundException as e:
+        logger.error(f"Tool not found: {e}")
+        raise NotFoundException(str(e))
+    except MCPConnectionError as e:
+        logger.error(f"MCP connection failed: {e}")
+        raise MCPConnectionError(str(e))
+    except Exception as e:
+        logger.error(f"Validate Tool failed: {e}")
+        raise ToolExecutionException(str(e))

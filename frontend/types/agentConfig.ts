@@ -26,23 +26,20 @@ export interface Agent {
 export interface Tool {
   id: string;
   name: string;
+  origin_name?: string;
   description: string;
   source: "local" | "mcp" | "langchain";
   initParams: ToolParam[];
   is_available?: boolean;
   create_time?: string;
   usage?: string;
+  inputs?: string;
+  category?: string;
 }
 
 export interface ToolParam {
   name: string;
-  type:
-    | "string"
-    | "number"
-    | "boolean"
-    | "array"
-    | "object"
-    | "Optional";
+  type: "string" | "number" | "boolean" | "array" | "object" | "Optional";
   required: boolean;
   value?: any;
   description?: string;
@@ -58,6 +55,14 @@ export interface AgentConfigDataResponse {
 
 // Tool group interface
 export interface ToolGroup {
+  key: string;
+  label: string;
+  tools: Tool[];
+  subGroups?: ToolSubGroup[];
+}
+
+// Tool sub-group interface for secondary grouping
+export interface ToolSubGroup {
   key: string;
   label: string;
   tools: Tool[];
@@ -179,6 +184,7 @@ export interface ToolConfigModalProps {
   tool: Tool | null;
   mainAgentId: number;
   selectedTools?: Tool[];
+  isEditingMode?: boolean;
 }
 
 // ExpandEditModal component props interface

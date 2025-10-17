@@ -53,6 +53,7 @@ nexent/
 Before starting backend development, you need to deploy infrastructure services. These services include databases, caching, file storage, and other core components.
 
 ```bash
+# Execute in the docker directory of the project root directory
 cd docker
 ./deploy.sh --mode infrastructure
 ```
@@ -63,6 +64,7 @@ Infrastructure mode will start PostgreSQL, Redis, Elasticsearch, and MinIO servi
 
 ### Backend Setup
 ```bash
+# Execute in the backend directory of the project root directory
 cd backend
 uv sync --all-extras
 uv pip install ../sdk
@@ -100,6 +102,7 @@ It's recommended to use multiple mirror source configurations to improve downloa
 
 ### Frontend Setup
 ```bash
+# Execute in the frontend directory of the project root directory
 cd frontend
 pnpm install
 pnpm dev
@@ -109,10 +112,14 @@ pnpm dev
 Before starting services, you need to activate the virtual environment:
 
 ```bash
-# Execute in the project backend directory
+# Execute in the backend directory of the project root directory
 cd backend
 source .venv/bin/activate  # Activate virtual environment
 ```
+
+::: warning Important Notes
+On Windows, you need to execute the `source .venv/Scripts/activate` command to activate the virtual environment.
+:::
 
 Nexent includes three core backend services that need to be started separately:
 
