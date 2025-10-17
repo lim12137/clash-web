@@ -480,7 +480,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* API Key */}
         <div>
           <label htmlFor="apiKey" className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.apiKey')}
+            {t('model.dialog.label.apiKey')} {form.isBatchImport && <span className="text-red-500">*</span>}
           </label>
           <Input.Password
             id="apiKey"
