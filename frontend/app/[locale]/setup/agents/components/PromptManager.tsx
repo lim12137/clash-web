@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Badge, Input, App, Dropdown, Button } from "antd";
+import { Modal, Badge, Input, App, Button, Select } from "antd";
 import {
   ThunderboltOutlined,
   LoadingOutlined,
@@ -255,6 +255,7 @@ export default function PromptManager({
   getButtonTitle,
   editingAgent,
   onModelSelect,
+  selectedGenerateModel,
 }: PromptManagerProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -266,7 +267,20 @@ export default function PromptManager({
   // Model selection states
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  // Fallback internal selection when parent does not control selection
+  const [internalSelectedModel, setInternalSelectedModel] = useState<
+    ModelOption | null
+  >(selectedGenerateModel ?? null);
+
+  // Keep internal state in sync when parent-controlled value changes
+  useEffect(() => {
+    if (selectedGenerateModel && selectedGenerateModel?.id !== internalSelectedModel?.id) {
+      setInternalSelectedModel(selectedGenerateModel);
+    }
+    if (!selectedGenerateModel && internalSelectedModel) {
+      // Parent cleared selection; keep internal unless explicitly needed
+    }
+  }, [selectedGenerateModel]);
 
   // Load available models on component mount
   useEffect(() => {
@@ -286,37 +300,146 @@ export default function PromptManager({
     }
   };
 
-  // Handle model selection and auto-generate
-  const handleModelSelect = (model: ModelOption) => {
-    onModelSelect?.(model);
-    setShowModelDropdown(false);
+  // Track if default model has been initialized
+  const hasInitializedDefaultModel = useRef(false);
 
-    // Auto-trigger generation after model selection
-    if (onGenerateAgent) {
-      onGenerateAgent(model);
+  // Reset initialization flag when switching modes (editing existing vs creating new)
+  useEffect(() => {
+    if (isCreatingNewAgent) {
+      // Reset flag when entering "create new agent" mode
+      hasInitializedDefaultModel.current = false;
     }
+  }, [isCreatingNewAgent]);
+
+  // Reset internal model state when switching to a different agent
+  // Track the previous agentId to detect when it changes
+  const prevAgentIdRef = useRef<number | undefined>(undefined);
+  
+  useEffect(() => {
+    // Detect agent switch by comparing current and previous agentId
+    // This includes: existing -> existing, existing -> undefined (create new), undefined -> existing
+    const hasAgentChanged = agentId !== prevAgentIdRef.current;
+    
+    if (hasAgentChanged && prevAgentIdRef.current !== undefined) {
+      // When switching from one agent to another (or from agent to "create new"),
+      // clear internal state and wait for parent to provide the saved value or re-initialize
+      log.info("[PromptManager] Agent changed from", prevAgentIdRef.current, "to", agentId, "- clearing internal model state");
+      setInternalSelectedModel(null);
+    }
+    
+    // Always update the ref to track the current agentId
+    prevAgentIdRef.current = agentId;
+  }, [agentId]);
+
+  // Ensure a separate Business Logic LLM default selection using global default on creation
+  useEffect(() => {
+    if (!isCreatingNewAgent) return;
+    if (!availableModels || availableModels.length === 0) return;
+    // Only initialize once per creation session
+    if (hasInitializedDefaultModel.current) return;
+    // Skip if already has a selected model from parent
+    if (selectedGenerateModel || internalSelectedModel) return;
+
+    try {
+      const storedModelConfig = localStorage.getItem("model");
+      const parsed = storedModelConfig ? JSON.parse(storedModelConfig) : null;
+      const defaultDisplayName = parsed?.llm?.displayName || "";
+      const defaultModelName = parsed?.llm?.modelName || "";
+
+      let target = null as ModelOption | null;
+      if (defaultDisplayName) {
+        target = availableModels.find((m) => m.displayName === defaultDisplayName) || null;
+      }
+      if (!target && defaultModelName) {
+        target = availableModels.find((m) => m.name === defaultModelName) || null;
+      }
+      if (!target) {
+        target = availableModels[0] || null;
+      }
+      if (target) {
+        log.info("[PromptManager] Setting default Business Logic model:", target.displayName);
+        if (onModelSelect) {
+          onModelSelect(target);
+        } else {
+          setInternalSelectedModel(target);
+        }
+        // Keep business-logic model in sync with main agent model
+        onModelChange?.(target.displayName, target.id);
+        hasInitializedDefaultModel.current = true;
+      }
+    } catch (e) {
+      log.error("[PromptManager] Error parsing model config:", e);
+    }
+  }, [isCreatingNewAgent, availableModels, selectedGenerateModel, internalSelectedModel, onModelSelect, onModelChange]);
+
+  // Sync Business Logic LLM with Main Agent Model changes
+  useEffect(() => {
+    if (!availableModels || availableModels.length === 0) return;
+    
+    // Priority: mainAgentModelId > mainAgentModel
+    let targetModel: ModelOption | null = null;
+    
+    if (mainAgentModelId) {
+      targetModel = availableModels.find((m) => m.id === mainAgentModelId) || null;
+    }
+    
+    if (!targetModel && mainAgentModel) {
+      targetModel = availableModels.find((m) => m.displayName === mainAgentModel) || null;
+    }
+    
+    if (!targetModel) return;
+    
+    // Only update if different from current selection
+    const currentModel = selectedGenerateModel || internalSelectedModel;
+    if (currentModel && currentModel.id === targetModel.id) return;
+    
+    log.info("[PromptManager] Syncing Business Logic model with Main Agent model:", targetModel.displayName);
+    
+    if (onModelSelect) {
+      onModelSelect(targetModel);
+    } else {
+      setInternalSelectedModel(targetModel);
+    }
+  }, [availableModels, mainAgentModelId, mainAgentModel]);
+
+
+  // Handle model selection for prompt generation
+  const handleModelSelect = (modelId: number) => {
+    const model = availableModels.find((m) => m.id === modelId);
+    if (!model) return;
+    if (onModelSelect) {
+      onModelSelect(model);
+    } else {
+      setInternalSelectedModel(model);
+    }
+    // Also update the shared main agent model so both selectors stay in sync
+    onModelChange?.(model.displayName, model.id);
   };
 
-  // Handle generate button click - show model dropdown
+  // Handle generate button click
   const handleGenerateClick = () => {
     if (availableModels.length === 0) {
       message.warning(t("businessLogic.config.error.noAvailableModels"));
       return;
     }
-
-    setShowModelDropdown(true);
+    const chosen = selectedGenerateModel
+      ? selectedGenerateModel
+      : internalSelectedModel;
+    if (!chosen) {
+      message.warning(t("businessLogic.config.modelPlaceholder"));
+      return;
+    }
+    if (onGenerateAgent) {
+      onGenerateAgent(chosen);
+    }
   };
 
-  // Create dropdown items with disabled state for unavailable models
-  const modelDropdownItems = availableModels.map((model) => {
-    const isAvailable = model.connect_status === 'available';
-    return {
-      key: model.id,
-      label: model.displayName || model.name,
-      disabled: !isAvailable,
-      onClick: () => handleModelSelect(model),
-    };
-  });
+  // Select options for available models
+  const modelSelectOptions = availableModels.map((model) => ({
+    value: model.id,
+    label: model.displayName || model.name,
+    disabled: model.connect_status !== "available",
+  }));
 
   // Handle expand edit
   const handleExpandCard = (index: number) => {
@@ -454,24 +577,27 @@ export default function PromptManager({
               />
               {/* Generate button */}
               <div className="absolute bottom-2 right-2">
-                {isGeneratingAgent ? (
-                  <button
-                    disabled={true}
-                    className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ border: "none" }}
-                  >
-                    <LoadingOutlined spin className="mr-1" />
-                    {t("businessLogic.config.button.generating")}
-                  </button>
-                ) : (
-                  <Dropdown
-                    menu={{ items: modelDropdownItems }}
-                    open={showModelDropdown}
-                    onOpenChange={setShowModelDropdown}
-                    disabled={loadingModels || availableModels.length === 0}
-                    placement="bottomRight"
-                    trigger={['click']}
-                  >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">{t("businessLogic.config.model")}:</span>
+                  <Select
+                    value={(selectedGenerateModel ?? internalSelectedModel)?.id}
+                    onChange={handleModelSelect}
+                    loading={loadingModels}
+                    disabled={isGeneratingAgent}
+                    style={{ width: 200 }}
+                    options={modelSelectOptions}
+                    size="middle"
+                  />
+                  {isGeneratingAgent ? (
+                    <button
+                      disabled={true}
+                      className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ border: "none" }}
+                    >
+                      <LoadingOutlined spin className="mr-1" />
+                      {t("businessLogic.config.button.generating")}
+                    </button>
+                  ) : (
                     <button
                       onClick={handleGenerateClick}
                       disabled={loadingModels || availableModels.length === 0}
@@ -485,8 +611,8 @@ export default function PromptManager({
                       )}
                       {t("businessLogic.config.button.generatePrompt")}
                     </button>
-                  </Dropdown>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -167,11 +167,16 @@ export default function AgentSetupOrchestrator({
         } else {
           setEnabledAgentIds([]);
         }
-        // Update the model
-        setMainAgentModel(modelName);
-        // Update the model ID if available
-        if (result.data.model_id) {
-          setMainAgentModelId(result.data.model_id);
+        // Update the model - only if not creating a new agent (to preserve quick setup defaults)
+        // When creating a new agent, the model will be initialized from localStorage by child components
+        if (!isCreatingNewAgent || !modelName) {
+          setMainAgentModel(modelName);
+          // Update the model ID if available
+          if (result.data.model_id) {
+            setMainAgentModelId(result.data.model_id);
+          }
+        } else {
+          log.info("[AgentSetupOrchestrator] Creating new agent - skipping model override from backend to preserve quick setup default");
         }
         // Update the maximum number of steps
         if (maxSteps) {
@@ -212,8 +217,6 @@ export default function AgentSetupOrchestrator({
       if (!isEditingAgent) {
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic("");
-        setMainAgentModel(null); // Clear model selection when creating new agent
-        setMainAgentModelId(null); // Clear model ID when creating new agent
         fetchSubAgentIdAndEnableToolList(t);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
@@ -323,8 +326,21 @@ export default function AgentSetupOrchestrator({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
-    // Note: Don't clear content here - let the parent component's useEffect handle restoration
-    // The parent component will restore cached content if available
+    
+    // Clear all content when creating new agent to avoid showing cached data
+    setBusinessLogic("");
+    setDutyContent?.("");
+    setConstraintContent?.("");
+    setFewShotsContent?.("");
+    setAgentName?.("");
+    setAgentDescription?.("");
+    setAgentDisplayName?.("");
+    
+    // Clear tool and agent selections
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    setEnabledAgentIds([]);
+
     onEditingStateChange?.(false, null);
   };
 
@@ -599,50 +615,24 @@ export default function AgentSetupOrchestrator({
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
-    if (!targetAgentId) {
-      message.error(t("businessLogic.config.error.noAgentId"));
-      return;
-    }
-    
+    log.info("[AgentSetupOrchestrator] handleModelChange called:", {
+      value,
+      modelId,
+      targetAgentId,
+      isCreatingNewAgent,
+      isEditingAgent,
+    });
+
     // Update local state first
     setMainAgentModel(value);
     if (modelId !== undefined) {
       setMainAgentModelId(modelId);
     }
 
-    // Call updateAgent API to save the model change
-    try {
-      const result = await updateAgent(
-        Number(targetAgentId),
-        undefined, // name
-        undefined, // description
-        value, // modelName
-        undefined, // maxSteps
-        undefined, // provideRunSummary
-        undefined, // enabled
-        undefined, // businessDescription
-        undefined, // dutyPrompt
-        undefined, // constraintPrompt
-        undefined, // fewShotsPrompt
-        undefined, // displayName
-        modelId // modelId
-      );
-
-      if (!result.success) {
-        message.error(
-          result.message || t("businessLogic.config.error.modelUpdateFailed")
-        );
-        // Revert local state on failure
-        setMainAgentModel(mainAgentModel);
-        setMainAgentModelId(mainAgentModelId);
-      }
-    } catch (error) {
-      log.error("Error updating agent model:", error);
-      message.error(t("businessLogic.config.error.modelUpdateFailed"));
-      // Revert local state on failure
-      setMainAgentModel(mainAgentModel);
-      setMainAgentModelId(mainAgentModelId);
-    }
+    // When editing (creating new or modifying existing), only update local state
+    // The actual save will happen when user clicks the Save button
+    // This ensures unsaved changes don't persist when switching between agents
+    log.info("[AgentSetupOrchestrator] Model changed, updating local state only. Save will happen on Save button click.");
   };
 
   // Handle the update of the maximum number of steps
@@ -650,15 +640,21 @@ export default function AgentSetupOrchestrator({
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
-    if (!targetAgentId) {
-      message.error(t("businessLogic.config.error.noAgentId"));
-      return;
-    }
-
     const newValue = value ?? 5;
 
     // Update local state first
     setMainAgentMaxStep(newValue);
+
+    // If creating a new agent, only update local state without calling API
+    if (isCreatingNewAgent && !targetAgentId) {
+      return;
+    }
+
+    // If no agent ID, show error and return
+    if (!targetAgentId) {
+      message.error(t("businessLogic.config.error.noAgentId"));
+      return;
+    }
 
     // Call updateAgent API to save the max steps change
     try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Modal, Spin, Input, Select, InputNumber } from "antd";
 import {
@@ -126,6 +126,10 @@ export default function AgentConfigModal({
 
   // Add state for LLM models
   const [llmModels, setLlmModels] = useState<ModelOption[]>([]);
+  // Local fallback for selected main model display name (used when parent has not yet propagated)
+  const [localMainAgentModel, setLocalMainAgentModel] = useState<string>("");
+  // Track if default model has been initialized
+  const hasInitializedDefaultModel = useRef(false);
 
   // Load LLM models on component mount
   useEffect(() => {
@@ -142,6 +146,85 @@ export default function AgentConfigModal({
 
     loadLLMModels();
   }, []);
+
+  // Reset initialization flag when switching modes (editing existing vs creating new)
+  useEffect(() => {
+    if (isCreatingNewAgent) {
+      // Reset flag when entering "create new agent" mode
+      hasInitializedDefaultModel.current = false;
+      // Clear local model state to force re-initialization from localStorage
+      setLocalMainAgentModel("");
+    }
+  }, [isCreatingNewAgent]);
+
+  // Reset local model state when switching to a different agent
+  // Track the previous agentId to detect when it changes
+  const prevAgentIdRef = useRef<number | undefined>(undefined);
+  
+  useEffect(() => {
+    // Detect agent switch by comparing current and previous agentId
+    // This includes: existing -> existing, existing -> undefined (create new), undefined -> existing
+    const hasAgentChanged = agentId !== prevAgentIdRef.current;
+    
+    if (hasAgentChanged && prevAgentIdRef.current !== undefined) {
+      // When switching from one agent to another (or from agent to "create new"),
+      // clear local state and wait for parent to provide the saved value or re-initialize
+      log.info("[AgentConfigModal] Agent changed from", prevAgentIdRef.current, "to", agentId, "- clearing local model state");
+      setLocalMainAgentModel("");
+    }
+    
+    // Always update the ref to track the current agentId
+    prevAgentIdRef.current = agentId;
+  }, [agentId]);
+
+  // Default to globally configured model when creating a new agent (only once per creation session)
+  useEffect(() => {
+    if (!isCreatingNewAgent) return;
+    if (!llmModels || llmModels.length === 0) return;
+    // Only initialize once per creation session
+    if (hasInitializedDefaultModel.current) return;
+
+    try {
+      // Read global default model from config store (written by quick setup)
+      const storedModelConfig = localStorage.getItem("model");
+      if (!storedModelConfig) return;
+      
+      const parsed = JSON.parse(storedModelConfig);
+      const defaultDisplayName = parsed?.llm?.displayName || "";
+      const defaultModelName = parsed?.llm?.modelName || "";
+
+      let target = null as ModelOption | null;
+      if (defaultDisplayName) {
+        target = llmModels.find((m) => m.displayName === defaultDisplayName) || null;
+      }
+      if (!target && defaultModelName) {
+        target = llmModels.find((m) => m.name === defaultModelName) || null;
+      }
+      if (!target) {
+        target = llmModels[0] || null;
+      }
+
+      if (target) {
+        log.info("[AgentConfigModal] Setting default model:", target.displayName);
+        // Notify parent if provided
+        onModelChange?.(target.displayName, target.id);
+        // Also set local fallback immediately for UI before parent propagation
+        setLocalMainAgentModel(target.displayName);
+        hasInitializedDefaultModel.current = true;
+      }
+    } catch (e) {
+      log.error("[AgentConfigModal] Error parsing model config:", e);
+    }
+  }, [isCreatingNewAgent, llmModels]);
+
+  // Keep local fallback in sync when parent-controlled value arrives/changes
+  useEffect(() => {
+    // Always sync with parent when mainAgentModel changes
+    if (mainAgentModel && mainAgentModel !== localMainAgentModel) {
+      log.info("[AgentConfigModal] Syncing with parent model:", mainAgentModel);
+      setLocalMainAgentModel(mainAgentModel);
+    }
+  }, [mainAgentModel]);
 
   // Agent name validation function
   const validateAgentName = useCallback(
@@ -455,9 +538,17 @@ export default function AgentConfigModal({
           {t("businessLogic.config.model")}:
         </label>
         <Select
-          value={mainAgentModel || undefined}
-          onChange={(value, option) => {
-            const modelId = option && 'key' in option ? Number(option.key) : undefined;
+          value={localMainAgentModel || mainAgentModel || undefined}
+          onChange={(value) => {
+            // Find the model by displayName to get the modelId
+            const selectedModel = llmModels.find((m) => m.displayName === value);
+            const modelId = selectedModel?.id;
+            
+            log.info("[AgentConfigModal] Model changed:", { value, modelId, isCreatingNewAgent, isEditingMode });
+            
+            // Update local state immediately for responsive UI
+            setLocalMainAgentModel(value);
+            // Notify parent to update shared state
             onModelChange?.(value, modelId);
           }}
           size="large"
