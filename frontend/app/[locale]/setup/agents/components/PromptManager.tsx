@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Badge, Input, App, Dropdown, Button } from "antd";
+import { Modal, Badge, Input, App, Button, Select } from "antd";
 import {
   ThunderboltOutlined,
   LoadingOutlined,
@@ -189,6 +189,10 @@ export interface PromptManagerProps {
   mainAgentModelId?: number | null;
   mainAgentMaxStep?: number;
 
+  // Business Logic Model (independent from main agent model)
+  businessLogicModel?: string | null;
+  businessLogicModelId?: number | null;
+
   // Edit state
   isEditingMode?: boolean;
   isGeneratingAgent?: boolean;
@@ -197,6 +201,7 @@ export interface PromptManagerProps {
 
   // Callback functions
   onBusinessLogicChange?: (content: string) => void;
+  onBusinessLogicModelChange?: (value: string, modelId?: number) => void;
   onDutyContentChange?: (content: string) => void;
   onConstraintContentChange?: (content: string) => void;
   onFewShotsContentChange?: (content: string) => void;
@@ -233,11 +238,14 @@ export default function PromptManager({
   mainAgentModel = "",
   mainAgentModelId = null,
   mainAgentMaxStep = 5,
+  businessLogicModel = null,
+  businessLogicModelId = null,
   isEditingMode = false,
   isGeneratingAgent = false,
   isCreatingNewAgent = false,
   canSaveAgent = false,
   onBusinessLogicChange,
+  onBusinessLogicModelChange,
   onDutyContentChange,
   onConstraintContentChange,
   onFewShotsContentChange,
@@ -255,6 +263,7 @@ export default function PromptManager({
   getButtonTitle,
   editingAgent,
   onModelSelect,
+  selectedGenerateModel,
 }: PromptManagerProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -266,7 +275,20 @@ export default function PromptManager({
   // Model selection states
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  // Fallback internal selection when parent does not control selection
+  const [internalSelectedModel, setInternalSelectedModel] = useState<
+    ModelOption | null
+  >(selectedGenerateModel ?? null);
+
+  // Keep internal state in sync when parent-controlled value changes
+  useEffect(() => {
+    if (selectedGenerateModel && selectedGenerateModel?.id !== internalSelectedModel?.id) {
+      setInternalSelectedModel(selectedGenerateModel);
+    }
+    if (!selectedGenerateModel && internalSelectedModel) {
+      // Parent cleared selection; keep internal unless explicitly needed
+    }
+  }, [selectedGenerateModel]);
 
   // Load available models on component mount
   useEffect(() => {
@@ -286,37 +308,122 @@ export default function PromptManager({
     }
   };
 
-  // Handle model selection and auto-generate
-  const handleModelSelect = (model: ModelOption) => {
-    onModelSelect?.(model);
-    setShowModelDropdown(false);
+  // Ensure a separate Business Logic LLM default selection using global default on creation
+  // IMPORTANT: Only read from localStorage when creating a NEW agent, not when editing existing agent
+  useEffect(() => {
+    if (!isCreatingNewAgent) return; // Only apply to new agents
+    if (!availableModels || availableModels.length === 0) return;
+    if (businessLogicModelId) return; // Already set
 
-    // Auto-trigger generation after model selection
-    if (onGenerateAgent) {
-      onGenerateAgent(model);
+    try {
+      const storedModelConfig = localStorage.getItem("model");
+      const parsed = storedModelConfig ? JSON.parse(storedModelConfig) : null;
+      const defaultDisplayName = parsed?.llm?.displayName || "";
+      const defaultModelName = parsed?.llm?.modelName || "";
+
+      let target = null as ModelOption | null;
+      if (defaultDisplayName) {
+        target = availableModels.find((m) => m.displayName === defaultDisplayName) || null;
+      }
+      if (!target && defaultModelName) {
+        target = availableModels.find((m) => m.name === defaultModelName) || null;
+      }
+      if (!target) {
+        target = availableModels[0] || null;
+      }
+      if (target && onBusinessLogicModelChange) {
+        onBusinessLogicModelChange(target.displayName, target.id);
+      } else if (target) {
+        if (onModelSelect) {
+          onModelSelect(target);
+        } else {
+          setInternalSelectedModel(target);
+        }
+      }
+    } catch (_e) {
+      // ignore parse errors
+    }
+  }, [isCreatingNewAgent, availableModels, businessLogicModelId, onBusinessLogicModelChange, onModelSelect]);
+
+  // When editing an existing agent, load previously selected business logic model
+  useEffect(() => {
+    if (isCreatingNewAgent) return;
+    if (!availableModels || availableModels.length === 0) return;
+    if (selectedGenerateModel) return; // already set by parent/user
+
+    let target: ModelOption | null = null;
+    if (businessLogicModelId) {
+      target = availableModels.find((m) => m.id === businessLogicModelId) || null;
+    }
+    if (!target && businessLogicModel) {
+      target =
+        availableModels.find((m) => m.displayName === businessLogicModel) ||
+        availableModels.find((m) => m.name === businessLogicModel) ||
+        null;
+    }
+    if (target) {
+      if (onModelSelect) {
+        onModelSelect(target);
+      } else {
+        setInternalSelectedModel(target);
+      }
+    }
+  }, [
+    isCreatingNewAgent,
+    availableModels,
+    selectedGenerateModel,
+    businessLogicModelId,
+    businessLogicModel,
+    onModelSelect,
+  ]);
+
+  // Handle model selection for prompt generation
+  const handleModelSelect = (modelId: number) => {
+    const model = availableModels.find((m) => m.id === modelId);
+    if (!model) return;
+    if (onBusinessLogicModelChange) {
+      onBusinessLogicModelChange(model.displayName, model.id);
+    } else if (onModelSelect) {
+      onModelSelect(model);
+    } else {
+      setInternalSelectedModel(model);
     }
   };
 
-  // Handle generate button click - show model dropdown
+  // Handle generate button click
   const handleGenerateClick = () => {
     if (availableModels.length === 0) {
       message.warning(t("businessLogic.config.error.noAvailableModels"));
       return;
     }
 
-    setShowModelDropdown(true);
+    // Check if a model is selected: priority order is businessLogicModelId, selectedGenerateModel, internalSelectedModel
+    let chosen: ModelOption | null = null;
+    if (businessLogicModelId) {
+      chosen = availableModels.find((m) => m.id === businessLogicModelId) || null;
+    }
+    if (!chosen && selectedGenerateModel) {
+      chosen = selectedGenerateModel;
+    }
+    if (!chosen && internalSelectedModel) {
+      chosen = internalSelectedModel;
+    }
+    
+    if (!chosen) {
+      message.warning(t("businessLogic.config.modelPlaceholder"));
+      return;
+    }
+    if (onGenerateAgent) {
+      onGenerateAgent(chosen);
+    }
   };
 
-  // Create dropdown items with disabled state for unavailable models
-  const modelDropdownItems = availableModels.map((model) => {
-    const isAvailable = model.connect_status === 'available';
-    return {
-      key: model.id,
-      label: model.displayName || model.name,
-      disabled: !isAvailable,
-      onClick: () => handleModelSelect(model),
-    };
-  });
+  // Select options for available models
+  const modelSelectOptions = availableModels.map((model) => ({
+    value: model.id,
+    label: model.displayName || model.name,
+    disabled: model.connect_status !== "available",
+  }));
 
   // Handle expand edit
   const handleExpandCard = (index: number) => {
@@ -425,35 +532,47 @@ export default function PromptManager({
         </div>
       </div>
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col border-t pt-2 system-prompt-container overflow-hidden">
-          {/* Business logic description section */}
-          <div className="flex-shrink-0 mb-4">
-            <div className="mb-2">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
-                {t("businessLogic.title")}
-              </h3>
-            </div>
-            <div className="relative">
-              <Input.TextArea
-                value={businessLogic}
-                onChange={(e) => onBusinessLogicChange?.(e.target.value)}
-                placeholder={t("businessLogic.placeholder")}
-                className="w-full resize-none p-3 text-sm transition-all duration-300 system-prompt-business-logic"
-                style={{
-                  minHeight: "120px",
-                  maxHeight: "200px",
-                  paddingRight: "12px",
-                  paddingBottom: "40px", // Reserve space for button
-                }}
-                autoSize={{
-                  minRows: 3,
-                  maxRows: 5,
-                }}
-                disabled={!isEditingMode}
-              />
-              {/* Generate button */}
-              <div className="absolute bottom-2 right-2">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col border-t pt-2 system-prompt-container overflow-hidden">
+        {/* Business logic description section */}
+        <div className="flex-shrink-0 mb-4">
+          <div className="mb-2">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">
+              {t("businessLogic.title")}
+            </h3>
+          </div>
+          <div className="relative">
+            <Input.TextArea
+              value={businessLogic}
+              onChange={(e) => onBusinessLogicChange?.(e.target.value)}
+              placeholder={t("businessLogic.placeholder")}
+              className="w-full resize-none p-3 text-sm transition-all duration-300 system-prompt-business-logic"
+              style={{
+                minHeight: "120px",
+                maxHeight: "200px",
+                paddingRight: "12px",
+                paddingBottom: "40px", // Reserve space for button
+              }}
+              autoSize={{
+                minRows: 3,
+                maxRows: 5,
+              }}
+              disabled={!isEditingMode}
+            />
+            {/* Generate button */}
+            <div className="absolute bottom-2 right-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">{t("businessLogic.config.model")}：</span>
+                <Select
+                  value={businessLogicModelId || (selectedGenerateModel ?? internalSelectedModel)?.id}
+                  onChange={handleModelSelect}
+                  loading={loadingModels}
+                  disabled={isGeneratingAgent}
+                  placeholder={t("businessLogic.config.modelPlaceholder")}
+                  style={{ width: 200 }}
+                  options={modelSelectOptions}
+                  size="middle"
+                />
                 {isGeneratingAgent ? (
                   <button
                     disabled={true}
@@ -464,32 +583,24 @@ export default function PromptManager({
                     {t("businessLogic.config.button.generating")}
                   </button>
                 ) : (
-                  <Dropdown
-                    menu={{ items: modelDropdownItems }}
-                    open={showModelDropdown}
-                    onOpenChange={setShowModelDropdown}
+                  <button
+                    onClick={handleGenerateClick}
                     disabled={loadingModels || availableModels.length === 0}
-                    placement="bottomRight"
-                    trigger={['click']}
+                    className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ border: "none" }}
                   >
-                    <button
-                      onClick={handleGenerateClick}
-                      disabled={loadingModels || availableModels.length === 0}
-                      className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ border: "none" }}
-                    >
-                      {loadingModels ? (
-                        <LoadingOutlined className="mr-1" />
-                      ) : (
-                        <ThunderboltOutlined className="mr-1" />
-                      )}
-                      {t("businessLogic.config.button.generatePrompt")}
-                    </button>
-                  </Dropdown>
+                    {loadingModels ? (
+                      <LoadingOutlined className="mr-1" />
+                    ) : (
+                      <ThunderboltOutlined className="mr-1" />
+                    )}
+                    {t("businessLogic.config.button.generatePrompt")}
+                  </button>
                 )}
               </div>
             </div>
           </div>
+        </div>
 
         {/* Agent configuration section */}
         <div className="flex-1 min-h-0 system-prompt-content">
