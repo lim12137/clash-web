@@ -14,7 +14,11 @@ import {
   Typography,
   Tooltip,
 } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import {
+  CloseOutlined,
+  SettingOutlined,
+  EditOutlined,
+} from "@ant-design/icons";
 
 import { TOOL_PARAM_TYPES } from "@/const/agentConfig";
 import { ToolParam, ToolConfigModalProps } from "@/types/agentConfig";
@@ -52,6 +56,9 @@ export default function ToolConfigModal({
   const [parsedInputs, setParsedInputs] = useState<Record<string, any>>({});
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [dynamicInputParams, setDynamicInputParams] = useState<string[]>([]);
+  const [isManualInputMode, setIsManualInputMode] = useState(false);
+  const [manualJsonInput, setManualJsonInput] = useState<string>("");
+  const [isParseSuccessful, setIsParseSuccessful] = useState<boolean>(false);
   const { windowWidth, mainModalTop, mainModalRight } =
     useModalPosition(isOpen);
 
@@ -226,45 +233,64 @@ export default function ToolConfigModal({
       const parsedInputs = parseToolInputs(tool.inputs || "");
       const paramNames = extractParameterNames(parsedInputs);
 
-      setParsedInputs(parsedInputs);
-      setDynamicInputParams(paramNames);
+      // Check if parsing was successful (not empty object)
+      const isSuccessful = Object.keys(parsedInputs).length > 0;
+      setIsParseSuccessful(isSuccessful);
+      if (isSuccessful) {
+        setParsedInputs(parsedInputs);
+        setDynamicInputParams(paramNames);
 
-      // Initialize parameter values with appropriate defaults based on type
-      const initialValues: Record<string, string> = {};
-      paramNames.forEach((paramName) => {
-        const paramInfo = parsedInputs[paramName];
-        const paramType = paramInfo?.type || "string";
+        // Initialize parameter values with appropriate defaults based on type
+        const initialValues: Record<string, string> = {};
+        paramNames.forEach((paramName) => {
+          const paramInfo = parsedInputs[paramName];
+          const paramType = paramInfo?.type || "string";
 
-        if (
-          paramInfo &&
-          typeof paramInfo === "object" &&
-          paramInfo.default != null
-        ) {
-          // Use provided default value, convert to string for UI display
-          switch (paramType) {
-            case "boolean":
-              initialValues[paramName] = paramInfo.default ? "true" : "false";
-              break;
-            case "array":
-            case "object":
-              // JSON.stringify with indentation of 2 spaces for better readability
-              initialValues[paramName] = JSON.stringify(
-                paramInfo.default,
-                null,
-                2
-              );
-              break;
-            default:
-              initialValues[paramName] = String(paramInfo.default);
+          if (
+            paramInfo &&
+            typeof paramInfo === "object" &&
+            paramInfo.default != null
+          ) {
+            // Use provided default value, convert to string for UI display
+            switch (paramType) {
+              case "boolean":
+                initialValues[paramName] = paramInfo.default ? "true" : "false";
+                break;
+              case "array":
+              case "object":
+                // JSON.stringify with indentation of 2 spaces for better readability
+                initialValues[paramName] = JSON.stringify(
+                  paramInfo.default,
+                  null,
+                  2
+                );
+                break;
+              default:
+                initialValues[paramName] = String(paramInfo.default);
+            }
           }
-        }
-      });
-      setParamValues(initialValues);
+        });
+        setParamValues(initialValues);
+        // Reset to parsed mode when parsing succeeds
+        setIsManualInputMode(false);
+        setManualJsonInput("");
+      } else {
+        // Parsing returned empty object, treat as failed
+        setParsedInputs({});
+        setParamValues({});
+        setDynamicInputParams([]);
+        setIsManualInputMode(true);
+        setManualJsonInput("{}");
+      }
     } catch (error) {
       log.error("Parameter parsing error:", error);
       setParsedInputs({});
       setParamValues({});
       setDynamicInputParams([]);
+      setIsParseSuccessful(false);
+      // When parsing fails, automatically switch to manual input mode
+      setIsManualInputMode(true);
+      setManualJsonInput("{}");
     }
 
     setTestPanelVisible(true);
@@ -278,6 +304,9 @@ export default function ToolConfigModal({
     setParamValues({});
     setDynamicInputParams([]);
     setTestExecuting(false);
+    setIsManualInputMode(false);
+    setManualJsonInput("");
+    setIsParseSuccessful(false);
   };
 
   // Execute tool test
@@ -674,60 +703,144 @@ export default function ToolConfigModal({
                   </>
                 )}
 
-                {/* Dynamic input parameters from tool inputs */}
-                {dynamicInputParams.length > 0 && (
+                {/* Input parameters section with conditional toggle */}
+                {(dynamicInputParams.length > 0 || isManualInputMode) && (
                   <>
-                    <Text strong style={{ display: "block", marginBottom: 8 }}>
-                      {t("toolConfig.toolTest.inputParams")}
-                    </Text>
                     <div
                       style={{
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 12,
-                        marginBottom: 15,
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
                       }}
                     >
-                      {dynamicInputParams.map((paramName) => {
-                        const paramInfo = parsedInputs[paramName];
-                        const description =
-                          paramInfo &&
-                          typeof paramInfo === "object" &&
-                          paramInfo.description
-                            ? paramInfo.description
-                            : paramName;
+                      <Text strong>{t("toolConfig.toolTest.inputParams")}</Text>
+                      {/* Only show toggle button if parsing was successful */}
+                      {isParseSuccessful && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={
+                            isManualInputMode ? (
+                              <SettingOutlined />
+                            ) : (
+                              <EditOutlined />
+                            )
+                          }
+                          onClick={() => {
+                            setIsManualInputMode(!isManualInputMode);
+                            if (!isManualInputMode) {
+                              const currentParamsJson: Record<string, any> = {};
+                              dynamicInputParams.forEach((paramName) => {
+                                const value = paramValues[paramName];
+                                if (value && value.trim() !== "") {
+                                  const paramInfo = parsedInputs[paramName];
+                                  const paramType = paramInfo?.type || "string";
 
-                        return (
-                          <div
-                            key={paramName}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <Text style={{ minWidth: 100 }}>{paramName}</Text>
-                            <Tooltip
-                              title={description}
-                              placement="topLeft"
-                              overlayStyle={{ maxWidth: 400 }}
-                            >
-                              <Input
-                                placeholder={description}
-                                value={paramValues[paramName] || ""}
-                                onChange={(e) => {
-                                  setParamValues((prev) => ({
-                                    ...prev,
-                                    [paramName]: e.target.value,
-                                  }));
-                                }}
-                                style={{ flex: 1 }}
-                              />
-                            </Tooltip>
-                          </div>
-                        );
-                      })}
+                                  try {
+                                    switch (paramType) {
+                                      case "integer":
+                                      case "number":
+                                        currentParamsJson[paramName] = Number(
+                                          value.trim()
+                                        );
+                                        break;
+                                      case "boolean":
+                                        currentParamsJson[paramName] =
+                                          value.trim().toLowerCase() === "true";
+                                        break;
+                                      case "array":
+                                      case "object":
+                                        currentParamsJson[paramName] =
+                                          JSON.parse(value.trim());
+                                        break;
+                                      default:
+                                        currentParamsJson[paramName] =
+                                          value.trim();
+                                    }
+                                  } catch {
+                                    currentParamsJson[paramName] = value.trim();
+                                  }
+                                }
+                              });
+                              setManualJsonInput(
+                                JSON.stringify(currentParamsJson, null, 2)
+                              );
+                            }
+                          }}
+                        >
+                          {isManualInputMode
+                            ? t("toolConfig.toolTest.parseMode")
+                            : t("toolConfig.toolTest.manualInput")}
+                        </Button>
+                      )}
                     </div>
+
+                    {isManualInputMode ? (
+                      // Manual JSON input mode
+                      <div style={{ marginBottom: 15 }}>
+                        <Input.TextArea
+                          value={manualJsonInput}
+                          onChange={(e) => setManualJsonInput(e.target.value)}
+                          rows={6}
+                          style={{ fontFamily: "monospace" }}
+                        />
+                      </div>
+                    ) : (
+                      // Parsed parameters mode
+                      dynamicInputParams.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 12,
+                            marginBottom: 15,
+                          }}
+                        >
+                          {dynamicInputParams.map((paramName) => {
+                            const paramInfo = parsedInputs[paramName];
+                            const description =
+                              paramInfo &&
+                              typeof paramInfo === "object" &&
+                              paramInfo.description
+                                ? paramInfo.description
+                                : paramName;
+
+                            return (
+                              <div
+                                key={paramName}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <Text style={{ minWidth: 100 }}>
+                                  {paramName}
+                                </Text>
+                                <Tooltip
+                                  title={description}
+                                  placement="topLeft"
+                                  overlayStyle={{ maxWidth: 400 }}
+                                >
+                                  <Input
+                                    placeholder={description}
+                                    value={paramValues[paramName] || ""}
+                                    onChange={(e) => {
+                                      setParamValues((prev) => ({
+                                        ...prev,
+                                        [paramName]: e.target.value,
+                                      }));
+                                    }}
+                                    style={{ flex: 1 }}
+                                  />
+                                </Tooltip>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
                   </>
                 )}
 
