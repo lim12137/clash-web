@@ -210,6 +210,10 @@ def test_process_local_happy_path(monkeypatch, tmp_path):
     f = tmp_path / "a.txt"
     f.write_text("content")
 
+    # Mock chunks returned by Ray processing
+    mock_chunks = [{"content": "chunk1", "metadata": {}},
+                   {"content": "chunk2", "metadata": {}}]
+
     class FakeActor:
         class P:
             def __init__(self, *a, **k):
@@ -220,16 +224,26 @@ def test_process_local_happy_path(monkeypatch, tmp_path):
             self.store_chunks_in_redis = types.SimpleNamespace(remote=lambda *a, **k: None)
 
     monkeypatch.setattr(tasks, "get_ray_actor", lambda: FakeActor())
+    # Mock ray.get to return chunks instead of reference
+    fake_ray.get_returns = mock_chunks
+
     self = FakeSelf("p1")
 
     result = tasks.process(self, source=str(f), source_type="local", chunking_strategy="basic", index_name="idx", original_filename="a.txt")
     assert result["redis_key"].startswith("dp:p1:chunks")
     # success state updated twice: STARTED and SUCCESS
     assert any(s.get("state") == tasks.states.SUCCESS for s in self.states)
+    # Verify chunks_count is set correctly (not None)
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("chunks_count") == 2
 
 
 def test_process_minio_path(monkeypatch):
     tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=True)
+
+    # Mock chunks returned by Ray processing
+    mock_chunks = [{"content": "minio chunk", "metadata": {}}]
 
     class FakeActor:
         def __init__(self):
@@ -237,9 +251,57 @@ def test_process_minio_path(monkeypatch):
             self.store_chunks_in_redis = types.SimpleNamespace(remote=lambda *a, **k: None)
 
     monkeypatch.setattr(tasks, "get_ray_actor", lambda: FakeActor())
+    # Mock ray.get to return chunks
+    fake_ray.get_returns = mock_chunks
+
     self = FakeSelf("m1")
     result = tasks.process(self, source="http://minio/bucket/x", source_type="minio", chunking_strategy="basic")
     assert result["redis_key"].startswith("dp:m1:chunks")
+    # Verify chunks_count is set
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("chunks_count") == 1
+
+
+def test_process_large_file_with_many_chunks(monkeypatch, tmp_path):
+    """Test processing a large file that generates 100+ chunks"""
+    tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=True)
+
+    # Prepare a fake large file
+    f = tmp_path / "large.pdf"
+    f.write_text("large content" * 1000)
+
+    # Mock 150 chunks to simulate large file processing
+    mock_chunks = [{"content": f"chunk_{i}", "metadata": {}}
+                   for i in range(150)]
+
+    class FakeActor:
+        def __init__(self):
+            self.process_file = types.SimpleNamespace(
+                remote=lambda *a, **k: "ref_large")
+            self.store_chunks_in_redis = types.SimpleNamespace(
+                remote=lambda *a, **k: None)
+
+    monkeypatch.setattr(tasks, "get_ray_actor", lambda: FakeActor())
+    # Mock ray.get to return large chunks
+    fake_ray.get_returns = mock_chunks
+
+    self = FakeSelf("large1")
+
+    result = tasks.process(self, source=str(f), source_type="local",
+                           chunking_strategy="basic", index_name="idx", original_filename="large.pdf")
+
+    # Verify redis_key is set
+    assert result["redis_key"].startswith("dp:large1:chunks")
+
+    # Verify chunks_count shows 150 chunks
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("chunks_count") == 150
+
+    # Verify processing_time is set
+    assert "processing_time" in success_state.get("meta", {})
+    assert success_state.get("meta", {}).get("processing_time") >= 0
 
 
 def test_process_raises_on_missing_file(monkeypatch):
@@ -724,3 +786,101 @@ def test_forward_empty_chunks_list_warns_and_raises(monkeypatch):
         tasks.forward(self, processed_data={
                       "chunks": []}, index_name="idx", source="/a.txt")
     json.loads(str(ei.value))
+
+
+def test_process_zero_file_size_speed_calculation(monkeypatch, tmp_path):
+    """Test that processing_speed_mb_s handles zero file size correctly"""
+    tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=True)
+
+    # Prepare an empty file
+    f = tmp_path / "empty.txt"
+    f.write_text("")
+
+    mock_chunks = [{"content": "chunk", "metadata": {}}]
+
+    class FakeActor:
+        def __init__(self):
+            self.process_file = types.SimpleNamespace(
+                remote=lambda *a, **k: "ref")
+            self.store_chunks_in_redis = types.SimpleNamespace(
+                remote=lambda *a, **k: None)
+
+    monkeypatch.setattr(tasks, "get_ray_actor", lambda: FakeActor())
+    fake_ray.get_returns = mock_chunks
+
+    self = FakeSelf("empty1")
+
+    tasks.process(self, source=str(f), source_type="local",
+                  chunking_strategy="basic", index_name="idx", original_filename="empty.txt")
+
+    # Verify processing_speed_mb_s is 0 for zero-size file (not division by zero)
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("processing_speed_mb_s") == 0
+
+
+def test_process_url_source_with_many_chunks(monkeypatch):
+    """Test processing URL source that generates many chunks"""
+    tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=True)
+
+    # Mock 120 chunks to simulate URL processing
+    mock_chunks = [{"content": f"url_chunk_{i}", "metadata": {}}
+                   for i in range(120)]
+
+    class FakeActor:
+        def __init__(self):
+            self.process_file = types.SimpleNamespace(
+                remote=lambda *a, **k: "ref_url")
+            self.store_chunks_in_redis = types.SimpleNamespace(
+                remote=lambda *a, **k: None)
+
+    monkeypatch.setattr(tasks, "get_ray_actor", lambda: FakeActor())
+    fake_ray.get_returns = mock_chunks
+
+    self = FakeSelf("url1")
+
+    result = tasks.process(self, source="http://example.com/doc.pdf",
+                           source_type="minio", chunking_strategy="basic", index_name="idx")
+
+    # Verify chunks_count for URL source
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("chunks_count") == 120
+    assert result["redis_key"].startswith("dp:url1:chunks")
+
+
+def test_forward_large_chunks_batch_success(monkeypatch):
+    """Test forwarding large batch of chunks (100+) to Elasticsearch"""
+    tasks, _ = import_tasks_with_fake_ray(monkeypatch)
+    monkeypatch.setattr(tasks, "ELASTICSEARCH_SERVICE", "http://api")
+    monkeypatch.setattr(tasks, "get_file_size", lambda *a, **k: 5000)
+
+    # Simulate 150 chunks (large file scenario)
+    large_chunks = [{"content": f"content_{i}",
+                     "metadata": {"page": i}} for i in range(150)]
+
+    # Mock successful indexing of all chunks
+    monkeypatch.setattr(tasks, "run_async", lambda coro: {
+        "success": True,
+        "total_indexed": 150,
+        "total_submitted": 150,
+        "message": "All chunks indexed"
+    })
+
+    self = FakeSelf("large_forward")
+    result = tasks.forward(
+        self,
+        processed_data={"chunks": large_chunks},
+        index_name="idx",
+        source="/large.pdf",
+        source_type="local",
+        original_filename="large.pdf"
+    )
+
+    # Verify all 150 chunks were stored
+    assert result["chunks_stored"] == 150
+
+    # Verify SUCCESS state was updated
+    success_state = [s for s in self.states if s.get(
+        "state") == tasks.states.SUCCESS][0]
+    assert success_state.get("meta", {}).get("chunks_stored") == 150
