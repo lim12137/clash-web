@@ -70,11 +70,13 @@ class ElasticSearchCore:
         self._settings_lock = threading.Lock()
         self._operation_counter = 0
 
-        # Embedding API limits
-        self.max_texts_per_batch = 2048
+        # Embedding API limits - Conservative settings for stability
+        # Different APIs have different limits, so we use a conservative approach
+        self.max_texts_per_batch = 50   # Very conservative for stability
         self.max_tokens_per_text = 8192
         self.max_total_tokens = 100000
-    
+        self.max_retries = 3  # Number of retries for failed embedding batches
+
     # ---- INDEX MANAGEMENT ----
     
     def create_vector_index(self, index_name: str, embedding_dim: Optional[int] = None) -> bool:
