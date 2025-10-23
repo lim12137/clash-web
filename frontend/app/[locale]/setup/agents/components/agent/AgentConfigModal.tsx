@@ -277,7 +277,17 @@ export default function AgentConfigModal({
 
   // Check agent name existence - only when user is actively typing
   useEffect(() => {
-    if (!agentName || agentNameError) {
+    if (!agentName) {
+      return;
+    }
+
+    // If there's a validation error (like format error), don't check for duplicates
+    // but allow checking when the error is cleared
+    if (agentNameError) {
+      // If there was a previous duplicate status, clear it
+      if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+        setAgentNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+      }
       return;
     }
 
@@ -299,7 +309,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, agentName, agentNameError, agentId, t]);
+  }, [isEditingMode, agentName, agentNameError, agentId, agentNameStatus, t]);
 
   // Reset user typing state after user stops typing
   useEffect(() => {
@@ -325,9 +335,18 @@ export default function AgentConfigModal({
   useEffect(() => {
     if (
       (!isEditingMode && !isCreatingNewAgent) ||
-      !agentDisplayName ||
-      agentDisplayNameError
+      !agentDisplayName
     ) {
+      return;
+    }
+
+    // If there's a validation error (like format error), don't check for duplicates
+    // but allow checking when the error is cleared
+    if (agentDisplayNameError) {
+      // If there was a previous duplicate status, clear it
+      if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+        setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+      }
       return;
     }
 
@@ -349,7 +368,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, agentDisplayName, agentDisplayNameError, agentId, t]);
+  }, [isEditingMode, isCreatingNewAgent, agentDisplayName, agentDisplayNameError, agentId, agentDisplayNameStatus, t]);
 
   // Reset user typing state for display name after user stops typing
   useEffect(() => {
