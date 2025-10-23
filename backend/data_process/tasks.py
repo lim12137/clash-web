@@ -201,8 +201,8 @@ def process(
                 f"[{self.request.id}] PROCESS TASK: File size: {file_size_mb:.2f}MB")
 
             # The unified actor call, mapping 'file' source_type to 'local' destination
-            # Submit Ray work and do not block here
-            logger.debug(
+            # Submit Ray work and WAIT for processing to complete
+            logger.info(
                 f"[{self.request.id}] PROCESS TASK: Submitting Ray processing for source='{source}', strategy='{chunking_strategy}', destination='{source_type}'")
             chunks_ref = actor.process_file.remote(
                 source,
@@ -211,10 +211,17 @@ def process(
                 task_id=task_id,
                 **params
             )
-            # Persist chunks into Redis via Ray to decouple Celery
+            # Wait for Ray processing to complete (this keeps task in STARTED/"PROCESSING" state)
+            logger.info(
+                f"[{self.request.id}] PROCESS TASK: Waiting for Ray processing to complete...")
+            chunks = ray.get(chunks_ref)
+            logger.info(
+                f"[{self.request.id}] PROCESS TASK: Ray processing completed, got {len(chunks) if chunks else 0} chunks")
+
+            # Persist chunks into Redis via Ray (fire-and-forget, don't block)
             redis_key = f"dp:{task_id}:chunks"
-            actor.store_chunks_in_redis.remote(redis_key, chunks_ref)
-            logger.debug(
+            actor.store_chunks_in_redis.remote(redis_key, chunks)
+            logger.info(
                 f"[{self.request.id}] PROCESS TASK: Scheduled store_chunks_in_redis for key '{redis_key}'")
 
             end_time = time.time()
@@ -229,7 +236,7 @@ def process(
                 f"[{self.request.id}] PROCESS TASK: Processing from URL: {source}")
 
             # For URL source, core.py expects a non-local destination to trigger URL fetching
-            logger.debug(
+            logger.info(
                 f"[{self.request.id}] PROCESS TASK: Submitting Ray processing for URL='{source}', strategy='{chunking_strategy}', destination='{source_type}'")
             chunks_ref = actor.process_file.remote(
                 source,
@@ -238,11 +245,19 @@ def process(
                 task_id=task_id,
                 **params
             )
-            # Persist chunks into Redis via Ray to decouple Celery
+            # Wait for Ray processing to complete (this keeps task in STARTED/"PROCESSING" state)
+            logger.info(
+                f"[{self.request.id}] PROCESS TASK: Waiting for Ray processing to complete...")
+            chunks = ray.get(chunks_ref)
+            logger.info(
+                f"[{self.request.id}] PROCESS TASK: Ray processing completed, got {len(chunks) if chunks else 0} chunks")
+
+            # Persist chunks into Redis via Ray (fire-and-forget, don't block)
             redis_key = f"dp:{task_id}:chunks"
-            actor.store_chunks_in_redis.remote(redis_key, chunks_ref)
-            logger.debug(
+            actor.store_chunks_in_redis.remote(redis_key, chunks)
+            logger.info(
                 f"[{self.request.id}] PROCESS TASK: Scheduled store_chunks_in_redis for key '{redis_key}'")
+
             end_time = time.time()
             elapsed_time = end_time - start_time
             logger.info(
@@ -253,11 +268,12 @@ def process(
             raise NotImplementedError(
                 f"Source type '{source_type}' not yet supported")
 
-        # Update task state to SUCCESS with metadata (without materializing chunks here)
+        # Update task state to SUCCESS after Ray processing completes
+        # This transitions from STARTED (PROCESSING) to SUCCESS (WAIT_FOR_FORWARDING)
         self.update_state(
             state=states.SUCCESS,
             meta={
-                'chunks_count': None,
+                'chunks_count': len(chunks) if chunks else 0,
                 'processing_time': elapsed_time,
                 'source': source,
                 'index_name': index_name,
@@ -265,12 +281,12 @@ def process(
                 'task_name': 'process',
                 'stage': 'text_extracted',
                 'file_size_mb': file_size_mb,
-                'processing_speed_mb_s': file_size_mb / elapsed_time if elapsed_time > 0 else 0
+                'processing_speed_mb_s': file_size_mb / elapsed_time if file_size_mb > 0 and elapsed_time > 0 else 0
             }
         )
 
         logger.info(
-            f"[{self.request.id}] PROCESS TASK: Submitted for Ray processing; result will be fetched by forward")
+            f"[{self.request.id}] PROCESS TASK: Processing complete, waiting for forward task")
 
         # Prepare data for the next task in the chain; pass redis_key
         returned_data = {
@@ -563,6 +579,9 @@ def forward(
                             "source": original_source,
                             "original_filename": original_filename
                         }, ensure_ascii=False))
+
+        logger.info(
+            f"[{self.request.id}] FORWARD TASK: Starting ES indexing for {len(formatted_chunks)} chunks to index '{original_index_name}'...")
         es_result = run_async(index_documents())
         logger.debug(
             f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
@@ -605,6 +624,8 @@ def forward(
                 "original_filename": original_filename
             }, ensure_ascii=False))
         end_time = time.time()
+        logger.info(
+            f"[{self.request.id}] FORWARD TASK: Updating task state to SUCCESS after ES indexing completion")
         self.update_state(
             state=states.SUCCESS,
             meta={
@@ -620,7 +641,7 @@ def forward(
         )
 
         logger.info(
-            f"Stored {len(chunks)} chunks to index {original_index_name} in {end_time - start_time:.2f}s")
+            f"[{self.request.id}] FORWARD TASK: Successfully stored {len(chunks)} chunks to index {original_index_name} in {end_time - start_time:.2f}s")
         return {
             'task_id': task_id,
             'source': original_source,
