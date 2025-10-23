@@ -366,7 +366,8 @@
   "toolConfig.toolTest.execute": "Execute Test",
   "toolConfig.toolTest.result": "Test Result",
   "toolConfig.button.testTool": "Test Tool",
-
+  "toolConfig.toolTest.manualInput": "Manual Input",
+  "toolConfig.toolTest.parseMode": "Parse Mode",
   "toolPool.title": "Select tools",
   "toolPool.loading": "Loading...",
   "toolPool.loadingTools": "Loading tools...",
