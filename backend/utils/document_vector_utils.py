@@ -59,6 +59,9 @@ def get_documents_from_es(index_name: str, es_core, sample_doc_count: int = 200)
         
         # Step 2: Random sample documents
         sample_count = min(sample_doc_count, len(all_documents))
+        # Ensure all_documents is a list for random.sample
+        if not isinstance(all_documents, list):
+            all_documents = list(all_documents)
         sampled_docs = random.sample(all_documents, sample_count)
         
         logger.info(f"Sampled {sample_count} documents from {len(all_documents)} total documents")
