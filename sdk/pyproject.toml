@@ -76,7 +76,7 @@ performance = [
     "opentelemetry-instrumentation-fastapi",
     "opentelemetry-instrumentation-requests",
     # OpenTelemetry Exporters
-    "opentelemetry-exporter-jaeger",
+    "opentelemetry-exporter-jaeger>=1.20.0,<1.21.0",
     "opentelemetry-exporter-prometheus",
     # Additional monitoring dependencies
     "prometheus-client"
