@@ -664,6 +664,7 @@ const messageHandlers: MessageHandler[] = [
         <MarkdownRenderer
           content={message.content}
           className="task-message-content"
+          showDiagramToggle={false}
         />
       </div>
     ),
@@ -757,6 +758,7 @@ const messageHandlers: MessageHandler[] = [
           <MarkdownRenderer
             content={content}
             className="task-message-content"
+            showDiagramToggle={false}
           />
         );
       } else {
@@ -1061,7 +1063,8 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
   const maxHeight = 300;
   const headerHeight = 55;
   const availableHeight = maxHeight - headerHeight;
-  const actualContentHeight = Math.min(contentHeight + 16, availableHeight);
+  // Add extra padding for diagrams to prevent bottom cutoff
+  const actualContentHeight = Math.min(contentHeight + 32, availableHeight);
   const containerHeight = isExpanded
     ? headerHeight + actualContentHeight
     : "auto";
@@ -1096,15 +1099,15 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
         </div>
 
         {isExpanded && (
-          <div className="px-4" style={{ height: `${actualContentHeight}px` }}>
+          <div className="px-4 pb-4" style={{ height: `${actualContentHeight}px` }}>
             {needsScroll ? (
               <ScrollArea className="h-full" ref={scrollAreaRef}>
-                <div className="" ref={contentRef}>
+                <div className="pb-2" ref={contentRef}>
                   {renderMessages()}
                 </div>
               </ScrollArea>
             ) : (
-              <div className="" ref={contentRef}>
+              <div className="pb-2" ref={contentRef}>
                 {renderMessages()}
               </div>
             )}
@@ -1182,6 +1185,36 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
           max-width: 100% !important;
           box-sizing: border-box !important;
         }
+
+         /* Override diagram size in task window */
+         .task-message-content .my-4 {
+           max-width: 200px !important;
+           margin: 0 auto !important;
+           display: flex !important;
+           justify-content: center !important;
+         }
+
+         .task-message-content .my-4 img {
+           max-width: 200px !important;
+           width: 200px !important;
+           margin: 0 auto !important;
+           display: block !important;
+         }
+
+         /* More specific selectors for mermaid diagrams */
+         .task-message-content .task-message-content .my-4 {
+           max-width: 200px !important;
+           margin: 0 auto !important;
+           display: flex !important;
+           justify-content: center !important;
+         }
+
+         .task-message-content .task-message-content .my-4 img {
+           max-width: 200px !important;
+           width: 200px !important;
+           margin: 0 auto !important;
+           display: block !important;
+         }
 
         /* Paragraph spacing adjustment */
         .task-message-content p {
