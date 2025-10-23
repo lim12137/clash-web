@@ -9,3 +9,6 @@ export const TOKEN_REFRESH_CD = 1 * 60 * 1000;
 export const isProduction = process.env.NODE_ENV === "production";
 
 export const APP_VERSION = "v1.0.0";
+
+// Default parameter type constant
+export const DEFAULT_TYPE = "string";

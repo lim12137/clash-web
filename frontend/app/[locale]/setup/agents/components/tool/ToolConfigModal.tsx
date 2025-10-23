@@ -34,6 +34,7 @@ import {
 } from "@/services/agentConfigService";
 import log from "@/lib/logger";
 import { useModalPosition } from "@/hooks/useModalPosition";
+import { DEFAULT_TYPE } from "@/const/constants";
 
 export default function ToolConfigModal({
   isOpen,
@@ -244,7 +245,7 @@ export default function ToolConfigModal({
         const initialValues: Record<string, string> = {};
         paramNames.forEach((paramName) => {
           const paramInfo = parsedInputs[paramName];
-          const paramType = paramInfo?.type || "string";
+          const paramType = paramInfo?.type || DEFAULT_TYPE;
 
           if (
             paramInfo &&
@@ -321,7 +322,7 @@ export default function ToolConfigModal({
       dynamicInputParams.forEach((paramName) => {
         const value = paramValues[paramName];
         const paramInfo = parsedInputs[paramName];
-        const paramType = paramInfo?.type || "string";
+        const paramType = paramInfo?.type || DEFAULT_TYPE;
 
         if (value && value.trim() !== "") {
           // Convert value to correct type based on parameter type from inputs
@@ -735,7 +736,7 @@ export default function ToolConfigModal({
                                 const value = paramValues[paramName];
                                 if (value && value.trim() !== "") {
                                   const paramInfo = parsedInputs[paramName];
-                                  const paramType = paramInfo?.type || "string";
+                                  const paramType = paramInfo?.type || DEFAULT_TYPE;
 
                                   try {
                                     switch (paramType) {
