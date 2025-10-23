@@ -1033,6 +1033,80 @@ async def test_get_agent_info_impl_with_business_logic_model_none(mock_search_ag
     mock_get_model_by_model_id.assert_any_call(789)
 
 
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_get_agent_info_impl_with_business_logic_model_no_display_name(mock_search_agent_info, mock_search_tools, mock_query_sub_agents_id, mock_get_model_by_model_id):
+    """
+    Test get_agent_info_impl with business_logic_model_id but model has no display_name.
+
+    This test verifies that:
+    1. The function correctly retrieves business logic model information when business_logic_model_id is not None
+    2. It sets business_logic_model_name to None when model_info exists but has no display_name
+    """
+    # Setup
+    mock_agent_info = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_logic_model_id": 789,
+        "business_description": "Test agent"
+    }
+    mock_search_agent_info.return_value = mock_agent_info
+
+    mock_tools = [{"tool_id": 1, "name": "Tool 1"}]
+    mock_search_tools.return_value = mock_tools
+
+    mock_sub_agent_ids = [101, 102]
+    mock_query_sub_agents_id.return_value = mock_sub_agent_ids
+
+    # Mock model info for main model
+    mock_main_model_info = {
+        "model_id": 456,
+        "display_name": "GPT-4",
+        "provider": "openai"
+    }
+    
+    # Mock model info for business logic model without display_name
+    mock_business_logic_model_info = {
+        "model_id": 789,
+        "provider": "anthropic"
+        # No display_name field
+    }
+    
+    # Mock get_model_by_model_id to return different values based on input
+    def mock_get_model(model_id):
+        if model_id == 456:
+            return mock_main_model_info
+        elif model_id == 789:
+            return mock_business_logic_model_info
+        return None
+    
+    mock_get_model_by_model_id.side_effect = mock_get_model
+
+    # Execute
+    result = await get_agent_info_impl(agent_id=123, tenant_id="test_tenant")
+
+    # Assert
+    expected_result = {
+        "agent_id": 123,
+        "model_id": 456,
+        "business_logic_model_id": 789,
+        "business_description": "Test agent",
+        "tools": mock_tools,
+        "sub_agent_id_list": mock_sub_agent_ids,
+        "model_name": "GPT-4",
+        "business_logic_model_name": None  # Should be None when display_name is not in model_info
+    }
+    assert result == expected_result
+    
+    # Verify both models were looked up
+    assert mock_get_model_by_model_id.call_count == 2
+    mock_get_model_by_model_id.assert_any_call(456)
+    mock_get_model_by_model_id.assert_any_call(789)
+
+
 async def test_list_all_agent_info_impl_success():
     """
     Test successful retrieval of all agent information.
