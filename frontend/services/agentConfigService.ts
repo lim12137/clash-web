@@ -321,7 +321,9 @@ export const updateAgent = async (
   constraintPrompt?: string,
   fewShotsPrompt?: string,
   displayName?: string,
-  modelId?: number
+  modelId?: number,
+  businessLogicModelName?: string,
+  businessLogicModelId?: number
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -341,6 +343,8 @@ export const updateAgent = async (
         duty_prompt: dutyPrompt,
         constraint_prompt: constraintPrompt,
         few_shots_prompt: fewShotsPrompt,
+        business_logic_model_name: businessLogicModelName,
+        business_logic_model_id: businessLogicModelId,
       }),
     });
 
@@ -504,6 +508,8 @@ export const searchAgentInfo = async (agentId: number) => {
       constraint_prompt: data.constraint_prompt,
       few_shots_prompt: data.few_shots_prompt,
       business_description: data.business_description,
+      business_logic_model_name: data.business_logic_model_name,
+      business_logic_model_id: data.business_logic_model_id,
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,
       is_available: data.is_available,

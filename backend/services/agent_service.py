@@ -236,6 +236,13 @@ async def get_agent_info_impl(agent_id: int, tenant_id: str):
     else:
         agent_info["model_name"] = None
 
+    # Get business logic model display name from model_id
+    if agent_info.get("business_logic_model_id") is not None:
+        business_logic_model_info = get_model_by_model_id(agent_info["business_logic_model_id"])
+        agent_info["business_logic_model_name"] = business_logic_model_info.get("display_name", None) if business_logic_model_info is not None else None
+    elif "business_logic_model_name" not in agent_info:
+        agent_info["business_logic_model_name"] = None
+
     return agent_info
 
 
