@@ -1200,7 +1200,7 @@ class TestElasticSearchService(unittest.TestCase):
              patch('utils.document_vector_utils.summarize_clusters_map_reduce') as mock_summarize, \
              patch('utils.document_vector_utils.merge_cluster_summaries') as mock_merge, \
              patch('database.model_management_db.get_model_by_model_id') as mock_get_model_internal:
-            
+
             # Mock return values
             mock_process_docs.return_value = (
                 {"doc1": {"chunks": [{"content": "test content"}]}},  # document_samples
@@ -1781,16 +1781,16 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_es_core(self):
         """
         Test get_es_core function returns the elastic_core instance.
-        
+
         This test verifies that:
         1. The get_es_core function returns the correct elastic_core instance
         2. The function is properly imported and accessible
         """
         from backend.services.elasticsearch_service import get_es_core
-        
+
         # Execute
         result = get_es_core()
-        
+
         # Assert
         self.assertIsNotNone(result)
         # The result should be the elastic_core instance
@@ -1800,7 +1800,7 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_embedding_model_embedding_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with embedding model type.
-        
+
         This test verifies that:
         1. When model_type is "embedding", OpenAICompatibleEmbedding is returned
         2. The correct parameters are passed to the embedding model
@@ -1814,22 +1814,22 @@ class TestElasticSearchService(unittest.TestCase):
             "max_tokens": 1024
         }
         mock_tenant_config_manager.get_model_config.return_value = mock_config
-        
+
         # Stop the mock from setUp to test the real function
         self.get_embedding_model_patcher.stop()
-        
+
         try:
             with patch('backend.services.elasticsearch_service.OpenAICompatibleEmbedding') as mock_embedding_class:
                 mock_embedding_instance = MagicMock()
                 mock_embedding_class.return_value = mock_embedding_instance
-                
+
                 with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
                     mock_get_model_name.return_value = "test-model"
-                    
+
                     # Execute - now we can call the real function
                     from backend.services.elasticsearch_service import get_embedding_model
                     result = get_embedding_model("test_tenant")
-                    
+
                     # Assert
                     self.assertEqual(result, mock_embedding_instance)
                     mock_tenant_config_manager.get_model_config.assert_called_once_with(
@@ -1848,7 +1848,7 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_embedding_model_multi_embedding_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with multi_embedding model type.
-        
+
         This test verifies that:
         1. When model_type is "multi_embedding", JinaEmbedding is returned
         2. The correct parameters are passed to the embedding model
@@ -1862,22 +1862,22 @@ class TestElasticSearchService(unittest.TestCase):
             "max_tokens": 2048
         }
         mock_tenant_config_manager.get_model_config.return_value = mock_config
-        
+
         # Stop the mock from setUp to test the real function
         self.get_embedding_model_patcher.stop()
-        
+
         try:
             with patch('backend.services.elasticsearch_service.JinaEmbedding') as mock_embedding_class:
                 mock_embedding_instance = MagicMock()
                 mock_embedding_class.return_value = mock_embedding_instance
-                
+
                 with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
                     mock_get_model_name.return_value = "test-model"
-                    
+
                     # Execute - now we can call the real function
                     from backend.services.elasticsearch_service import get_embedding_model
                     result = get_embedding_model("test_tenant")
-                    
+
                     # Assert
                     self.assertEqual(result, mock_embedding_instance)
                     mock_tenant_config_manager.get_model_config.assert_called_once_with(
@@ -1896,7 +1896,7 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_embedding_model_unknown_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with unknown model type.
-        
+
         This test verifies that:
         1. When model_type is neither "embedding" nor "multi_embedding", None is returned
         2. The function handles unknown model types gracefully
@@ -1910,15 +1910,15 @@ class TestElasticSearchService(unittest.TestCase):
             "max_tokens": 1024
         }
         mock_tenant_config_manager.get_model_config.return_value = mock_config
-        
+
         # Stop the mock from setUp to test the real function
         self.get_embedding_model_patcher.stop()
-        
+
         try:
             # Execute - now we can call the real function
             from backend.services.elasticsearch_service import get_embedding_model
             result = get_embedding_model("test_tenant")
-            
+
             # Assert
             self.assertIsNone(result)
             mock_tenant_config_manager.get_model_config.assert_called_once_with(
@@ -1931,7 +1931,7 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_embedding_model_empty_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with empty model type.
-        
+
         This test verifies that:
         1. When model_type is empty string, None is returned
         2. The function handles empty model types gracefully
@@ -1945,15 +1945,15 @@ class TestElasticSearchService(unittest.TestCase):
             "max_tokens": 1024
         }
         mock_tenant_config_manager.get_model_config.return_value = mock_config
-        
+
         # Stop the mock from setUp to test the real function
         self.get_embedding_model_patcher.stop()
-        
+
         try:
             # Execute - now we can call the real function
             from backend.services.elasticsearch_service import get_embedding_model
             result = get_embedding_model("test_tenant")
-            
+
             # Assert
             self.assertIsNone(result)
             mock_tenant_config_manager.get_model_config.assert_called_once_with(
@@ -1966,7 +1966,7 @@ class TestElasticSearchService(unittest.TestCase):
     def test_get_embedding_model_missing_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with missing model type.
-        
+
         This test verifies that:
         1. When model_type is missing from config, None is returned
         2. The function handles missing model types gracefully
@@ -1979,15 +1979,15 @@ class TestElasticSearchService(unittest.TestCase):
             "max_tokens": 1024
         }
         mock_tenant_config_manager.get_model_config.return_value = mock_config
-        
+
         # Stop the mock from setUp to test the real function
         self.get_embedding_model_patcher.stop()
-        
+
         try:
             # Execute - now we can call the real function
             from backend.services.elasticsearch_service import get_embedding_model
             result = get_embedding_model("test_tenant")
-            
+
             # Assert
             self.assertIsNone(result)
             mock_tenant_config_manager.get_model_config.assert_called_once_with(
