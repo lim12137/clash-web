@@ -366,7 +366,8 @@
   "toolConfig.toolTest.execute": "Execute Test",
   "toolConfig.toolTest.result": "Test Result",
   "toolConfig.button.testTool": "Test Tool",
-
+  "toolConfig.toolTest.manualInput": "Manual Input",
+  "toolConfig.toolTest.parseMode": "Parse Mode",
   "toolPool.title": "Select tools",
   "toolPool.loading": "Loading...",
   "toolPool.loadingTools": "Loading tools...",
@@ -938,5 +939,15 @@
   "businessLogic.config.error.loadModelsFailed": "Failed to load available models",
   "businessLogic.config.error.noAvailableModels": "No available models",
   "businessLogic.config.error.modelUpdateFailed": "Failed to update agent model",
-  "businessLogic.config.error.maxStepsUpdateFailed": "Failed to update agent max steps"
+  "businessLogic.config.error.maxStepsUpdateFailed": "Failed to update agent max steps",
+
+  "diagram.button.showDiagram": "Show Diagram",
+  "diagram.button.showCode": "Show Code",
+  "diagram.button.zoomOut": "Zoom Out",
+  "diagram.button.zoomIn": "Zoom In",
+  "diagram.button.download": "Download",
+  "diagram.format.svg": "SVG",
+  "diagram.format.png": "PNG",
+  "diagram.format.selectFormat": "Select Format",
+  "diagram.error.renderFailed": "Render Failed"
 }
