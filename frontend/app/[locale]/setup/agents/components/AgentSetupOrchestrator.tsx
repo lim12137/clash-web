@@ -214,9 +214,9 @@ export default function AgentSetupOrchestrator({
   useEffect(() => {
     if (isCreatingNewAgent) {
       if (!isEditingAgent) {
-        // Only clear and get new Agent configuration in creating mode
+        // Onlyclear configuration in creating mode, don't create agent record yet
         setBusinessLogic("");
-        fetchSubAgentIdAndEnableToolList(t);
+        // Don't call fetchSubAgentIdAndEnableToolList here - wait for user to click save
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
       }
@@ -424,11 +424,12 @@ export default function AgentSetupOrchestrator({
     max_step: number,
     business_description: string
   ) => {
-    if (name.trim() && mainAgentId) {
+    if (name.trim()) {
       try {
         let result;
 
         if (isEditingAgent && editingAgent) {
+          // Editing existing agent
           result = await updateAgent(
             Number(editingAgent.id),
             name,
@@ -447,8 +448,25 @@ export default function AgentSetupOrchestrator({
             businessLogicModelId ?? undefined
           );
         } else {
+          // Creating new agent - first create the agent record
+          let targetAgentId = mainAgentId;
+          if (!targetAgentId) {
+            const createResult = await getCreatingSubAgentId();
+            if (!createResult.success || !createResult.data) {
+              message.error(
+                createResult.message || t("businessLogic.config.error.agentCreationFailed")
+              );
+              return;
+            }
+            
+            // Set the mainAgentId from the created agent
+            targetAgentId = createResult.data.agentId;
+            setMainAgentId(targetAgentId);
+          }
+          
+          // Then update the agent with all the details
           result = await updateAgent(
-            Number(mainAgentId),
+            Number(targetAgentId),
             name,
             description,
             model === null ? undefined : model,
@@ -690,15 +708,16 @@ export default function AgentSetupOrchestrator({
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
-    if (!targetAgentId) {
-      message.error(t("businessLogic.config.error.noAgentId"));
-      return;
-    }
-
     const newValue = value ?? 5;
 
     // Update local state first
     setMainAgentMaxStep(newValue);
+
+    // If no agent ID yet (e.g., during initial creation setup), just update local state
+    // The max steps will be saved when the agent is fully created
+    if (!targetAgentId) {
+      return;
+    }
 
     // Call updateAgent API to save the max steps change
     try {
