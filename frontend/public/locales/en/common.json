@@ -940,6 +940,7 @@
   "businessLogic.config.error.noAvailableModels": "No available models",
   "businessLogic.config.error.modelUpdateFailed": "Failed to update agent model",
   "businessLogic.config.error.maxStepsUpdateFailed": "Failed to update agent max steps",
+  "businessLogic.config.error.agentCreationFailed": "Failed to create agent",
 
   "diagram.button.showDiagram": "Show Diagram",
   "diagram.button.showCode": "Show Code",
