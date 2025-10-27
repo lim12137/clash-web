@@ -74,7 +74,8 @@ class ElasticSearchCore:
         self.max_texts_per_batch = 2048
         self.max_tokens_per_text = 8192
         self.max_total_tokens = 100000
-    
+        self.max_retries = 3  # Number of retries for failed embedding batches
+
     # ---- INDEX MANAGEMENT ----
     
     def create_vector_index(self, index_name: str, embedding_dim: Optional[int] = None) -> bool:
