@@ -126,6 +126,8 @@ export default function AgentConfigModal({
 
   // Add state for LLM models
   const [llmModels, setLlmModels] = useState<ModelOption[]>([]);
+  // Local fallback for selected main model display name (used when parent has not yet propagated)
+  const [localMainAgentModel, setLocalMainAgentModel] = useState<string>("");
 
   // Load LLM models on component mount
   useEffect(() => {
@@ -142,6 +144,74 @@ export default function AgentConfigModal({
 
     loadLLMModels();
   }, []);
+
+  // Default to globally configured model when creating a new agent
+  // IMPORTANT: Only read from localStorage when creating a NEW agent, not when editing existing agent
+  useEffect(() => {
+    if (!isCreatingNewAgent) return; // Only apply to new agents
+    if (!llmModels || llmModels.length === 0) return;
+
+    // Only set default model if no model is currently selected
+    if (mainAgentModel && mainAgentModel.trim() !== "") return;
+
+    try {
+      // Read global default model from config store (written by quick setup)
+      const storedModelConfig = localStorage.getItem("model");
+      if (!storedModelConfig) {
+        // If no stored config, use first available model
+        const firstModel = llmModels[0];
+        if (firstModel) {
+          onModelChange?.(firstModel.displayName, firstModel.id);
+          setLocalMainAgentModel(firstModel.displayName);
+        }
+        return;
+      }
+      
+      const parsed = JSON.parse(storedModelConfig);
+      const defaultDisplayName = parsed?.llm?.displayName || "";
+      const defaultModelName = parsed?.llm?.modelName || "";
+
+      let target = null as ModelOption | null;
+      if (defaultDisplayName) {
+        target = llmModels.find((m) => m.displayName === defaultDisplayName) || null;
+      }
+      if (!target && defaultModelName) {
+        target = llmModels.find((m) => m.name === defaultModelName) || null;
+      }
+      if (!target) {
+        target = llmModels[0] || null;
+      }
+
+      if (target) {
+        // Notify parent if provided
+        onModelChange?.(target.displayName, target.id);
+        // Also set local fallback immediately for UI before parent propagation
+        setLocalMainAgentModel(target.displayName);
+      }
+    } catch (e) {
+      // On parse error, use first available model as fallback
+      const firstModel = llmModels[0];
+      if (firstModel) {
+        onModelChange?.(firstModel.displayName, firstModel.id);
+        setLocalMainAgentModel(firstModel.displayName);
+      }
+    }
+  }, [isCreatingNewAgent, llmModels, onModelChange, mainAgentModel]);
+
+  // Keep local fallback in sync when parent-controlled value arrives/changes
+  useEffect(() => {
+    // While creating, prefer keeping local default unless it is empty
+    if (isCreatingNewAgent) {
+      if (!localMainAgentModel && mainAgentModel) {
+        setLocalMainAgentModel(mainAgentModel);
+      }
+      return;
+    }
+    // In edit mode, always mirror parent
+    if (mainAgentModel) {
+      setLocalMainAgentModel(mainAgentModel);
+    }
+  }, [mainAgentModel, isCreatingNewAgent, localMainAgentModel]);
 
   // Agent name validation function
   const validateAgentName = useCallback(
@@ -207,7 +277,17 @@ export default function AgentConfigModal({
 
   // Check agent name existence - only when user is actively typing
   useEffect(() => {
-    if (!agentName || agentNameError) {
+    if (!agentName) {
+      return;
+    }
+
+    // If there's a validation error (like format error), don't check for duplicates
+    // but allow checking when the error is cleared
+    if (agentNameError) {
+      // If there was a previous duplicate status, clear it
+      if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+        setAgentNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+      }
       return;
     }
 
@@ -229,7 +309,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, agentName, agentNameError, agentId, t]);
+  }, [isEditingMode, agentName, agentNameError, agentId, agentNameStatus, t]);
 
   // Reset user typing state after user stops typing
   useEffect(() => {
@@ -255,9 +335,18 @@ export default function AgentConfigModal({
   useEffect(() => {
     if (
       (!isEditingMode && !isCreatingNewAgent) ||
-      !agentDisplayName ||
-      agentDisplayNameError
+      !agentDisplayName
     ) {
+      return;
+    }
+
+    // If there's a validation error (like format error), don't check for duplicates
+    // but allow checking when the error is cleared
+    if (agentDisplayNameError) {
+      // If there was a previous duplicate status, clear it
+      if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
+        setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+      }
       return;
     }
 
@@ -279,7 +368,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, agentDisplayName, agentDisplayNameError, agentId, t]);
+  }, [isEditingMode, isCreatingNewAgent, agentDisplayName, agentDisplayNameError, agentId, agentDisplayNameStatus, t]);
 
   // Reset user typing state for display name after user stops typing
   useEffect(() => {
@@ -455,13 +544,18 @@ export default function AgentConfigModal({
           {t("businessLogic.config.model")}:
         </label>
         <Select
-          value={mainAgentModel || undefined}
+          value={
+            isCreatingNewAgent
+              ? (localMainAgentModel || mainAgentModel || undefined)
+              : (mainAgentModel || localMainAgentModel || undefined)
+          }
           onChange={(value, option) => {
             const modelId = option && 'key' in option ? Number(option.key) : undefined;
+            setLocalMainAgentModel(value);
             onModelChange?.(value, modelId);
           }}
           size="large"
-          disabled={!isEditingMode}
+          disabled={false}
           style={{ width: "100%" }}
           placeholder={t("businessLogic.config.modelPlaceholder")}
         >
