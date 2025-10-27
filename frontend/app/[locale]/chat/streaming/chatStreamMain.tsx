@@ -398,6 +398,46 @@ export function ChatStreamMain({
     shouldScrollToBottom,
   ]);
 
+  // Additional scroll trigger for async content like Mermaid diagrams
+  useEffect(() => {
+    if (processedMessages.finalMessages.length > 0 && autoScroll) {
+      const scrollAreaElement = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
+      if (!scrollAreaElement) return;
+
+      // Use ResizeObserver to detect when content height changes (e.g., Mermaid diagrams finish rendering)
+      const resizeObserver = new ResizeObserver(() => {
+        const { scrollTop, scrollHeight, clientHeight } =
+          scrollAreaElement as HTMLElement;
+        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+        // Auto-scroll if user is near bottom and content height changed
+        if (distanceToBottom < 100) {
+          scrollToBottom();
+        }
+      });
+
+      resizeObserver.observe(scrollAreaElement);
+
+      // Also use a timeout as fallback for async content
+      const timeoutId = setTimeout(() => {
+        const { scrollTop, scrollHeight, clientHeight } =
+          scrollAreaElement as HTMLElement;
+        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+        if (distanceToBottom < 100) {
+          scrollToBottom();
+        }
+      }, 1000); // Wait 1 second for async content to render
+
+      return () => {
+        resizeObserver.disconnect();
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [processedMessages.finalMessages.length, autoScroll]);
+
   // Scroll to bottom when task messages are updated
   useEffect(() => {
     if (autoScroll) {
