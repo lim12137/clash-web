@@ -163,7 +163,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
                 e.stopPropagation();
               }}
             >
-              <div onClick={() => onStartNewSelection?.()}>
+              <div className="h-full" onClick={() => onStartNewSelection?.()}>
                 <Dragger
                   {...uploadProps}
                   className="!h-full flex flex-col justify-center !bg-transparent !border-gray-200"

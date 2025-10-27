@@ -19,6 +19,8 @@ export interface Agent {
   constraint_prompt?: string;
   few_shots_prompt?: string;
   business_description?: string;
+  business_logic_model_name?: string;
+  business_logic_model_id?: number;
   is_available?: boolean;
   sub_agent_id_list?: number[];
 }
@@ -95,6 +97,10 @@ export interface AgentSetupOrchestratorProps {
   setMainAgentModelId: (value: number | null) => void;
   mainAgentMaxStep: number;
   setMainAgentMaxStep: (value: number) => void;
+  businessLogicModel: string | null;
+  setBusinessLogicModel: (value: string | null) => void;
+  businessLogicModelId: number | null;
+  setBusinessLogicModelId: (value: number | null) => void;
   tools: Tool[];
   subAgentList?: Agent[];
   loadingAgents?: boolean;
