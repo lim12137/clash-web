@@ -170,6 +170,9 @@ Nexent的自然语言生成Agent以及多智能体协同是我一直在研究的
 
 ::: info nobody - 2025-10-15
 参加ICT大赛来了解 Nexent，这真的是个很好的平台，未来一起前行吧
+
+::: info xiongmiao -2025-10-22
+参加ICT进一步了解智能体
 :::
 
 :::info Nebula-11 - 2025-10-22
