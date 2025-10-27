@@ -211,6 +211,8 @@ class AgentInfoRequest(BaseModel):
     constraint_prompt: Optional[str] = None
     few_shots_prompt: Optional[str] = None
     enabled: Optional[bool] = None
+    business_logic_model_name: Optional[str] = None
+    business_logic_model_id: Optional[int] = None
 
 
 class AgentIDRequest(BaseModel):
