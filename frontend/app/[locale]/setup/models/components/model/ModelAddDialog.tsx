@@ -645,9 +645,56 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <InfoCircleFilled className="text-md text-blue-500 mr-3" />
               <p className="font-bold text-medium">{t('model.dialog.help.title')}</p>
             </div>
-            <p className="mt-0.5 ml-6">
-              {form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')}
-            </p>
+            <div className="mt-0.5 ml-6">
+              {(form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')).split('\n').map((line, index) => {
+                // Parse Markdown-style links: [text](url)
+                const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+                const parts: (string | { text: string; url: string })[] = [];
+                let lastIndex = 0;
+                let match;
+                
+                while ((match = markdownLinkRegex.exec(line)) !== null) {
+                  // Add text before the link
+                  if (match.index > lastIndex) {
+                    parts.push(line.substring(lastIndex, match.index));
+                  }
+                  // Add the link object
+                  parts.push({ text: match[1], url: match[2] });
+                  lastIndex = match.index + match[0].length;
+                }
+                
+                // Add remaining text after the last link
+                if (lastIndex < line.length) {
+                  parts.push(line.substring(lastIndex));
+                }
+                
+                // If no links found, just add the whole line
+                if (parts.length === 0) {
+                  parts.push(line);
+                }
+                
+                return (
+                  <p key={index} className={index > 0 ? 'mt-1' : ''}>
+                    {parts.map((part, partIndex) => {
+                      if (typeof part === 'object') {
+                        return (
+                          <a 
+                            key={partIndex}
+                            href={part.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            {part.text}
+                          </a>
+                        );
+                      }
+                      return <span key={partIndex}>{part}</span>;
+                    })}
+                  </p>
+                );
+              })}
+            </div>
             <div className="mt-2 ml-6 flex items-center">
               <span>{t('model.dialog.label.currentlySupported')}</span>
               {form.isBatchImport && (
