@@ -42,6 +42,10 @@ export default function AgentSetupOrchestrator({
   setMainAgentModelId,
   mainAgentMaxStep,
   setMainAgentMaxStep,
+  businessLogicModel,
+  setBusinessLogicModel,
+  businessLogicModelId,
+  setBusinessLogicModelId,
   tools,
   subAgentList = [],
   loadingAgents = false,
@@ -212,8 +216,6 @@ export default function AgentSetupOrchestrator({
       if (!isEditingAgent) {
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic("");
-        setMainAgentModel(null); // Clear model selection when creating new agent
-        setMainAgentModelId(null); // Clear model ID when creating new agent
         fetchSubAgentIdAndEnableToolList(t);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
@@ -323,8 +325,31 @@ export default function AgentSetupOrchestrator({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
-    // Note: Don't clear content here - let the parent component's useEffect handle restoration
-    // The parent component will restore cached content if available
+    
+    // Clear all content when creating new agent to avoid showing cached data
+    setBusinessLogic("");
+    setDutyContent?.("");
+    setConstraintContent?.("");
+    setFewShotsContent?.("");
+    setAgentName?.("");
+    setAgentDescription?.("");
+    setAgentDisplayName?.("");
+    
+    // Clear tool and agent selections
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    setEnabledAgentIds([]);
+    
+    // Clear business logic model to allow default from global settings
+    // The useEffect in PromptManager will set it to the default from localStorage
+    setBusinessLogicModel(null);
+    setBusinessLogicModelId(null);
+    
+    // Clear main agent model selection to trigger default model selection
+    // The useEffect in AgentConfigModal will set it to the default from localStorage
+    setMainAgentModel(null);
+    setMainAgentModelId(null);
+    
     onEditingStateChange?.(false, null);
   };
 
@@ -417,7 +442,9 @@ export default function AgentSetupOrchestrator({
             constraintContent,
             fewShotsContent,
             agentDisplayName,
-            mainAgentModelId ?? undefined
+            mainAgentModelId ?? undefined,
+            businessLogicModel ?? undefined,
+            businessLogicModelId ?? undefined
           );
         } else {
           result = await updateAgent(
@@ -433,7 +460,9 @@ export default function AgentSetupOrchestrator({
             constraintContent,
             fewShotsContent,
             agentDisplayName,
-            mainAgentModelId ?? undefined
+            mainAgentModelId ?? undefined,
+            businessLogicModel ?? undefined,
+            businessLogicModelId ?? undefined
           );
         }
 
@@ -555,6 +584,8 @@ export default function AgentSetupOrchestrator({
       setMainAgentModelId(agentDetail.model_id);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || "");
+      setBusinessLogicModel(agentDetail.business_logic_model_name || null);
+      setBusinessLogicModelId(agentDetail.business_logic_model_id || null);
 
       // Use backend returned sub_agent_id_list to set enabled agent list
       if (
@@ -595,19 +626,28 @@ export default function AgentSetupOrchestrator({
   };
 
   // Handle the update of the model
+  // Handle Business Logic Model change
+  const handleBusinessLogicModelChange = (value: string, modelId?: number) => {
+    setBusinessLogicModel(value);
+    if (modelId !== undefined) {
+      setBusinessLogicModelId(modelId);
+    }
+  };
+
   const handleModelChange = async (value: string, modelId?: number) => {
     const targetAgentId =
       isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
 
-    if (!targetAgentId) {
-      message.error(t("businessLogic.config.error.noAgentId"));
-      return;
-    }
-    
     // Update local state first
     setMainAgentModel(value);
     if (modelId !== undefined) {
       setMainAgentModelId(modelId);
+    }
+
+    // If no agent ID yet (e.g., during initial creation setup), just update local state
+    // The model will be saved when the agent is fully created
+    if (!targetAgentId) {
+      return;
     }
 
     // Call updateAgent API to save the model change
@@ -961,6 +1001,9 @@ export default function AgentSetupOrchestrator({
               }
               onMaxStepChange={handleMaxStepChange}
               onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
+              onBusinessLogicModelChange={handleBusinessLogicModelChange}
+              businessLogicModel={businessLogicModel}
+              businessLogicModelId={businessLogicModelId}
               onGenerateAgent={onGenerateAgent || (() => {})}
               onSaveAgent={handleSaveAgent}
               isGeneratingAgent={isGeneratingAgent}

@@ -206,6 +206,8 @@ class AgentInfo(TableBase):
         Boolean, doc="Whether to provide the running summary to the manager agent")
     business_description = Column(
         Text, doc="Manually entered by the user to describe the entire business process")
+    business_logic_model_name = Column(String(100), doc="Model name used for business logic prompt generation")
+    business_logic_model_id = Column(Integer, doc="Model ID used for business logic prompt generation, foreign key reference to model_record_t.model_id")
 
 
 class ToolInstance(TableBase):
