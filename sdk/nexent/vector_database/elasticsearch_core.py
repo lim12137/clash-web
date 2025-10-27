@@ -74,7 +74,8 @@ class ElasticSearchCore:
         self.max_texts_per_batch = 2048
         self.max_tokens_per_text = 8192
         self.max_total_tokens = 100000
-    
+        self.max_retries = 3  # Number of retries for failed embedding batches
+
     # ---- INDEX MANAGEMENT ----
     
     def create_vector_index(self, index_name: str, embedding_dim: Optional[int] = None) -> bool:
@@ -96,7 +97,7 @@ class ElasticSearchCore:
             settings = {
                 "number_of_shards": 1,
                 "number_of_replicas": 0,
-                "refresh_interval": "5s",  # not too fast, not too slow
+                "refresh_interval": "5s",
                 "index": {
                     "max_result_window": 50000,
                     "translog": {
@@ -269,7 +270,7 @@ class ElasticSearchCore:
                     "translog.sync_interval": "10s"
                 }
             )
-            logger.info(f"Applied bulk settings to {index_name}")
+            logger.debug(f"Applied bulk settings to {index_name}")
         except Exception as e:
             logger.warning(f"Failed to apply bulk settings: {e}")
 
@@ -334,8 +335,8 @@ class ElasticSearchCore:
         self, 
         index_name: str,
         embedding_model: BaseEmbedding,
-        documents: List[Dict[str, Any]], 
-        batch_size: int = 2048,
+        documents: List[Dict[str, Any]],
+        batch_size: int = 64,
         content_field: str = "content"
     ) -> int:
         """
@@ -359,7 +360,7 @@ class ElasticSearchCore:
 
         # Smart strategy selection
         total_docs = len(documents)
-        if total_docs < 100:
+        if total_docs < 64:
             # Small data: direct insertion, using wait_for refresh
             return self._small_batch_insert(index_name, documents, content_field, embedding_model)
         else:
@@ -414,28 +415,53 @@ class ElasticSearchCore:
             total_indexed = 0
             total_docs = len(processed_docs)
             es_total_batches = (total_docs + batch_size - 1) // batch_size
+            start_time = time.time()
+
+            logger.info(
+                f"=== [INDEXING START] Total chunks: {total_docs}, ES batch size: {batch_size}, Total ES batches: {es_total_batches} ===")
 
             for i in range(0, total_docs, batch_size):
                 es_batch = processed_docs[i:i + batch_size]
                 es_batch_num = i // batch_size + 1
+                es_batch_start_time = time.time()
 
                 # Store documents and their embeddings for this Elasticsearch batch
                 doc_embedding_pairs = []
 
                 # Sub-batch for embedding API
-                embedding_batch_size = self.max_texts_per_batch
+                embedding_batch_size = 64
                 for j in range(0, len(es_batch), embedding_batch_size):
                     embedding_sub_batch = es_batch[j:j + embedding_batch_size]
-                    
-                    try:
-                        inputs = [doc[content_field] for doc in embedding_sub_batch]
-                        embeddings = embedding_model.get_embeddings(inputs)
-                        
-                        for doc, embedding in zip(embedding_sub_batch, embeddings):
-                            doc_embedding_pairs.append((doc, embedding))
+                    # Retry logic for embedding API call (3 retries, 1s delay)
+                    # Note: embedding_model.get_embeddings() already has built-in retries with exponential backoff
+                    # This outer retry handles additional failures
+                    max_retries = 3
+                    retry_delay = 1.0
+                    success = False
 
-                    except Exception as e:
-                        logger.error(f"Embedding API error: {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}")
+                    for retry_attempt in range(max_retries):
+                        try:
+                            inputs = [doc[content_field]
+                                      for doc in embedding_sub_batch]
+                            embeddings = embedding_model.get_embeddings(inputs)
+
+                            for doc, embedding in zip(embedding_sub_batch, embeddings):
+                                doc_embedding_pairs.append((doc, embedding))
+
+                            success = True
+                            break  # Success, exit retry loop
+
+                        except Exception as e:
+                            if retry_attempt < max_retries - 1:
+                                logger.warning(
+                                    f"Embedding API error (attempt {retry_attempt + 1}/{max_retries}): {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}. Retrying in {retry_delay}s...")
+                                time.sleep(retry_delay)
+                            else:
+                                logger.error(
+                                    f"Embedding API error after {max_retries} attempts: {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}")
+
+                    if not success:
+                        # Skip this sub-batch after all retries failed
                         continue
                 
                 # Perform a single bulk insert for the entire Elasticsearch batch
@@ -459,17 +485,21 @@ class ElasticSearchCore:
                     )
                     self._handle_bulk_errors(response)
                     total_indexed += len(doc_embedding_pairs)
-                    logger.info(f"Processed ES batch {es_batch_num}/{es_total_batches}, indexed {len(doc_embedding_pairs)} documents.")
+                    es_batch_elapsed = time.time() - es_batch_start_time
+                    logger.info(
+                        f"[ES BATCH {es_batch_num}/{es_total_batches}] Indexed {len(doc_embedding_pairs)} documents in {es_batch_elapsed:.2f}s. Total progress: {total_indexed}/{total_docs}")
 
                 except Exception as e:
                     logger.error(f"Bulk insert error: {e}, ES batch num: {es_batch_num}")
                     continue
                 
-                if es_batch_num % 10 == 0:
-                    time.sleep(0.1)
+                # Add 0.1s delay between batches to avoid overloading embedding API
+                time.sleep(0.1)
 
             self._force_refresh_with_retry(index_name)
-            logger.info(f"Large batch insert completed: {total_indexed} chunks indexed.")
+            total_elapsed = time.time() - start_time
+            logger.info(
+                f"=== [INDEXING COMPLETE] Successfully indexed {total_indexed}/{total_docs} chunks in {total_elapsed:.2f}s (avg: {total_elapsed/es_total_batches:.2f}s/batch) ===")
             return total_indexed
         except Exception as e:
             logger.error(f"Large batch insert failed: {e}")
