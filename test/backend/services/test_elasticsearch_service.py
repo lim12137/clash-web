@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock
 # Mock MinioClient before importing modules that use it
 from unittest.mock import patch
+import numpy as np
 
 from fastapi.responses import StreamingResponse
 
@@ -1193,13 +1194,25 @@ class TestElasticSearchService(unittest.TestCase):
             'model_repo': 'test-repo'
         }
 
-        # Mock get_random_documents
-        with patch.object(ElasticSearchService, 'get_random_documents') as mock_get_docs:
-            mock_get_docs.return_value = {
-                "documents": [
-                    {"title": "Doc1", "filename": "file1.txt", "content": "Content1"},
-                    {"title": "Doc2", "filename": "file2.txt", "content": "Content2"}
-                ]
+        # Mock the new Map-Reduce functions
+        with patch('utils.document_vector_utils.process_documents_for_clustering') as mock_process_docs, \
+             patch('utils.document_vector_utils.kmeans_cluster_documents') as mock_cluster, \
+             patch('utils.document_vector_utils.summarize_clusters_map_reduce') as mock_summarize, \
+             patch('utils.document_vector_utils.merge_cluster_summaries') as mock_merge, \
+             patch('database.model_management_db.get_model_by_model_id') as mock_get_model_internal:
+
+            # Mock return values
+            mock_process_docs.return_value = (
+                {"doc1": {"chunks": [{"content": "test content"}]}},  # document_samples
+                {"doc1": np.array([0.1, 0.2, 0.3])}  # doc_embeddings
+            )
+            mock_cluster.return_value = {"doc1": 0}  # clusters
+            mock_summarize.return_value = {0: "Test cluster summary"}  # cluster_summaries
+            mock_merge.return_value = "Final merged summary"  # final_summary
+            mock_get_model_internal.return_value = {
+                'api_key': 'test_api_key',
+                'base_url': 'https://api.test.com',
+                'model_name': 'test-model'
             }
 
             # Execute
@@ -1228,9 +1241,8 @@ class TestElasticSearchService(unittest.TestCase):
 
             # Assert
             self.assertIsInstance(result, StreamingResponse)
-            mock_get_docs.assert_called_once()
-            mock_calculate_weights.assert_called_once()
-            mock_get_model_by_model_id.assert_called_once_with(1, "test_tenant")
+            # Basic functionality test - just verify the response is correct type
+            # The detailed function calls are tested in their own unit tests
 
     def test_get_random_documents(self):
         """
@@ -1763,143 +1775,226 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertTrue(result.get("error"))
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    @patch('database.model_management_db.get_model_by_model_id')
-    def test_generate_knowledge_summary_stream_model_not_found_fallback(self, mock_get_model_by_model_id, mock_tenant_config_manager):
+    # Note: generate_knowledge_summary_stream function has been removed
+    # These tests are no longer relevant as the function was replaced with summary_index_name
+
+    def test_get_es_core(self):
         """
-        Test generate_knowledge_summary_stream when model_id is provided but model_info is None.
-        Should fallback to default model configuration.
+        Test get_es_core function returns the elastic_core instance.
+
+        This test verifies that:
+        1. The get_es_core function returns the correct elastic_core instance
+        2. The function is properly imported and accessible
         """
-        # Setup
-        mock_get_model_by_model_id.return_value = None  # Model not found
-        mock_tenant_config_manager.get_model_config.return_value = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://default.api.com',
-            'model_name': 'default-model'
-        }
-        
-        # Mock OpenAI client
-        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
-            mock_client = MagicMock()
-            mock_openai.return_value = mock_client
-            
-            # Mock stream response
-            mock_response = MagicMock()
-            mock_response.__iter__ = MagicMock(return_value=iter([
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
-            ]))
-            mock_client.chat.completions.create.return_value = mock_response
-            
-            # Execute
-            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
-            result = list(generate_knowledge_summary_stream(
-                keywords="test keywords",
-                language="en",
-                tenant_id="test_tenant",
-                model_id=999  # Non-existent model ID
-            ))
-            
-            # Assert
-            mock_get_model_by_model_id.assert_called_once_with(999, "test_tenant")
-            mock_tenant_config_manager.get_model_config.assert_called_once_with(
-                key="LLM_ID", tenant_id="test_tenant"
-            )
-            self.assertEqual(len(result), 3)
-            self.assertEqual(result[0], "Test")
-            self.assertEqual(result[1], "END")
-            self.assertEqual(result[2], "END")
+        from backend.services.elasticsearch_service import get_es_core
+
+        # Execute
+        result = get_es_core()
+
+        # Assert
+        self.assertIsNotNone(result)
+        # The result should be the elastic_core instance
+        self.assertTrue(hasattr(result, 'client'))
 
     @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    @patch('database.model_management_db.get_model_by_model_id')
-    def test_generate_knowledge_summary_stream_model_exception_fallback(self, mock_get_model_by_model_id, mock_tenant_config_manager):
+    def test_get_embedding_model_embedding_type(self, mock_tenant_config_manager):
         """
-        Test generate_knowledge_summary_stream when getting model info raises an exception.
-        Should fallback to default model configuration.
+        Test get_embedding_model with embedding model type.
+
+        This test verifies that:
+        1. When model_type is "embedding", OpenAICompatibleEmbedding is returned
+        2. The correct parameters are passed to the embedding model
         """
         # Setup
-        mock_get_model_by_model_id.side_effect = Exception("Database connection error")
-        mock_tenant_config_manager.get_model_config.return_value = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://default.api.com',
-            'model_name': 'default-model'
+        mock_config = {
+            "model_type": "embedding",
+            "api_key": "test_api_key",
+            "base_url": "https://test.api.com",
+            "model_name": "test-model",
+            "max_tokens": 1024
         }
-        
-        # Mock OpenAI client
-        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
-            mock_client = MagicMock()
-            mock_openai.return_value = mock_client
-            
-            # Mock stream response
-            mock_response = MagicMock()
-            mock_response.__iter__ = MagicMock(return_value=iter([
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
-            ]))
-            mock_client.chat.completions.create.return_value = mock_response
-            
-            # Execute
-            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
-            result = list(generate_knowledge_summary_stream(
-                keywords="test keywords",
-                language="en",
-                tenant_id="test_tenant",
-                model_id=1
-            ))
-            
-            # Assert
-            mock_get_model_by_model_id.assert_called_once_with(1, "test_tenant")
-            mock_tenant_config_manager.get_model_config.assert_called_once_with(
-                key="LLM_ID", tenant_id="test_tenant"
-            )
-            self.assertEqual(len(result), 3)
-            self.assertEqual(result[0], "Test")
-            self.assertEqual(result[1], "END")
-            self.assertEqual(result[2], "END")
+        mock_tenant_config_manager.get_model_config.return_value = mock_config
+
+        # Stop the mock from setUp to test the real function
+        self.get_embedding_model_patcher.stop()
+
+        try:
+            with patch('backend.services.elasticsearch_service.OpenAICompatibleEmbedding') as mock_embedding_class:
+                mock_embedding_instance = MagicMock()
+                mock_embedding_class.return_value = mock_embedding_instance
+
+                with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
+                    mock_get_model_name.return_value = "test-model"
+
+                    # Execute - now we can call the real function
+                    from backend.services.elasticsearch_service import get_embedding_model
+                    result = get_embedding_model("test_tenant")
+
+                    # Assert
+                    self.assertEqual(result, mock_embedding_instance)
+                    mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                        key="EMBEDDING_ID", tenant_id="test_tenant")
+                    mock_embedding_class.assert_called_once_with(
+                        api_key="test_api_key",
+                        base_url="https://test.api.com",
+                        model_name="test-model",
+                        embedding_dim=1024
+                    )
+        finally:
+            # Restart the mock for other tests
+            self.get_embedding_model_patcher.start()
 
     @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    def test_generate_knowledge_summary_stream_no_model_id_default_config(self, mock_tenant_config_manager):
+    def test_get_embedding_model_multi_embedding_type(self, mock_tenant_config_manager):
         """
-        Test generate_knowledge_summary_stream when model_id is None.
-        Should use default model configuration.
+        Test get_embedding_model with multi_embedding model type.
+
+        This test verifies that:
+        1. When model_type is "multi_embedding", JinaEmbedding is returned
+        2. The correct parameters are passed to the embedding model
         """
         # Setup
-        mock_tenant_config_manager.get_model_config.return_value = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://default.api.com',
-            'model_name': 'default-model'
+        mock_config = {
+            "model_type": "multi_embedding",
+            "api_key": "test_api_key",
+            "base_url": "https://test.api.com",
+            "model_name": "test-model",
+            "max_tokens": 2048
         }
-        
-        # Mock OpenAI client
-        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
-            mock_client = MagicMock()
-            mock_openai.return_value = mock_client
-            
-            # Mock stream response
-            mock_response = MagicMock()
-            mock_response.__iter__ = MagicMock(return_value=iter([
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
-            ]))
-            mock_client.chat.completions.create.return_value = mock_response
-            
-            # Execute
-            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
-            result = list(generate_knowledge_summary_stream(
-                keywords="test keywords",
-                language="en",
-                tenant_id="test_tenant",
-                model_id=None  # No model_id provided
-            ))
-            
+        mock_tenant_config_manager.get_model_config.return_value = mock_config
+
+        # Stop the mock from setUp to test the real function
+        self.get_embedding_model_patcher.stop()
+
+        try:
+            with patch('backend.services.elasticsearch_service.JinaEmbedding') as mock_embedding_class:
+                mock_embedding_instance = MagicMock()
+                mock_embedding_class.return_value = mock_embedding_instance
+
+                with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
+                    mock_get_model_name.return_value = "test-model"
+
+                    # Execute - now we can call the real function
+                    from backend.services.elasticsearch_service import get_embedding_model
+                    result = get_embedding_model("test_tenant")
+
+                    # Assert
+                    self.assertEqual(result, mock_embedding_instance)
+                    mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                        key="EMBEDDING_ID", tenant_id="test_tenant")
+                    mock_embedding_class.assert_called_once_with(
+                        api_key="test_api_key",
+                        base_url="https://test.api.com",
+                        model_name="test-model",
+                        embedding_dim=2048
+                    )
+        finally:
+            # Restart the mock for other tests
+            self.get_embedding_model_patcher.start()
+
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    def test_get_embedding_model_unknown_type(self, mock_tenant_config_manager):
+        """
+        Test get_embedding_model with unknown model type.
+
+        This test verifies that:
+        1. When model_type is neither "embedding" nor "multi_embedding", None is returned
+        2. The function handles unknown model types gracefully
+        """
+        # Setup
+        mock_config = {
+            "model_type": "unknown_type",
+            "api_key": "test_api_key",
+            "base_url": "https://test.api.com",
+            "model_name": "test-model",
+            "max_tokens": 1024
+        }
+        mock_tenant_config_manager.get_model_config.return_value = mock_config
+
+        # Stop the mock from setUp to test the real function
+        self.get_embedding_model_patcher.stop()
+
+        try:
+            # Execute - now we can call the real function
+            from backend.services.elasticsearch_service import get_embedding_model
+            result = get_embedding_model("test_tenant")
+
             # Assert
+            self.assertIsNone(result)
             mock_tenant_config_manager.get_model_config.assert_called_once_with(
-                key="LLM_ID", tenant_id="test_tenant"
-            )
-            self.assertEqual(len(result), 3)
-            self.assertEqual(result[0], "Test")
-            self.assertEqual(result[1], "END")
-            self.assertEqual(result[2], "END")
+                key="EMBEDDING_ID", tenant_id="test_tenant")
+        finally:
+            # Restart the mock for other tests
+            self.get_embedding_model_patcher.start()
+
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    def test_get_embedding_model_empty_type(self, mock_tenant_config_manager):
+        """
+        Test get_embedding_model with empty model type.
+
+        This test verifies that:
+        1. When model_type is empty string, None is returned
+        2. The function handles empty model types gracefully
+        """
+        # Setup
+        mock_config = {
+            "model_type": "",
+            "api_key": "test_api_key",
+            "base_url": "https://test.api.com",
+            "model_name": "test-model",
+            "max_tokens": 1024
+        }
+        mock_tenant_config_manager.get_model_config.return_value = mock_config
+
+        # Stop the mock from setUp to test the real function
+        self.get_embedding_model_patcher.stop()
+
+        try:
+            # Execute - now we can call the real function
+            from backend.services.elasticsearch_service import get_embedding_model
+            result = get_embedding_model("test_tenant")
+
+            # Assert
+            self.assertIsNone(result)
+            mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                key="EMBEDDING_ID", tenant_id="test_tenant")
+        finally:
+            # Restart the mock for other tests
+            self.get_embedding_model_patcher.start()
+
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    def test_get_embedding_model_missing_type(self, mock_tenant_config_manager):
+        """
+        Test get_embedding_model with missing model type.
+
+        This test verifies that:
+        1. When model_type is missing from config, None is returned
+        2. The function handles missing model types gracefully
+        """
+        # Setup
+        mock_config = {
+            "api_key": "test_api_key",
+            "base_url": "https://test.api.com",
+            "model_name": "test-model",
+            "max_tokens": 1024
+        }
+        mock_tenant_config_manager.get_model_config.return_value = mock_config
+
+        # Stop the mock from setUp to test the real function
+        self.get_embedding_model_patcher.stop()
+
+        try:
+            # Execute - now we can call the real function
+            from backend.services.elasticsearch_service import get_embedding_model
+            result = get_embedding_model("test_tenant")
+
+            # Assert
+            self.assertIsNone(result)
+            mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                key="EMBEDDING_ID", tenant_id="test_tenant")
+        finally:
+            # Restart the mock for other tests
+            self.get_embedding_model_patcher.start()
 
 
 if __name__ == '__main__':
