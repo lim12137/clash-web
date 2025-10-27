@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
@@ -19,11 +21,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/ui/copyButton";
+import { Diagram } from "@/components/ui/Diagram";
 
 interface MarkdownRendererProps {
   content: string;
   className?: string;
   searchResults?: SearchResult[];
+  showDiagramToggle?: boolean;
 }
 
 // Get background color for different tool signs
@@ -350,6 +354,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   className,
   searchResults = [],
+  showDiagramToggle = true,
 }) => {
   const { t } = useTranslation("common");
 
@@ -397,7 +402,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const processText = (text: string) => {
     if (typeof text !== "string") return text;
 
-    const parts = text.split(/(\[\[[^\]]+\]\])/g);
+    const parts = text.split(/(\[\[[^\]]+\]\]|:mermaid\[[^\]]+\])/g);
     return (
       <>
         {parts.map((part, index) => {
@@ -425,6 +430,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               // Return empty string if no matching result found (display nothing)
               return "";
             }
+          }
+          // Inline Mermaid using :mermaid[graph LR; A-->B] - removed inline support
+          const mmd = part.match(/^:mermaid\[([^\]]+)\]$/);
+          if (mmd) {
+            const code = mmd[1];
+            return <Diagram key={`mmd-${index}`} code={code} className="my-4" />;
+          }
+          // Handle line breaks in text content
+          if (part.includes('\n')) {
+            return part.split('\n').map((line, lineIndex) => (
+              <React.Fragment key={`${index}-${lineIndex}`}>
+                {line}
+                {lineIndex < part.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ));
           }
           return part;
         })}
@@ -540,6 +560,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   <TextWrapper>{children}</TextWrapper>
                 </p>
               ),
+              // Horizontal rule
+              hr: () => (
+                <hr className="markdown-hr" />
+              ),
               // List item
               li: ({ children }: any) => (
                 <li className="markdown-li">
@@ -595,38 +619,44 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                     ? children.join("")
                     : children ?? "";
                   const codeContent = String(raw).replace(/^\n+|\n+$/g, "");
-                  if (!inline && match && match[1]) {
-                    return (
-                      <div className="code-block-container group">
-                        <div className="code-block-header">
-                          <span
-                            className="code-language-label"
-                            data-language={match[1]}
-                          >
-                            {match[1]}
-                          </span>
-                          <CopyButton
-                            content={codeContent}
-                            variant="code-block"
-                            className="header-copy-button"
-                            tooltipText={{
-                              copy: t("chatStreamMessage.copyContent"),
-                              copied: t("chatStreamMessage.copied"),
-                            }}
-                          />
+                  if (match && match[1]) {
+                    // Check if it's a Mermaid diagram
+                    if (match[1] === "mermaid") {
+                      return <Diagram code={codeContent} className="my-4" showToggle={showDiagramToggle} />;
+                    }
+                    if (!inline) {
+                      return (
+                        <div className="code-block-container group">
+                          <div className="code-block-header">
+                            <span
+                              className="code-language-label"
+                              data-language={match[1]}
+                            >
+                              {match[1]}
+                            </span>
+                            <CopyButton
+                              content={codeContent}
+                              variant="code-block"
+                              className="header-copy-button"
+                              tooltipText={{
+                                copy: t("chatStreamMessage.copyContent"),
+                                copied: t("chatStreamMessage.copied"),
+                              }}
+                            />
+                          </div>
+                          <div className="code-block-content">
+                            <SyntaxHighlighter
+                              style={customStyle}
+                              language={match[1]}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {codeContent}
+                            </SyntaxHighlighter>
+                          </div>
                         </div>
-                        <div className="code-block-content">
-                          <SyntaxHighlighter
-                            style={customStyle}
-                            language={match[1]}
-                            PreTag="div"
-                            {...props}
-                          >
-                            {codeContent}
-                          </SyntaxHighlighter>
-                        </div>
-                      </div>
-                    );
+                      );
+                    }
                   }
                 } catch (error) {
                   // Handle error silently
