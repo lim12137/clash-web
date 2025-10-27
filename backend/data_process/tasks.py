@@ -218,11 +218,11 @@ def process(
             logger.info(
                 f"[{self.request.id}] PROCESS TASK: Ray processing completed, got {len(chunks) if chunks else 0} chunks")
 
-            # Persist chunks into Redis via Ray (fire-and-forget, don't block)
+            # Persist chunks into Redis via Ray (synchronous to ensure data is ready before forward task)
             redis_key = f"dp:{task_id}:chunks"
             actor.store_chunks_in_redis.remote(redis_key, chunks)
             logger.info(
-                f"[{self.request.id}] PROCESS TASK: Scheduled store_chunks_in_redis for key '{redis_key}'")
+                f"[{self.request.id}] PROCESS TASK: Stored chunks in Redis at key '{redis_key}'")
 
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -252,11 +252,11 @@ def process(
             logger.info(
                 f"[{self.request.id}] PROCESS TASK: Ray processing completed, got {len(chunks) if chunks else 0} chunks")
 
-            # Persist chunks into Redis via Ray (fire-and-forget, don't block)
+            # Persist chunks into Redis via Ray (synchronous to ensure data is ready before forward task)
             redis_key = f"dp:{task_id}:chunks"
             actor.store_chunks_in_redis.remote(redis_key, chunks)
             logger.info(
-                f"[{self.request.id}] PROCESS TASK: Scheduled store_chunks_in_redis for key '{redis_key}'")
+                f"[{self.request.id}] PROCESS TASK: Stored chunks in Redis at key '{redis_key}'")
 
             end_time = time.time()
             elapsed_time = end_time - start_time
