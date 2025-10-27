@@ -487,6 +487,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             placeholder={t('model.dialog.placeholder.apiKey')}
             value={form.apiKey}
             onChange={(e) => handleFormChange("apiKey", e.target.value)}
+            autoComplete="new-password"
           />
         </div>
 
