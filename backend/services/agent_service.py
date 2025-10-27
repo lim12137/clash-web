@@ -13,7 +13,7 @@ from nexent.memory.memory_service import clear_memory, add_memory_in_levels
 from agents.agent_run_manager import agent_run_manager
 from agents.create_agent_info import create_agent_run_info, create_tool_config_list
 from agents.preprocess_manager import preprocess_manager
-from consts.const import MEMORY_SEARCH_START_MSG, MEMORY_SEARCH_DONE_MSG, MEMORY_SEARCH_FAIL_MSG, TOOL_TYPE_MAPPING, LANGUAGE, MESSAGE_ROLE
+from consts.const import MEMORY_SEARCH_START_MSG, MEMORY_SEARCH_DONE_MSG, MEMORY_SEARCH_FAIL_MSG, TOOL_TYPE_MAPPING, LANGUAGE, MESSAGE_ROLE, MODEL_CONFIG_MAPPING
 from consts.exceptions import MemoryPreparationException
 from consts.model import (
     AgentInfoRequest,
@@ -37,7 +37,7 @@ from database.agent_db import (
     search_blank_sub_agent_by_main_agent_id,
     update_agent
 )
-from database.model_management_db import get_model_by_model_id
+from database.model_management_db import get_model_by_model_id, get_model_id_by_display_name
 from database.remote_mcp_db import check_mcp_name_exists, get_mcp_server_by_name_and_tenant
 from database.tool_db import (
     check_tool_is_available,
@@ -52,6 +52,7 @@ from services.memory_config_service import build_memory_context
 from services.remote_mcp_service import add_remote_mcp_server_list
 from services.tool_configuration_service import update_tool_list
 from utils.auth_utils import get_current_user_info, get_user_language
+from utils.config_utils import tenant_config_manager
 from utils.memory_utils import build_memory_config
 from utils.thread_utils import submit
 
@@ -429,6 +430,20 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str) 
         if tool.class_name == "KnowledgeBaseSearchTool":
             tool.metadata = {}
 
+    # Get model_id and model display name from agent_info
+    model_id = agent_info.get("model_id")
+    model_name = None
+    if model_id is not None:
+        model_info = get_model_by_model_id(model_id)
+        model_name = model_info.get("display_name") if model_info is not None else None
+
+    # Get business_logic_model_id and business logic model display name
+    business_logic_model_id = agent_info.get("business_logic_model_id")
+    business_logic_model_name = None
+    if business_logic_model_id is not None:
+        business_logic_model_info = get_model_by_model_id(business_logic_model_id)
+        business_logic_model_name = business_logic_model_info.get("display_name") if business_logic_model_info is not None else None
+
     agent_info = ExportAndImportAgentInfo(agent_id=agent_id,
                                           name=agent_info["name"],
                                           display_name=agent_info["display_name"],
@@ -444,7 +459,11 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str) 
                                               "few_shots_prompt"),
                                           enabled=agent_info["enabled"],
                                           tools=tool_list,
-                                          managed_agents=agent_relation_in_db)
+                                          managed_agents=agent_relation_in_db,
+                                          model_id=model_id,
+                                          model_name=model_name,
+                                          business_logic_model_id=business_logic_model_id,
+                                          business_logic_model_name=business_logic_model_name)
     return agent_info
 
 
@@ -565,12 +584,70 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
     if not import_agent_info.name.isidentifier():
         raise ValueError(
             f"Invalid agent name: {import_agent_info.name}. agent name must be a valid python variable name.")
+    
+    # Get model_id from model_name if provided
+    # Note: We use model_name (display_name) for cross-tenant compatibility
+    # The exported model_id is kept for reference/debugging only
+    model_id = None
+    if import_agent_info.model_name:
+        model_id = get_model_id_by_display_name(import_agent_info.model_name, tenant_id)
+        if model_id is None:
+            logger.warning(
+                f"Model '{import_agent_info.model_name}' (exported model_id: {import_agent_info.model_id}) "
+                f"not found in tenant {tenant_id}, falling back to quick config LLM model.")
+            # Fallback to quick config LLM model
+            quick_config_model = tenant_config_manager.get_model_config(
+                key=MODEL_CONFIG_MAPPING["llm"],
+                tenant_id=tenant_id
+            )
+            if quick_config_model:
+                model_id = quick_config_model.get("model_id")
+                logger.info(
+                    f"Using quick config LLM model: {quick_config_model.get('display_name')} "
+                    f"(model_id: {model_id})")
+            else:
+                logger.warning(f"No quick config LLM model found for tenant {tenant_id}")
+        else:
+            logger.info(
+                f"Model '{import_agent_info.model_name}' found in tenant {tenant_id}, "
+                f"mapped to model_id: {model_id} (exported model_id was: {import_agent_info.model_id})")
+
+    # Get business_logic_model_id from business_logic_model_name if provided
+    business_logic_model_id = None
+    if import_agent_info.business_logic_model_name:
+        business_logic_model_id = get_model_id_by_display_name(import_agent_info.business_logic_model_name, tenant_id)
+        if business_logic_model_id is None:
+            logger.warning(
+                f"Business logic model '{import_agent_info.business_logic_model_name}' "
+                f"(exported model_id: {import_agent_info.business_logic_model_id}) "
+                f"not found in tenant {tenant_id}, falling back to quick config LLM model.")
+            # Fallback to quick config LLM model
+            quick_config_model = tenant_config_manager.get_model_config(
+                key=MODEL_CONFIG_MAPPING["llm"],
+                tenant_id=tenant_id
+            )
+            if quick_config_model:
+                business_logic_model_id = quick_config_model.get("model_id")
+                logger.info(
+                    f"Using quick config LLM model for business logic: {quick_config_model.get('display_name')} "
+                    f"(model_id: {business_logic_model_id})")
+            else:
+                logger.warning(f"No quick config LLM model found for tenant {tenant_id}")
+        else:
+            logger.info(
+                f"Business logic model '{import_agent_info.business_logic_model_name}' found in tenant {tenant_id}, "
+                f"mapped to model_id: {business_logic_model_id} "
+                f"(exported model_id was: {import_agent_info.business_logic_model_id})")
+
     # create a new agent
     new_agent = create_agent(agent_info={"name": import_agent_info.name,
                                          "display_name": import_agent_info.display_name,
                                          "description": import_agent_info.description,
                                          "business_description": import_agent_info.business_description,
-                                         "model_id": None,
+                                         "model_id": model_id,
+                                         "model_name": import_agent_info.model_name,
+                                         "business_logic_model_id": business_logic_model_id,
+                                         "business_logic_model_name": import_agent_info.business_logic_model_name,
                                          "max_steps": import_agent_info.max_steps,
                                          "provide_run_summary": import_agent_info.provide_run_summary,
                                          "duty_prompt": import_agent_info.duty_prompt,
