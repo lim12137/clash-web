@@ -214,9 +214,27 @@ export default function AgentSetupOrchestrator({
   useEffect(() => {
     if (isCreatingNewAgent) {
       if (!isEditingAgent) {
-        // Onlyclear configuration in creating mode, don't create agent record yet
+        // Clear configuration in creating mode
         setBusinessLogic("");
-        // Don't call fetchSubAgentIdAndEnableToolList here - wait for user to click save
+        // Create agent record immediately to get agent ID for generating prompts and using tools
+        // Only create if we don't already have a mainAgentId
+        if (!mainAgentId) {
+          const createAgentRecord = async () => {
+            try {
+              const createResult = await getCreatingSubAgentId();
+              if (createResult.success && createResult.data) {
+                const newAgentId = createResult.data.agentId;
+                setMainAgentId(newAgentId);
+                log.info("Created agent record with ID:", newAgentId);
+              } else {
+                log.error("Failed to create agent record:", createResult.message);
+              }
+            } catch (error) {
+              log.error("Error creating agent record:", error);
+            }
+          };
+          createAgentRecord();
+        }
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
       }
@@ -236,7 +254,7 @@ export default function AgentSetupOrchestrator({
       // Sign that has been initialized
       hasInitialized.current = true;
     }
-  }, [isCreatingNewAgent, isEditingAgent]);
+  }, [isCreatingNewAgent, isEditingAgent, mainAgentId]);
 
   // Listen for changes in the tool status, update the selected tool
   useEffect(() => {
@@ -355,6 +373,16 @@ export default function AgentSetupOrchestrator({
 
   // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
+    // If we created an agent record during creation mode, delete it
+    if (mainAgentId && isCreatingNewAgent && !isEditingAgent) {
+      try {
+        await deleteAgent(Number(mainAgentId));
+        log.info("Deleted unsaved agent record with ID:", mainAgentId);
+      } catch (error) {
+        log.error("Error deleting unsaved agent record:", error);
+      }
+    }
+
     // First notify external editing state change to avoid UI jumping
     onEditingStateChange?.(false, null);
 
@@ -368,6 +396,9 @@ export default function AgentSetupOrchestrator({
       }
       setIsEditingAgent(false);
       setEditingAgent(null);
+      
+      // Clear the mainAgentId
+      setMainAgentId(null);
 
       // Note: Content clearing is handled by onExitCreation above
       // Delay clearing tool and collaborative agent selection to avoid jumping
@@ -448,25 +479,15 @@ export default function AgentSetupOrchestrator({
             businessLogicModelId ?? undefined
           );
         } else {
-          // Creating new agent - first create the agent record
-          let targetAgentId = mainAgentId;
-          if (!targetAgentId) {
-            const createResult = await getCreatingSubAgentId();
-            if (!createResult.success || !createResult.data) {
-              message.error(
-                createResult.message || t("businessLogic.config.error.agentCreationFailed")
-              );
-              return;
-            }
-            
-            // Set the mainAgentId from the created agent
-            targetAgentId = createResult.data.agentId;
-            setMainAgentId(targetAgentId);
+          // Creating new agent - the agent record should already exist (created when entering create mode)
+          if (!mainAgentId) {
+            message.error(t("businessLogic.config.error.noAgentId"));
+            return;
           }
           
-          // Then update the agent with all the details
+          // Update the agent with all the details
           result = await updateAgent(
-            Number(targetAgentId),
+            Number(mainAgentId),
             name,
             description,
             model === null ? undefined : model,
@@ -498,6 +519,7 @@ export default function AgentSetupOrchestrator({
           setIsCreatingNewAgent(false);
           setIsEditingAgent(false);
           setEditingAgent(null);
+          setMainAgentId(null); // Clear mainAgentId after successful save
           onEditingStateChange?.(false, null);
 
           setBusinessLogic("");
