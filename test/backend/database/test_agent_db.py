@@ -82,6 +82,8 @@ class MockAgent:
         self.delete_flag = "N"
         self.enabled = True
         self.updated_by = None
+        self.business_logic_model_id = None
+        self.business_logic_model_name = None
 
 class MockAgentRelation:
     def __init__(self):
