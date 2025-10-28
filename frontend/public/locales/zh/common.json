@@ -556,6 +556,7 @@
   "model.dialog.help.content.batchImport": "请填写提供商的基本信息，API Key和提供商名称为必填项，其他字段为可选项。",
   "model.dialog.warning.incompleteForm": "请先填写完整的模型配置信息",
   "model.dialog.status.verifying": "正在验证模型连通性...",
+  "model.dialog.error.connectivityRequired": "请先验证模型连通性且确保连接成功后再添加模型",
   "model.dialog.error.addFailed": "添加模型失败：{{error}}",
   "model.dialog.error.addFailedLog": "添加模型失败",
   "model.dialog.error.noModelsFetched": "请检查相关API Key以及网络连通性",
