@@ -46,7 +46,7 @@ We have released **Nexent v1**, and the platform is now relatively stable. Howev
 
 * **🗺️ Check our [Feature Map](https://github.com/orgs/ModelEngine-Group/projects/6)** to explore current and upcoming features.
 * **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/ModelEngine-Group/nexent/issues) tab.
-* **🐛 Check our [Known Issues page](https://modelengine-group.github.io/nexent/en/known-issues.html)** for the latest issue status and solutions.
+* **🐛 Check our [Known Issues page](https://github.com/orgs/ModelEngine-Group/projects/9)** for the latest issue status and solutions.
 
 > *Rome wasn't built in a day.*
 

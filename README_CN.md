@@ -46,7 +46,7 @@ bash deploy.sh
 
 * **🗺️ 查看我们的 [功能地图](https://github.com/orgs/ModelEngine-Group/projects/6)** 探索当前和即将推出的功能。
 * **🔍 试用当前版本** 并在 [问题反馈](https://github.com/ModelEngine-Group/nexent/issues) 中留下想法或报告错误。
-* **🐛 查看我们的[已知问题页面](https://modelengine-group.github.io/nexent/zh/known-issues.html)** 了解最新的问题状态和解决方案。
+* **🐛 查看我们的[已知问题页面](https://github.com/orgs/ModelEngine-Group/projects/9)** 了解最新的问题状态和解决方案。
 
 > *Rome wasn't built in a day.*
 
