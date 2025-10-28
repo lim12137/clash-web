@@ -351,7 +351,8 @@ async def test_get_llm_model_list_exception(client, auth_header, user_credential
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to retrieve LLM list" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Database connection error" in data.get("detail", "")
 
 
 @pytest.mark.asyncio
