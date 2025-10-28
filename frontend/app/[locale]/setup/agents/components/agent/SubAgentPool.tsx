@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { App, Button } from "antd";
-import { UploadOutlined, LinkOutlined } from "@ant-design/icons";
+import { UploadOutlined, LinkOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -185,8 +185,6 @@ export default function SubAgentPool({
                           className={`py-3 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 h-[80px] ${
                             isCurrentlyEditing
                               ? "bg-blue-50 border-l-4 border-l-blue-500" // Highlight editing agent, add left vertical line
-                              : !isAvailable
-                              ? "bg-gray-50 opacity-60 cursor-not-allowed"
                               : "hover:bg-gray-50 cursor-pointer"
                           }`}
                           onClick={async (e) => {
@@ -194,7 +192,7 @@ export default function SubAgentPool({
                             e.preventDefault();
                             e.stopPropagation();
 
-                            if (!isGeneratingAgent && isAvailable) {
+                            if (!isGeneratingAgent) {
                               if (isCurrentlyEditing) {
                                 // If currently editing this Agent, click to exit edit mode
                                 onExitEditMode?.();
@@ -202,8 +200,6 @@ export default function SubAgentPool({
                                 // Otherwise enter edit mode (or switch to this Agent)
                                 onEditAgent(agent);
                               }
-                            } else if (!isAvailable) {
-                              message.warning(t("subAgentPool.message.unavailable"));
                             }
                           }}
                         >
@@ -214,7 +210,10 @@ export default function SubAgentPool({
                                   !isAvailable ? "text-gray-500" : ""
                                 }`}
                               >
-                                <div className="flex items-center">
+                                <div className="flex items-center gap-1.5">
+                                  {!isAvailable && (
+                                    <ExclamationCircleOutlined className="text-amber-500 text-sm flex-shrink-0" />
+                                  )}
                                   {agent.display_name && (
                                     <span className="text-base leading-normal">
                                       {agent.display_name}
@@ -278,7 +277,7 @@ export default function SubAgentPool({
                       </TooltipTrigger>
                       <TooltipContent>
                         {!isAvailable
-                          ? t("subAgentPool.tooltip.unavailableAgent")
+                          ? t("subAgentPool.tooltip.hasUnavailableTools")
                           : isCurrentlyEditing
                           ? t("subAgentPool.tooltip.exitEditMode")
                           : `${t("subAgentPool.tooltip.editAgent")} ${
