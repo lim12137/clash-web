@@ -160,22 +160,31 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       const result = await modelService.verifyModelConfigConnectivity(config)
       
       // Set connectivity status
-      let connectivityMessage = ''
       if (result.connectivity) {
-        connectivityMessage = t('model.dialog.connectivity.status.available')
+        setConnectivityStatus({
+          status: "available",
+          message: t('model.dialog.connectivity.status.available')
+        })
       } else {
-        connectivityMessage = t('model.dialog.connectivity.status.unavailable')
+        // Set status to unavailable
+        setConnectivityStatus({
+          status: "unavailable",
+          message: t('model.dialog.connectivity.status.unavailable')
+        })
+        // Show detailed error message using message.error (same as add failure)
+        if (result.error) {
+          message.error(result.error)
+        }
       }
-      setConnectivityStatus({
-        status: result.connectivity ? "available" : "unavailable",
-        message: connectivityMessage
-      })
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       setConnectivityStatus({
         status: "unavailable",
         message: t('model.dialog.connectivity.status.unavailable')
       })
+      // Show error message using message.error (same as add failure)
+      message.error(errorMessage || t('model.dialog.connectivity.status.unavailable'))
     } finally {
       setVerifyingConnectivity(false)
     }
@@ -237,6 +246,12 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   // Handle adding a model
   const handleAddModel = async () => {
+    // Check connectivity status before adding
+    if (!form.isBatchImport && connectivityStatus.status !== 'available') {
+      message.warning(t('model.dialog.error.connectivityRequired'))
+      return
+    }
+    
     setLoading(true)
     if (form.isBatchImport) {
       await handleBatchAddModel()
@@ -712,7 +727,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           <Button
             type="primary"
             onClick={handleAddModel}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || (!form.isBatchImport && connectivityStatus.status !== 'available')}
             loading={loading}
           >
             {t('model.dialog.button.add')}

@@ -535,6 +535,8 @@ async def test_verify_model_config_connectivity_success():
         # Assert
         assert response["connectivity"] is True
         assert response["model_name"] == "gpt-4"
+        # Success case should not have error field
+        assert "error" not in response
 
         mock_connectivity_check.assert_called_once_with(
             "gpt-4", "llm", "https://api.openai.com", "test-key"
@@ -561,6 +563,10 @@ async def test_verify_model_config_connectivity_failure():
         # Assert
         assert response["connectivity"] is False
         assert response["model_name"] == "gpt-4"
+        # Failure case should have error field with descriptive message
+        assert "error" in response
+        assert "Failed to connect to model" in response["error"]
+        assert "gpt-4" in response["error"]
 
 
 @pytest.mark.asyncio
@@ -583,6 +589,9 @@ async def test_verify_model_config_connectivity_validation_error():
         # Assert
         assert response["connectivity"] is False
         assert response["model_name"] == "invalid-model"
+        # Validation error should be included in error field
+        assert "error" in response
+        assert "Invalid model type" in response["error"]
 
 
 @pytest.mark.asyncio
@@ -605,6 +614,10 @@ async def test_verify_model_config_connectivity_exception():
         # Assert
         assert response["connectivity"] is False
         assert response["model_name"] == "gpt-4"
+        # Exception should be included in error field
+        assert "error" in response
+        assert "Connection verification failed" in response["error"]
+        assert "Unexpected error" in response["error"]
 
 
 @pytest.mark.asyncio
