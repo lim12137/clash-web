@@ -83,6 +83,57 @@ def _resolve_user_tenant_language(
         return user_id, tenant_id, get_user_language(http_request)
 
 
+def _resolve_model_with_fallback(
+    model_display_name: str | None,
+    exported_model_id: str | None,
+    model_label: str,
+    tenant_id: str
+) -> str | None:
+    """
+    Resolve model_id from model_display_name with fallback to quick config LLM model.
+    
+    Args:
+        model_display_name: Display name of the model to lookup
+        exported_model_id: Original model_id from export (for logging only)
+        model_label: Label for logging (e.g., "Model", "Business logic model")
+        tenant_id: Tenant ID for model lookup
+    
+    Returns:
+        Resolved model_id or None if not found and no fallback available
+    """
+    if not model_display_name:
+        return None
+    
+    # Try to find model by display name in current tenant
+    resolved_id = get_model_id_by_display_name(model_display_name, tenant_id)
+    
+    if resolved_id:
+        logger.info(
+            f"{model_label} '{model_display_name}' found in tenant {tenant_id}, "
+            f"mapped to model_id: {resolved_id} (exported model_id was: {exported_model_id})")
+        return resolved_id
+    
+    # Model not found, try fallback to quick config LLM model
+    logger.warning(
+        f"{model_label} '{model_display_name}' (exported model_id: {exported_model_id}) "
+        f"not found in tenant {tenant_id}, falling back to quick config LLM model.")
+    
+    quick_config_model = tenant_config_manager.get_model_config(
+        key=MODEL_CONFIG_MAPPING["llm"],
+        tenant_id=tenant_id
+    )
+    
+    if quick_config_model:
+        fallback_id = quick_config_model.get("model_id")
+        logger.info(
+            f"Using quick config LLM model for {model_label.lower()}: "
+            f"{quick_config_model.get('display_name')} (model_id: {fallback_id})")
+        return fallback_id
+    
+    logger.warning(f"No quick config LLM model found for tenant {tenant_id}")
+    return None
+
+
 async def _stream_agent_chunks(
     agent_request: "AgentRequest",
     user_id: str,
@@ -432,17 +483,17 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str) 
 
     # Get model_id and model display name from agent_info
     model_id = agent_info.get("model_id")
-    model_name = None
+    model_display_name = None
     if model_id is not None:
         model_info = get_model_by_model_id(model_id)
-        model_name = model_info.get("display_name") if model_info is not None else None
+        model_display_name = model_info.get("display_name") if model_info is not None else None
 
     # Get business_logic_model_id and business logic model display name
     business_logic_model_id = agent_info.get("business_logic_model_id")
-    business_logic_model_name = None
+    business_logic_model_display_name = None
     if business_logic_model_id is not None:
         business_logic_model_info = get_model_by_model_id(business_logic_model_id)
-        business_logic_model_name = business_logic_model_info.get("display_name") if business_logic_model_info is not None else None
+        business_logic_model_display_name = business_logic_model_info.get("display_name") if business_logic_model_info is not None else None
 
     agent_info = ExportAndImportAgentInfo(agent_id=agent_id,
                                           name=agent_info["name"],
@@ -461,9 +512,9 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str) 
                                           tools=tool_list,
                                           managed_agents=agent_relation_in_db,
                                           model_id=model_id,
-                                          model_name=model_name,
+                                          model_name=model_display_name,
                                           business_logic_model_id=business_logic_model_id,
-                                          business_logic_model_name=business_logic_model_name)
+                                          business_logic_model_name=business_logic_model_display_name)
     return agent_info
 
 
@@ -585,59 +636,22 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
         raise ValueError(
             f"Invalid agent name: {import_agent_info.name}. agent name must be a valid python variable name.")
     
-    # Get model_id from model_name if provided
-    # Note: We use model_name (display_name) for cross-tenant compatibility
+    # Resolve model IDs with fallback
+    # Note: We use model_display_name for cross-tenant compatibility
     # The exported model_id is kept for reference/debugging only
-    model_id = None
-    if import_agent_info.model_name:
-        model_id = get_model_id_by_display_name(import_agent_info.model_name, tenant_id)
-        if model_id is None:
-            logger.warning(
-                f"Model '{import_agent_info.model_name}' (exported model_id: {import_agent_info.model_id}) "
-                f"not found in tenant {tenant_id}, falling back to quick config LLM model.")
-            # Fallback to quick config LLM model
-            quick_config_model = tenant_config_manager.get_model_config(
-                key=MODEL_CONFIG_MAPPING["llm"],
-                tenant_id=tenant_id
-            )
-            if quick_config_model:
-                model_id = quick_config_model.get("model_id")
-                logger.info(
-                    f"Using quick config LLM model: {quick_config_model.get('display_name')} "
-                    f"(model_id: {model_id})")
-            else:
-                logger.warning(f"No quick config LLM model found for tenant {tenant_id}")
-        else:
-            logger.info(
-                f"Model '{import_agent_info.model_name}' found in tenant {tenant_id}, "
-                f"mapped to model_id: {model_id} (exported model_id was: {import_agent_info.model_id})")
-
-    # Get business_logic_model_id from business_logic_model_name if provided
-    business_logic_model_id = None
-    if import_agent_info.business_logic_model_name:
-        business_logic_model_id = get_model_id_by_display_name(import_agent_info.business_logic_model_name, tenant_id)
-        if business_logic_model_id is None:
-            logger.warning(
-                f"Business logic model '{import_agent_info.business_logic_model_name}' "
-                f"(exported model_id: {import_agent_info.business_logic_model_id}) "
-                f"not found in tenant {tenant_id}, falling back to quick config LLM model.")
-            # Fallback to quick config LLM model
-            quick_config_model = tenant_config_manager.get_model_config(
-                key=MODEL_CONFIG_MAPPING["llm"],
-                tenant_id=tenant_id
-            )
-            if quick_config_model:
-                business_logic_model_id = quick_config_model.get("model_id")
-                logger.info(
-                    f"Using quick config LLM model for business logic: {quick_config_model.get('display_name')} "
-                    f"(model_id: {business_logic_model_id})")
-            else:
-                logger.warning(f"No quick config LLM model found for tenant {tenant_id}")
-        else:
-            logger.info(
-                f"Business logic model '{import_agent_info.business_logic_model_name}' found in tenant {tenant_id}, "
-                f"mapped to model_id: {business_logic_model_id} "
-                f"(exported model_id was: {import_agent_info.business_logic_model_id})")
+    model_id = _resolve_model_with_fallback(
+        model_display_name=import_agent_info.model_name,
+        exported_model_id=import_agent_info.model_id,
+        model_label="Model",
+        tenant_id=tenant_id
+    )
+    
+    business_logic_model_id = _resolve_model_with_fallback(
+        model_display_name=import_agent_info.business_logic_model_name,
+        exported_model_id=import_agent_info.business_logic_model_id,
+        model_label="Business logic model",
+        tenant_id=tenant_id
+    )
 
     # create a new agent
     new_agent = create_agent(agent_info={"name": import_agent_info.name,
