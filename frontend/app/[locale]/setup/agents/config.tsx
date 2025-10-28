@@ -521,6 +521,7 @@ export default function AgentConfig() {
         onClose={() => setIsDebugDrawerOpen(false)}
         open={isDebugDrawerOpen}
         width={LAYOUT_CONFIG.DRAWER_WIDTH}
+        destroyOnClose={true}
         styles={{
           body: {
             padding: 0,
