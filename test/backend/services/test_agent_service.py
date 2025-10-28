@@ -4663,3 +4663,292 @@ async def test_import_agent_all_model_fields_in_database(
     assert agent_info_dict["constraint_prompt"] == "Complete constraints"
     assert agent_info_dict["few_shots_prompt"] == "Complete examples"
     assert agent_info_dict["enabled"] is True
+
+
+# =====================================================================
+# Tests for _resolve_model_with_fallback helper function
+# =====================================================================
+
+
+class TestResolveModelWithFallback:
+    """Test suite for the _resolve_model_with_fallback helper function."""
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_success_found_in_tenant(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test successful model resolution when model exists in tenant."""
+        # Arrange
+        mock_get_model_id.return_value = "resolved_model_123"
+        
+        # Import the function
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="GPT-4",
+            exported_model_id="old_model_456",
+            model_label="Model",
+            tenant_id="tenant_001"
+        )
+        
+        # Assert
+        assert result == "resolved_model_123"
+        mock_get_model_id.assert_called_once_with("GPT-4", "tenant_001")
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_fallback_to_quick_config(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test fallback to quick config LLM model when model not found in tenant."""
+        # Arrange
+        mock_get_model_id.return_value = None  # Model not found in tenant
+        mock_get_model_config.return_value = {
+            "model_id": "quick_config_model_789",
+            "display_name": "Default LLM Model"
+        }
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="NonExistentModel",
+            exported_model_id="exported_999",
+            model_label="Model",
+            tenant_id="tenant_002"
+        )
+        
+        # Assert
+        assert result == "quick_config_model_789"
+        mock_get_model_id.assert_called_once_with("NonExistentModel", "tenant_002")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_no_fallback_available(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when neither tenant model nor quick config model is available."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.return_value = None  # No quick config model
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="NonExistentModel",
+            exported_model_id="exported_999",
+            model_label="Model",
+            tenant_id="tenant_003"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_called_once_with("NonExistentModel", "tenant_003")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_none_model_name(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when model_name is None."""
+        # Arrange
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name=None,
+            exported_model_id="exported_123",
+            model_label="Model",
+            tenant_id="tenant_004"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_not_called()
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_empty_model_name(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when model_name is an empty string."""
+        # Arrange
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="",
+            exported_model_id="exported_456",
+            model_label="Model",
+            tenant_id="tenant_005"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_not_called()
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_business_logic_model_success(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test successful resolution of business logic model."""
+        # Arrange
+        mock_get_model_id.return_value = "business_model_555"
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="Qwen/QwQ-32B",
+            exported_model_id="old_business_model_777",
+            model_label="Business logic model",
+            tenant_id="tenant_006"
+        )
+        
+        # Assert
+        assert result == "business_model_555"
+        mock_get_model_id.assert_called_once_with("Qwen/QwQ-32B", "tenant_006")
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_quick_config_no_model_id(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when quick config exists but has no model_id."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.return_value = {
+            "display_name": "Default Model",
+            # No model_id field
+        }
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="SomeModel",
+            exported_model_id="exported_888",
+            model_label="Model",
+            tenant_id="tenant_007"
+        )
+        
+        # Assert
+        assert result is None  # Should return None when model_id is missing
+        mock_get_model_id.assert_called_once_with("SomeModel", "tenant_007")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_with_various_labels(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test that different model_labels are handled correctly."""
+        # Arrange
+        mock_get_model_id.return_value = "model_111"
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert - Test with "Model" label
+        result1 = _resolve_model_with_fallback(
+            model_display_name="TestModel",
+            exported_model_id="exp_1",
+            model_label="Model",
+            tenant_id="tenant_008"
+        )
+        assert result1 == "model_111"
+        
+        # Reset mock
+        mock_get_model_id.reset_mock()
+        mock_get_model_id.return_value = "model_222"
+        
+        # Act & Assert - Test with "Business logic model" label
+        result2 = _resolve_model_with_fallback(
+            model_display_name="TestModel2",
+            exported_model_id="exp_2",
+            model_label="Business logic model",
+            tenant_id="tenant_009"
+        )
+        assert result2 == "model_222"
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_exception_handling(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test that exceptions from database calls are propagated."""
+        # Arrange
+        mock_get_model_id.side_effect = Exception("Database connection error")
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert
+        with pytest.raises(Exception, match="Database connection error"):
+            _resolve_model_with_fallback(
+                model_display_name="TestModel",
+                exported_model_id="exp_3",
+                model_label="Model",
+                tenant_id="tenant_010"
+            )
+        
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_quick_config_exception(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when quick config retrieval raises an exception."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.side_effect = Exception("Config service error")
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert
+        with pytest.raises(Exception, match="Config service error"):
+            _resolve_model_with_fallback(
+                model_display_name="TestModel",
+                exported_model_id="exp_4",
+                model_label="Model",
+                tenant_id="tenant_011"
+            )
