@@ -214,6 +214,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
           <Input.Password
             value={form.apiKey}
             onChange={(e) => handleFormChange('apiKey', e.target.value)}
+            autoComplete="new-password"
           />
         </div>
 

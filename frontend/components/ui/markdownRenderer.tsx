@@ -437,6 +437,15 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             const code = mmd[1];
             return <Diagram key={`mmd-${index}`} code={code} className="my-4" />;
           }
+          // Handle line breaks in text content
+          if (part.includes('\n')) {
+            return part.split('\n').map((line, lineIndex) => (
+              <React.Fragment key={`${index}-${lineIndex}`}>
+                {line}
+                {lineIndex < part.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ));
+          }
           return part;
         })}
       </>
@@ -554,6 +563,18 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               // Horizontal rule
               hr: () => (
                 <hr className="markdown-hr" />
+              ),
+              // Ordered list
+              ol: ({ children }: any) => (
+                <ol className="markdown-ol">
+                  {children}
+                </ol>
+              ),
+              // Unordered list
+              ul: ({ children }: any) => (
+                <ul className="markdown-ul">
+                  {children}
+                </ul>
               ),
               // List item
               li: ({ children }: any) => (
