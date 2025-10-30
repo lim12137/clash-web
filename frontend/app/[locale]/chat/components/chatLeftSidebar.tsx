@@ -251,8 +251,6 @@ export function ChatSidebar({
         return <Database className="h-4 w-4" />;
       case "agents":
         return <Bot className="h-4 w-4" />;
-      default:
-        return null;
     }
   };
 
