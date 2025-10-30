@@ -19,6 +19,12 @@ Nexent will soon support seamless integration with the ModelEngine platform, ena
    - **Display Name:** Optionally set a display name for the model (defaults to the model name).
    - **Model URL (required):** Enter the API endpoint provided by the model provider.
    - **API Key:** Enter your API key.
+
+> ⚠️ **Notes**:
+> 1. Obtain the model name from the model provider, typically in the format `model series/model name`. For example, if the model series is `Qwen` and the model name is `Qwen3-8B`, the model name is `Qwen/Qwen3-8B`.
+> 2. Obtain the model URL from the model provider's API documentation. For example, if the model provider is Silicon Flow, the URL for the large language model is `https://api.siliconflow.cn/v1`, the URL for the vector model is `https://api.siliconflow.cn/v1/embeddings`, and the URL for the visual language model is `https://api.siliconflow.cn/v1`.
+> 3. Create and obtain an API key from the model provider's API key management page.
+
 4. **Connectivity Verification**
    - Click the "Verify" button. The system will send a test request and return the result.
 5. **Save Model**

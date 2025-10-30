@@ -257,7 +257,7 @@ class TenantConfig(TableBase):
     value_type = Column(String(
         100), doc=" the data type of config_value, optional values: single/multi", default="single")
     config_key = Column(String(100), doc="the key of the config")
-    config_value = Column(String(10000), doc="the value of the config")
+    config_value = Column(Text, doc="the value of the config")
 
 
 class MemoryUserConfig(TableBase):

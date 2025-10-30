@@ -249,6 +249,13 @@ export interface FilePreview {
   previewUrl?: string;
 }
 
+// Settings menu item type for admin users
+export interface SettingsMenuItem {
+  key: string;
+  label: string;
+  onClick: () => void;
+}
+
 // Chat sidebar props type
 export interface ChatSidebarProps {
   conversationList: ConversationListItem[];
@@ -261,6 +268,7 @@ export interface ChatSidebarProps {
   onRename: (dialogId: number, title: string) => void;
   onDelete: (dialogId: number) => void;
   onSettingsClick: () => void;
+  settingsMenuItems?: SettingsMenuItem[];
   onDropdownOpenChange: (open: boolean, id: string | null) => void;
   onToggleSidebar: () => void;
   expanded: boolean;

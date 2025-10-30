@@ -319,39 +319,53 @@ export default function ToolConfigModal({
     try {
       // Prepare parameters for tool validation with correct types
       const toolParams: Record<string, any> = {};
-      dynamicInputParams.forEach((paramName) => {
-        const value = paramValues[paramName];
-        const paramInfo = parsedInputs[paramName];
-        const paramType = paramInfo?.type || DEFAULT_TYPE;
 
-        if (value && value.trim() !== "") {
-          // Convert value to correct type based on parameter type from inputs
-          switch (paramType) {
-            case "integer":
-            case "number":
-              const numValue = Number(value.trim());
-              if (!isNaN(numValue)) {
-                toolParams[paramName] = numValue;
-              } else {
-                toolParams[paramName] = value.trim(); // fallback to string if conversion fails
-              }
-              break;
-            case "boolean":
-              toolParams[paramName] = value.trim().toLowerCase() === "true";
-              break;
-            case "array":
-            case "object":
-              try {
-                toolParams[paramName] = JSON.parse(value.trim());
-              } catch {
-                toolParams[paramName] = value.trim(); // fallback to string if JSON parsing fails
-              }
-              break;
-            default:
-              toolParams[paramName] = value.trim();
-          }
+      if (isManualInputMode) {
+        // Use manual JSON input
+        try {
+          const manualParams = JSON.parse(manualJsonInput);
+          Object.assign(toolParams, manualParams);
+        } catch (error) {
+          log.error("Failed to parse manual JSON input:", error);
+          setTestResult(`Test failed: Invalid JSON format in manual input`);
+          return;
         }
-      });
+      } else {
+        // Use parsed parameters
+        dynamicInputParams.forEach((paramName) => {
+          const value = paramValues[paramName];
+          const paramInfo = parsedInputs[paramName];
+          const paramType = paramInfo?.type || DEFAULT_TYPE;
+
+          if (value && value.trim() !== "") {
+            // Convert value to correct type based on parameter type from inputs
+            switch (paramType) {
+              case "integer":
+              case "number":
+                const numValue = Number(value.trim());
+                if (!isNaN(numValue)) {
+                  toolParams[paramName] = numValue;
+                } else {
+                  toolParams[paramName] = value.trim(); // fallback to string if conversion fails
+                }
+                break;
+              case "boolean":
+                toolParams[paramName] = value.trim().toLowerCase() === "true";
+                break;
+              case "array":
+              case "object":
+                try {
+                  toolParams[paramName] = JSON.parse(value.trim());
+                } catch {
+                  toolParams[paramName] = value.trim(); // fallback to string if JSON parsing fails
+                }
+                break;
+              default:
+                toolParams[paramName] = value.trim();
+            }
+          }
+        });
+      }
 
       // Prepare configuration parameters from current params
       const configParams = currentParams.reduce((acc, param) => {
@@ -767,6 +781,46 @@ export default function ToolConfigModal({
                               setManualJsonInput(
                                 JSON.stringify(currentParamsJson, null, 2)
                               );
+                            } else {
+                              // From manual input mode to parsed mode
+                              try {
+                                const manualParams =
+                                  JSON.parse(manualJsonInput);
+                                const updatedParamValues: Record<
+                                  string,
+                                  string
+                                > = {};
+                                dynamicInputParams.forEach((paramName) => {
+                                  const manualValue = manualParams[paramName];
+                                  const paramInfo = parsedInputs[paramName];
+                                  const paramType =
+                                    paramInfo?.type || DEFAULT_TYPE;
+
+                                  if (manualValue !== undefined) {
+                                    // Convert to string for display based on parameter type
+                                    switch (paramType) {
+                                      case "boolean":
+                                        updatedParamValues[paramName] =
+                                          manualValue ? "true" : "false";
+                                        break;
+                                      case "array":
+                                      case "object":
+                                        updatedParamValues[paramName] =
+                                          JSON.stringify(manualValue, null, 2);
+                                        break;
+                                      default:
+                                        updatedParamValues[paramName] =
+                                          String(manualValue);
+                                    }
+                                  }
+                                });
+                                setParamValues(updatedParamValues);
+                              } catch (error) {
+                                log.error(
+                                  "Failed to sync manual input to parsed mode:",
+                                  error
+                                );
+                              }
                             }
                           }}
                         >

@@ -160,22 +160,31 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       const result = await modelService.verifyModelConfigConnectivity(config)
       
       // Set connectivity status
-      let connectivityMessage = ''
       if (result.connectivity) {
-        connectivityMessage = t('model.dialog.connectivity.status.available')
+        setConnectivityStatus({
+          status: "available",
+          message: t('model.dialog.connectivity.status.available')
+        })
       } else {
-        connectivityMessage = t('model.dialog.connectivity.status.unavailable')
+        // Set status to unavailable
+        setConnectivityStatus({
+          status: "unavailable",
+          message: t('model.dialog.connectivity.status.unavailable')
+        })
+        // Show detailed error message using message.error (same as add failure)
+        if (result.error) {
+          message.error(result.error)
+        }
       }
-      setConnectivityStatus({
-        status: result.connectivity ? "available" : "unavailable",
-        message: connectivityMessage
-      })
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       setConnectivityStatus({
         status: "unavailable",
         message: t('model.dialog.connectivity.status.unavailable')
       })
+      // Show error message using message.error (same as add failure)
+      message.error(errorMessage || t('model.dialog.connectivity.status.unavailable'))
     } finally {
       setVerifyingConnectivity(false)
     }
@@ -237,6 +246,12 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   // Handle adding a model
   const handleAddModel = async () => {
+    // Check connectivity status before adding
+    if (!form.isBatchImport && connectivityStatus.status !== 'available') {
+      message.warning(t('model.dialog.error.connectivityRequired'))
+      return
+    }
+    
     setLoading(true)
     if (form.isBatchImport) {
       await handleBatchAddModel()
@@ -487,6 +502,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             placeholder={t('model.dialog.placeholder.apiKey')}
             value={form.apiKey}
             onChange={(e) => handleFormChange("apiKey", e.target.value)}
+            autoComplete="new-password"
           />
         </div>
 
@@ -645,9 +661,56 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <InfoCircleFilled className="text-md text-blue-500 mr-3" />
               <p className="font-bold text-medium">{t('model.dialog.help.title')}</p>
             </div>
-            <p className="mt-0.5 ml-6">
-              {form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')}
-            </p>
+            <div className="mt-0.5 ml-6">
+              {(form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')).split('\n').map((line, index) => {
+                // Parse Markdown-style links: [text](url)
+                const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+                const parts: (string | { text: string; url: string })[] = [];
+                let lastIndex = 0;
+                let match;
+                
+                while ((match = markdownLinkRegex.exec(line)) !== null) {
+                  // Add text before the link
+                  if (match.index > lastIndex) {
+                    parts.push(line.substring(lastIndex, match.index));
+                  }
+                  // Add the link object
+                  parts.push({ text: match[1], url: match[2] });
+                  lastIndex = match.index + match[0].length;
+                }
+                
+                // Add remaining text after the last link
+                if (lastIndex < line.length) {
+                  parts.push(line.substring(lastIndex));
+                }
+                
+                // If no links found, just add the whole line
+                if (parts.length === 0) {
+                  parts.push(line);
+                }
+                
+                return (
+                  <p key={index} className={index > 0 ? 'mt-1' : ''}>
+                    {parts.map((part, partIndex) => {
+                      if (typeof part === 'object') {
+                        return (
+                          <a 
+                            key={partIndex}
+                            href={part.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            {part.text}
+                          </a>
+                        );
+                      }
+                      return <span key={partIndex}>{part}</span>;
+                    })}
+                  </p>
+                );
+              })}
+            </div>
             <div className="mt-2 ml-6 flex items-center">
               <span>{t('model.dialog.label.currentlySupported')}</span>
               {form.isBatchImport && (
@@ -712,7 +775,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           <Button
             type="primary"
             onClick={handleAddModel}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || (!form.isBatchImport && connectivityStatus.status !== 'available')}
             loading={loading}
           >
             {t('model.dialog.button.add')}

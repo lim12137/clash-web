@@ -1533,6 +1533,48 @@ export function ChatInterface() {
     };
   }, []);
 
+  // Handle settings click - not used when menu items are provided
+  const handleSettingsClick = () => {
+    // This function is kept for compatibility but not used
+    // Both admin and regular users now use dropdown menus
+  };
+
+  // Settings menu items based on user role
+  const settingsMenuItems = user?.role === "admin" ? [
+    // Admin has three options
+    {
+      key: "models",
+      label: t("chatLeftSidebar.settingsMenu.modelConfig"),
+      onClick: () => {
+        localStorage.setItem("show_page", "1");
+        router.push("/setup/models");
+      },
+    },
+    {
+      key: "knowledges",
+      label: t("chatLeftSidebar.settingsMenu.knowledgeConfig"),
+      onClick: () => {
+        router.push("/setup/knowledges");
+      },
+    },
+    {
+      key: "agents",
+      label: t("chatLeftSidebar.settingsMenu.agentConfig"),
+      onClick: () => {
+        router.push("/setup/agents");
+      },
+    },
+  ] : [
+    // Regular user only has knowledge base configuration
+    {
+      key: "knowledges",
+      label: t("chatLeftSidebar.settingsMenu.knowledgeConfig"),
+      onClick: () => {
+        router.push("/setup/knowledges");
+      },
+    },
+  ];
+
   return (
     <>
       <div className="flex h-screen">
@@ -1546,13 +1588,8 @@ export function ChatInterface() {
           onDialogClick={handleDialogClick}
           onRename={handleConversationRename}
           onDelete={handleConversationDeleteClick}
-          onSettingsClick={() => {
-            localStorage.setItem(
-              "show_page",
-              user?.role === "admin" ? "1" : "2"
-            );
-            router.push("/setup");
-          }}
+          onSettingsClick={handleSettingsClick}
+          settingsMenuItems={settingsMenuItems}
           onDropdownOpenChange={(open: boolean, id: string | null) =>
             setOpenDropdownId(open ? id : null)
           }
