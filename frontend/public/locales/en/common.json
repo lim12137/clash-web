@@ -100,7 +100,7 @@
   "chatLeftSidebar.noHistory": "No conversation history",
   "chatLeftSidebar.expandSidebar": "Expand Sidebar",
   "chatLeftSidebar.settings": "Settings",
-  "chatLeftSidebar.settingsMenu.modelConfig": "Application and System Model Configuration",
+  "chatLeftSidebar.settingsMenu.modelConfig": "Application & Model Configuration",
   "chatLeftSidebar.settingsMenu.knowledgeConfig": "Knowledge Base Configuration",
   "chatLeftSidebar.settingsMenu.agentConfig": "Agent Configuration",
   "chatLeftSidebar.confirmDeletionTitle": "Delete Conversation",
