@@ -110,10 +110,40 @@
   border-radius: 1px;
 }
 
+/* List Styles */
+.markdown-ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.markdown-ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
 /* List Item Styles */
 .markdown-li {
   margin-bottom: 0.25rem;
   color: var(--color-nord0);
+}
+
+/* Remove extra spacing from paragraphs inside list items */
+.markdown-ol li > p,
+.markdown-ul li > p,
+.markdown-li > p {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Preserve spacing only between multiple paragraphs within same list item */
+.markdown-ol li > p + p,
+.markdown-ul li > p + p,
+.markdown-li > p + p {
+  margin-top: 0.5rem !important;
 }
 
 /* Blockquote Styles */

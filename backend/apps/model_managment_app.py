@@ -73,11 +73,11 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
     except ValueError as e:
         logging.error(f"Failed to create model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.CONFLICT,
-                            detail="Failed to create model: name conflict")
+                            detail=str(e))
     except Exception as e:
         logging.error(f"Failed to create model: {str(e)}")
         raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create model")
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/provider/create")
@@ -103,7 +103,7 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
     except Exception as e:
         logging.error(f"Failed to create provider model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to create provider model")
+                            detail=str(e))
 
 
 @router.post("/provider/batch_create")
@@ -129,7 +129,7 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
     except Exception as e:
         logging.error(f"Failed to batch create models: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to batch create models")
+                            detail=str(e))
 
 
 @router.post("/provider/list")
@@ -153,7 +153,7 @@ async def get_provider_list(request: ProviderModelRequest, authorization: Option
     except Exception as e:
         logging.error(f"Failed to get provider list: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to get provider list")
+                            detail=str(e))
 
 
 @router.post("/update")
@@ -179,11 +179,11 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
     except ValueError as e:
         logging.error(f"Failed to update model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.CONFLICT,
-                            detail="Failed to update model: name conflict")
+                            detail=str(e))
     except Exception as e:
         logging.error(f"Failed to update model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to update model")
+                            detail=str(e))
 
 
 @router.post("/batch_update")
@@ -203,7 +203,7 @@ async def batch_update_models(request: List[dict], authorization: Optional[str] 
     except Exception as e:
         logging.error(f"Failed to batch update models: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to batch update models")
+                            detail=str(e))
 
 
 @router.post("/delete")
@@ -230,11 +230,11 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
     except LookupError as e:
         logging.error(f"Failed to delete model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="Failed to delete model: model not found")
+                            detail=str(e))
     except Exception as e:
         logging.error(f"Failed to delete model: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to delete model")
+                            detail=str(e))
 
 
 @router.get("/list")
@@ -256,7 +256,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     except Exception as e:
         logging.error(f"Failed to list models: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to retrieve model list")
+                            detail=str(e))
 
 
 @router.get("/llm_list")
@@ -272,7 +272,7 @@ async def get_llm_model_list(authorization: Optional[str] = Header(None)):
     except Exception as e:
         logging.error(f"Failed to retrieve LLM list: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to retrieve LLM list")
+                            detail=str(e))
 
 
 @router.post("/healthcheck")
@@ -296,15 +296,15 @@ async def check_model_health(
     except LookupError as e:
         logging.error(f"Failed to check model connectivity: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="Model configuration not found")
+                            detail=str(e))
     except ValueError as e:
         logging.error(f"Invalid model configuration: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
-                            detail="Invalid model configuration")
+                            detail=str(e))
     except Exception as e:
         logging.error(f"Failed to check model connectivity: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to check model connectivity")
+                            detail=str(e))
 
 
 @router.post("/temporary_healthcheck")
@@ -324,4 +324,4 @@ async def check_temporary_model_health(request: ModelRequest):
     except Exception as e:
         logging.error(f"Failed to verify model connectivity: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to verify model connectivity")
+                            detail=str(e))

@@ -201,7 +201,7 @@ async def verify_model_config_connectivity(model_config: dict):
     Args:
         model_config: Model configuration dictionary, containing necessary connection parameters
     Returns:
-        dict: Contains the result of the connectivity test
+        dict: Contains the result of the connectivity test and error message if failed
     """
     try:
         model_name = model_config.get("model_name", "")
@@ -214,23 +214,34 @@ async def verify_model_config_connectivity(model_config: dict):
             connectivity = await _perform_connectivity_check(
                 model_name, model_type, model_base_url, model_api_key
             )
+            
+            if not connectivity:
+                return {
+                    "connectivity": False,
+                    "model_name": model_name,
+                    "error": f"Failed to connect to model '{model_name}' at {model_base_url}. Please verify the URL, API key, and network connection."
+                }
+            
+            return {
+                "connectivity": True,
+                "model_name": model_name,
+            }
         except ValueError as e:
-            logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {str(e)}")
+            error_msg = str(e)
+            logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {error_msg}")
             return {
                 "connectivity": False,
-                "model_name": model_name
+                "model_name": model_name,
+                "error": error_msg
             }
 
-        return {
-            "connectivity": connectivity,
-            "model_name": model_name,
-        }
-
     except Exception as e:
-        logger.error(f"Failed to check connectivity of models: {str(e)}")
+        error_msg = str(e)
+        logger.error(f"Failed to check connectivity of models: {error_msg}")
         return {
             "connectivity": False,
-            "model_name": model_config.get("model_name", "UNKNOWN_MODEL")
+            "model_name": model_config.get("model_name", "UNKNOWN_MODEL"),
+            "error": f"Connection verification failed: {error_msg}"
         }
 
 
