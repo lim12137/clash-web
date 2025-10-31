@@ -564,6 +564,18 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               hr: () => (
                 <hr className="markdown-hr" />
               ),
+              // Ordered list
+              ol: ({ children }: any) => (
+                <ol className="markdown-ol">
+                  {children}
+                </ol>
+              ),
+              // Unordered list
+              ul: ({ children }: any) => (
+                <ul className="markdown-ul">
+                  {children}
+                </ul>
+              ),
               // List item
               li: ({ children }: any) => (
                 <li className="markdown-li">

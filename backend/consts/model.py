@@ -278,6 +278,10 @@ class ExportAndImportAgentInfo(BaseModel):
     enabled: bool
     tools: List[ToolConfig]
     managed_agents: List[int]
+    model_id: Optional[int] = None
+    model_name: Optional[str] = None
+    business_logic_model_id: Optional[int] = None
+    business_logic_model_name: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True

@@ -159,7 +159,7 @@ export const modelService = {
 
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "添加自定义模型失败",
+          result.detail || result.message || "添加自定义模型失败",
           response.status
         );
       }
@@ -192,7 +192,7 @@ export const modelService = {
 
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "添加自定义模型失败",
+          result.detail || result.message || "添加自定义模型失败",
           response.status
         );
       }
@@ -224,7 +224,7 @@ export const modelService = {
 
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "添加自定义模型失败",
+          result.detail || result.message || "添加自定义模型失败",
           response.status
         );
       }
@@ -258,7 +258,7 @@ export const modelService = {
       log.log("getProviderSelectedModalList result", result);
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "获取模型列表失败",
+          result.detail || result.message || "获取模型列表失败",
           response.status
         );
       }
@@ -304,7 +304,7 @@ export const modelService = {
       const result = await response.json();
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "Failed to update the custom model",
+          result.detail || result.message || "Failed to update the custom model",
           response.status
         );
       }
@@ -336,7 +336,7 @@ export const modelService = {
       const result = await response.json();
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "Failed to update the custom model",
+          result.detail || result.message || "Failed to update the custom model",
           response.status
         );
       }
@@ -360,7 +360,7 @@ export const modelService = {
       const result = await response.json();
       if (response.status !== 200) {
         throw new ModelError(
-          result.message || "删除自定义模型失败",
+          result.detail || result.message || "删除自定义模型失败",
           response.status
         );
       }
@@ -433,12 +433,14 @@ export const modelService = {
         return {
           connectivity: result.data.connectivity,
           model_name: result.data.model_name || "UNKNOWN_MODEL",
+          error: result.data.connectivity ? undefined : result.data.error || result.detail || result.message,
         };
       }
 
       return {
         connectivity: false,
         model_name: result.data?.model_name || "UNKNOWN_MODEL",
+        error: result.detail || result.message || "Connection verification failed",
       };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -449,6 +451,7 @@ export const modelService = {
       return {
         connectivity: false,
         model_name: "UNKNOWN_MODEL",
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   },

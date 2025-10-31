@@ -90,7 +90,7 @@ async def test_create_model_conflict(client, auth_header, user_credentials, samp
     
     mock_create = mocker.patch(
         'apps.model_managment_app.create_model_for_tenant', 
-        side_effect=ValueError("Name conflict")
+        side_effect=ValueError("Name 'Test Model' is already in use, please choose another display name")
     )
     
     response = client.post(
@@ -98,7 +98,8 @@ async def test_create_model_conflict(client, auth_header, user_credentials, samp
     
     assert response.status_code == HTTPStatus.CONFLICT
     data = response.json()
-    assert "Failed to create model: name conflict" in data.get("detail", "")
+    # Now we return the actual error message, not a generic one
+    assert "Name 'Test Model' is already in use" in data.get("detail", "")
     mock_create.assert_called_once()
 
 
@@ -117,7 +118,8 @@ async def test_create_model_exception(client, auth_header, user_credentials, sam
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to create model" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "DB failure" in data.get("detail", "")
     mock_create.assert_called_once()
 
 
@@ -162,7 +164,8 @@ async def test_create_provider_model_exception(client, auth_header, user_credent
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to create provider model" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Provider API error" in data.get("detail", "")
     mock_get.assert_called_once()
 
 
@@ -213,7 +216,8 @@ async def test_provider_batch_create_exception(client, auth_header, user_credent
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to batch create models" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "boom" in data.get("detail", "")
     mock_batch.assert_called_once()
 
 
@@ -245,7 +249,7 @@ async def test_delete_model_not_found(client, auth_header, user_credentials, moc
     
     mock_del = mocker.patch(
         'apps.model_managment_app.delete_model_for_tenant', 
-        side_effect=LookupError("x")
+        side_effect=LookupError("Model not found: Missing")
     )
     
     response = client.post(
@@ -253,7 +257,8 @@ async def test_delete_model_not_found(client, auth_header, user_credentials, moc
     
     assert response.status_code == HTTPStatus.NOT_FOUND
     data = response.json()
-    assert "Failed to delete model: model not found" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Model not found: Missing" in data.get("detail", "")
     mock_del.assert_called_once()
 
 
@@ -346,7 +351,8 @@ async def test_get_llm_model_list_exception(client, auth_header, user_credential
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to retrieve LLM list" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Database connection error" in data.get("detail", "")
 
 
 @pytest.mark.asyncio
@@ -426,6 +432,34 @@ async def test_verify_model_config_success(client, auth_header, sample_model_dat
     data = response.json()
     assert data["message"] == "Successfully verified model connectivity"
     assert data["data"]["connectivity"] is True
+    # Success case should not have error field in response
+    assert "error" not in data["data"]
+    mock_verify.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_verify_model_config_failure_with_error(client, auth_header, sample_model_data, mocker):
+    """Test model config verification failure with detailed error message."""
+    mock_verify = mocker.patch(
+        'apps.model_managment_app.verify_model_config_connectivity', 
+        return_value={
+            "connectivity": False, 
+            "model_name": "gpt-4",
+            "error": "Failed to connect to model 'gpt-4' at https://api.openai.com. Please verify the URL, API key, and network connection."
+        }
+    )
+    
+    response = client.post(
+        "/model/temporary_healthcheck", json=sample_model_data)
+    
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data["message"] == "Successfully verified model connectivity"
+    assert data["data"]["connectivity"] is False
+    # Failure case should have error field with descriptive message
+    assert "error" in data["data"]
+    assert "Failed to connect to model" in data["data"]["error"]
+    assert "Please verify the URL, API key, and network connection" in data["data"]["error"]
     mock_verify.assert_called_once()
 
 
@@ -478,7 +512,7 @@ async def test_update_single_model_conflict(client, auth_header, user_credential
     
     mock_update = mocker.patch(
         'apps.model_managment_app.update_single_model_for_tenant', 
-        side_effect=ValueError("Name conflict")
+        side_effect=ValueError("Name 'Conflicting Name' is already in use, please choose another display name")
     )
     
     update_data = {
@@ -495,7 +529,8 @@ async def test_update_single_model_conflict(client, auth_header, user_credential
     
     assert response.status_code == HTTPStatus.CONFLICT
     data = response.json()
-    assert "Failed to update model: name conflict" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Name 'Conflicting Name' is already in use" in data.get("detail", "")
     mock_update.assert_called_once_with(user_credentials[0], user_credentials[1], update_data)
 
 
@@ -539,7 +574,8 @@ async def test_batch_update_models_exception(client, auth_header, user_credentia
     
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     data = response.json()
-    assert "Failed to batch update models" in data.get("detail", "")
+    # Now we return the actual error message
+    assert "Update failed" in data.get("detail", "")
     mock_batch_update.assert_called_once_with(user_credentials[0], user_credentials[1], models)
 
 
