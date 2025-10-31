@@ -270,6 +270,42 @@ def test_process_file_no_model_omits_chunk_params(monkeypatch):
     assert "max_characters" not in RecorderCore.captured_params
 
 
+def test_process_file_model_lookup_exception_uses_defaults(monkeypatch):
+    ray_actors = import_module(monkeypatch)
+
+    class RecorderCore:
+        captured_params = None
+
+        def __init__(self):
+            pass
+
+        def file_process(self, file_data, filename, chunking_strategy, **params):
+            RecorderCore.captured_params = params
+            return [{"content": "z", "metadata": {}}]
+
+    # Make model lookup raise to hit exception handler (lines 84-85)
+    monkeypatch.setattr(ray_actors, "DataProcessCore", RecorderCore)
+    monkeypatch.setattr(
+        ray_actors,
+        "get_model_by_model_id",
+        lambda model_id, tenant_id=None: (
+            _ for _ in ()).throw(RuntimeError("db down")),
+    )
+
+    actor = ray_actors.DataProcessorRayActor()
+    actor.process_file(
+        source="/tmp/c.txt",
+        chunking_strategy="basic",
+        destination="local",
+        model_id=11,
+        tenant_id="t3",
+    )
+
+    assert RecorderCore.captured_params is not None
+    assert "new_after_n_chars" not in RecorderCore.captured_params
+    assert "max_characters" not in RecorderCore.captured_params
+
+
 def test_process_file_get_stream_none_raises(monkeypatch):
     # Override get_file_stream to return None
     fake_attachment_db_mod = types.ModuleType("database.attachment_db")
