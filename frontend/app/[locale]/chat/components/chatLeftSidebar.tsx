@@ -9,6 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  Database,
+  Box,
+  Bot,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,7 +40,8 @@ import { StaticScrollArea } from "@/components/ui/scrollArea";
 import { USER_ROLES } from "@/const/modelConfig";
 import { useConfig } from "@/hooks/useConfig";
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize";
-import { Spin, Tag, ConfigProvider } from "antd";
+import { Spin, Tag, ConfigProvider, Dropdown, Menu } from "antd";
+import type { MenuProps } from "antd";
 import { getRoleColor } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { extractColorsFromUri } from "@/lib/avatar";
@@ -120,6 +124,7 @@ export function ChatSidebar({
   onRename,
   onDelete,
   onSettingsClick,
+  settingsMenuItems,
   onDropdownOpenChange,
   onToggleSidebar,
   expanded,
@@ -234,6 +239,100 @@ export function ChatSidebar({
           className="h-full w-full object-cover"
         />
       </div>
+    );
+  };
+
+  // Get icon for menu item based on key
+  const getMenuIcon = (key: string) => {
+    switch (key) {
+      case "models":
+        return <Box className="h-4 w-4" />;
+      case "knowledges":
+        return <Database className="h-4 w-4" />;
+      case "agents":
+        return <Bot className="h-4 w-4" />;
+    }
+  };
+
+  // Render settings button (with dropdown for admin, plain button for regular users)
+  const renderSettingsButton = (isCollapsed: boolean = false) => {
+    const buttonContent = (
+      <Button
+        variant="ghost"
+        size="icon"
+        className={isCollapsed ? "h-10 w-10 rounded-full hover:bg-slate-100" : "size-10 rounded-full hover:bg-slate-100"}
+        onClick={settingsMenuItems ? undefined : onSettingsClick}
+      >
+        <Settings className={isCollapsed ? "h-6 w-6" : "size-5"} />
+      </Button>
+    );
+
+    // If settingsMenuItems is provided, show dropdown with icons
+    if (settingsMenuItems && settingsMenuItems.length > 0) {
+      const menuProps: MenuProps = {
+        items: settingsMenuItems.map((item, index) => ({
+          key: item.key,
+          label: (
+            <div className="flex items-center gap-3 py-1">
+              <span className="text-gray-600">{getMenuIcon(item.key)}</span>
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+          ),
+          onClick: item.onClick,
+          style: {
+            padding: "8px 16px",
+          },
+        })),
+        style: {
+          minWidth: "240px",
+          borderRadius: "8px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+        },
+      };
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ConfigProvider
+                getPopupContainer={() => document.body}
+                theme={{
+                  components: {
+                    Dropdown: {
+                      paddingBlock: 4,
+                    },
+                  },
+                }}
+              >
+                <Dropdown menu={menuProps} placement="topRight" trigger={["click"]}>
+                  <div className={isCollapsed ? "flex justify-center" : ""}>
+                    {buttonContent}
+                  </div>
+                </Dropdown>
+              </ConfigProvider>
+            </TooltipTrigger>
+            <TooltipContent side={isCollapsed ? "right" : "top"}>
+              {t("chatLeftSidebar.settings")}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    // Otherwise, show plain button for regular users (shouldn't reach here anymore)
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={isCollapsed ? "flex justify-center" : ""}>
+              {buttonContent}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side={isCollapsed ? "right" : "top"}>
+            {t("chatLeftSidebar.settings")}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 
@@ -461,25 +560,7 @@ export function ChatSidebar({
         ) : null}
 
         {/* Settings button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex justify-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full hover:bg-slate-100"
-                  onClick={onSettingsClick}
-                >
-                  <Settings className="h-6 w-6" />
-                </Button>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {t("chatLeftSidebar.settings")}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {renderSettingsButton(true)}
       </>
     );
   };
@@ -628,14 +709,7 @@ export function ChatSidebar({
                   </div>
                 </ConfigProvider>
               ) : null}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-10 rounded-full hover:bg-slate-100"
-                onClick={onSettingsClick}
-              >
-                <Settings className="size-5" />
-              </Button>
+              {renderSettingsButton(false)}
             </div>
           </div>
         ) : (
