@@ -90,6 +90,7 @@ export interface GlobalConfig {
 export interface ModelValidationResponse {
   connectivity: boolean;
   model_name: string;
+  error?: string;  // Error message when connectivity fails
 }
 
 // Model engine check result interface
