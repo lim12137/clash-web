@@ -382,8 +382,18 @@ export default function ToolConfigModal({
         configParams // tool configuration parameters
       );
 
-      // Display the raw API response directly in the test result box
-      setTestResult(JSON.stringify(result, null, 2));
+      // Format the JSON string response
+      let formattedResult: string;
+      try {
+        const parsedResult =
+          typeof result === "string" ? JSON.parse(result) : result;
+        formattedResult = JSON.stringify(parsedResult, null, 2);
+      } catch (parseError) {
+        log.error("Failed to parse JSON result:", parseError);
+        formattedResult =
+          typeof result === "string" ? result : JSON.stringify(result, null, 2);
+      }
+      setTestResult(formattedResult);
     } catch (error) {
       log.error("Tool test execution failed:", error);
       setTestResult(`Test failed: ${error}`);
