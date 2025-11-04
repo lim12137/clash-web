@@ -390,8 +390,7 @@ export default function ToolConfigModal({
         formattedResult = JSON.stringify(parsedResult, null, 2);
       } catch (parseError) {
         log.error("Failed to parse JSON result:", parseError);
-        formattedResult =
-          typeof result === "string" ? result : JSON.stringify(result, null, 2);
+        formattedResult = typeof result === "string" ? result : String(result);
       }
       setTestResult(formattedResult);
     } catch (error) {
