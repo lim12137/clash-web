@@ -324,8 +324,14 @@ def merge_duplicate_documents_in_clusters(clusters: Dict[int, List[str]], doc_em
                 union(doc_id1, doc_id2)
             
             # Group documents by their root parent
+            # Only include documents that are part of duplicate pairs
+            duplicate_doc_ids = set()
+            for doc_id1, doc_id2, _, _, _ in merged_pairs:
+                duplicate_doc_ids.add(doc_id1)
+                duplicate_doc_ids.add(doc_id2)
+            
             groups = {}
-            for doc_id in doc_embeddings.keys():
+            for doc_id in duplicate_doc_ids:
                 root = find(doc_id)
                 if root not in groups:
                     groups[root] = []
