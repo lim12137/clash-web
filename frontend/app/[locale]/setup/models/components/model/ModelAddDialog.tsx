@@ -32,6 +32,26 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const { t } = useTranslation()
   const { message } = App.useApp()
   const { updateModelConfig } = useConfig()
+
+  // Parse backend error message and return i18n key with params
+  const parseModelError = (errorMessage: string): { key: string; params?: Record<string, string> } => {
+    if (!errorMessage) {
+      return { key: 'model.dialog.error.addFailed' }
+    }
+
+    // Check for name conflict error
+    const nameConflictMatch = errorMessage.match(/Name ['"]?([^'"]+)['"]? is already in use/i)
+    if (nameConflictMatch) {
+      return {
+        key: 'model.dialog.error.nameConflict',
+        params: { name: nameConflictMatch[1] }
+      }
+    }
+
+    // For other errors, return generic error key without showing backend details
+    return { key: 'model.dialog.error.addFailed' }
+  }
+
   const [form, setForm] = useState({
     type: MODEL_TYPES.LLM as ModelType,
     name: "",
@@ -211,7 +231,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         onSuccess()
       }
     } catch (error: any) {
-      message.error(error?.message || '添加模型失败');
+      const errorInfo = parseModelError(error?.message || '')
+      message.error(t(errorInfo.key, errorInfo.params))
     }
 
     setForm(prev => ({
@@ -354,7 +375,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       // Close the dialog
       onClose()
     } catch (error) {
-      message.error(t('model.dialog.error.addFailed', { error }))
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorInfo = parseModelError(errorMessage)
+      message.error(t(errorInfo.key, errorInfo.params))
       log.error(t('model.dialog.error.addFailedLog'), error)
     } finally {
       setLoading(false)
