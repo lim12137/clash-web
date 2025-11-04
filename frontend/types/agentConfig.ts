@@ -146,6 +146,7 @@ export interface SubAgentPoolProps {
   isGeneratingAgent?: boolean;
   editingAgent?: Agent | null;
   isCreatingNewAgent?: boolean;
+  editingAgentName?: string | null;
 }
 
 // ToolPool component props interface
