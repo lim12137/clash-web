@@ -669,6 +669,7 @@
   "businessLogic.config.message.generateSuccess": "Agent prompt generated successfully",
   "businessLogic.config.message.generateError": "Failed to generate agent prompt",
   "businessLogic.config.error.noAgentId": "Cannot continue: Agent ID is not set",
+  "businessLogic.config.error.businessDescriptionRequired": "Please enter business description first",
   "businessLogic.config.error.nameEmpty": "Agent name cannot be empty",
   "businessLogic.config.error.saveFailed": "Failed to save agent",
   "businessLogic.config.error.saveRetry": "Failed to save agent, please try again later",

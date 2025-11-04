@@ -87,6 +87,7 @@ export interface TreeNodeDatum {
 export interface AgentSetupOrchestratorProps {
   businessLogic: string;
   setBusinessLogic: (value: string) => void;
+  businessLogicError?: boolean;
   selectedTools: Tool[];
   setSelectedTools: (tools: Tool[]) => void;
   isCreatingNewAgent: boolean;
