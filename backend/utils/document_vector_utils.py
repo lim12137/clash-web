@@ -242,6 +242,10 @@ def merge_duplicate_documents_in_clusters(clusters: Dict[int, List[str]], doc_em
         if not clusters or not doc_embeddings:
             return clusters
         
+        # Skip merging if there's only one cluster (nothing to merge)
+        if len(clusters) <= 1:
+            return clusters
+        
         # Build a mapping from doc_id to its current cluster
         doc_to_cluster = {}
         for cluster_id, doc_ids in clusters.items():
@@ -275,10 +279,26 @@ def merge_duplicate_documents_in_clusters(clusters: Dict[int, List[str]], doc_em
                     cluster1 = doc_to_cluster.get(doc_id1)
                     cluster2 = doc_to_cluster.get(doc_id2)
                     
-                    # If they are in different clusters, merge them
+                    # Only merge if they are in different clusters AND truly duplicates
+                    # Check both cosine similarity AND Euclidean distance to prevent false positives
                     if cluster1 is not None and cluster2 is not None and cluster1 != cluster2:
-                        merged_pairs.append((doc_id1, doc_id2, cluster1, cluster2, similarity))
-                        logger.info(f"Found duplicate documents: {doc_id1} and {doc_id2} (similarity: {similarity:.4f}) in different clusters {cluster1} and {cluster2}")
+                        # Calculate Euclidean distance to ensure they're truly duplicates
+                        # Documents that are just in the same direction but far apart should not be merged
+                        euclidean_distance = np.linalg.norm(embedding1 - embedding2)
+                        
+                        # Normalize embeddings to get their magnitudes
+                        norm1 = np.linalg.norm(embedding1)
+                        norm2 = np.linalg.norm(embedding2)
+                        avg_norm = (norm1 + norm2) / 2.0
+                        
+                        # Relative distance threshold: if distance is less than 1% of average magnitude,
+                        # they are likely true duplicates (same content, different path_or_url)
+                        # This prevents merging documents that are just in similar directions
+                        relative_distance_threshold = 0.01 * avg_norm if avg_norm > 0 else 0.1
+                        
+                        if euclidean_distance <= relative_distance_threshold:
+                            merged_pairs.append((doc_id1, doc_id2, cluster1, cluster2, similarity))
+                            logger.info(f"Found duplicate documents: {doc_id1} and {doc_id2} (similarity: {similarity:.4f}, distance: {euclidean_distance:.4f}) in different clusters {cluster1} and {cluster2}")
         
         # Merge duplicate documents into the same cluster
         if merged_pairs:
