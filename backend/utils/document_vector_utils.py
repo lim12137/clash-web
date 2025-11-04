@@ -17,6 +17,7 @@ import yaml
 from jinja2 import Template, StrictUndefined
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
+from sklearn.metrics.pairwise import cosine_similarity
 
 from consts.const import LANGUAGE
 
@@ -77,7 +78,15 @@ def get_documents_from_es(index_name: str, es_core, sample_doc_count: int = 200)
                 "query": {
                     "term": {"path_or_url": path_or_url}
                 },
-                "size": chunk_count  # Get all chunks
+                "size": chunk_count,  # Get all chunks
+                "sort": [
+                    {
+                        "create_time": {
+                            "order": "asc",
+                            "missing": "_last"  # Put documents without create_time at the end
+                        }
+                    }
+                ]
             }
             
             chunks_response = es_core.client.search(index=index_name, body=chunks_query)
@@ -124,10 +133,9 @@ def calculate_document_embedding(doc_chunks: List[Dict], use_weighted: bool = Tr
                 embeddings.append(np.array(chunk_embedding))
                 
                 if use_weighted:
-                    # Weight by content length
+                    # Weight by content length only (removed position-based weight to reduce order dependency)
                     content_length = len(chunk.get('content', ''))
-                    position_weight = 1.5 if len(embeddings) == 1 else 1.0  # First chunk has higher weight
-                    weight = position_weight * content_length
+                    weight = content_length
                     weights.append(weight)
         
         if not embeddings:
@@ -217,6 +225,136 @@ def auto_determine_k(embeddings: np.ndarray, min_k: int = 3, max_k: int = 15) ->
         return heuristic_k
 
 
+def merge_duplicate_documents_in_clusters(clusters: Dict[int, List[str]], doc_embeddings: Dict[str, np.ndarray], similarity_threshold: float = 0.98) -> Dict[int, List[str]]:
+    """
+    Post-process clusters to merge duplicate documents (same content but different path_or_url)
+    that were incorrectly split into different clusters.
+    
+    Args:
+        clusters: Dictionary mapping cluster IDs to lists of document IDs
+        doc_embeddings: Dictionary mapping document IDs to their embeddings
+        similarity_threshold: Cosine similarity threshold to consider documents as duplicates (default: 0.98)
+        
+    Returns:
+        Updated clusters dictionary with duplicate documents merged
+    """
+    try:
+        if not clusters or not doc_embeddings:
+            return clusters
+        
+        # Build a mapping from doc_id to its current cluster
+        doc_to_cluster = {}
+        for cluster_id, doc_ids in clusters.items():
+            for doc_id in doc_ids:
+                doc_to_cluster[doc_id] = cluster_id
+        
+        # Find duplicate pairs with high similarity
+        doc_ids_list = list(doc_embeddings.keys())
+        merged_pairs = []
+        
+        for i, doc_id1 in enumerate(doc_ids_list):
+            if doc_id1 not in doc_embeddings:
+                continue
+            
+            embedding1 = doc_embeddings[doc_id1]
+            
+            for j, doc_id2 in enumerate(doc_ids_list[i+1:], start=i+1):
+                if doc_id2 not in doc_embeddings:
+                    continue
+                
+                embedding2 = doc_embeddings[doc_id2]
+                
+                # Calculate cosine similarity
+                similarity = cosine_similarity(
+                    embedding1.reshape(1, -1),
+                    embedding2.reshape(1, -1)
+                )[0][0]
+                
+                # If similarity is very high, they are likely duplicates
+                if similarity >= similarity_threshold:
+                    cluster1 = doc_to_cluster.get(doc_id1)
+                    cluster2 = doc_to_cluster.get(doc_id2)
+                    
+                    # If they are in different clusters, merge them
+                    if cluster1 is not None and cluster2 is not None and cluster1 != cluster2:
+                        merged_pairs.append((doc_id1, doc_id2, cluster1, cluster2, similarity))
+                        logger.info(f"Found duplicate documents: {doc_id1} and {doc_id2} (similarity: {similarity:.4f}) in different clusters {cluster1} and {cluster2}")
+        
+        # Merge duplicate documents into the same cluster
+        if merged_pairs:
+            logger.info(f"Merging {len(merged_pairs)} pairs of duplicate documents")
+            
+            # Build a graph of duplicate relationships using union-find
+            parent = {}
+            
+            def find(x):
+                if x not in parent:
+                    parent[x] = x
+                if parent[x] != x:
+                    parent[x] = find(parent[x])
+                return parent[x]
+            
+            def union(x, y):
+                px, py = find(x), find(y)
+                if px != py:
+                    parent[px] = py
+            
+            # Build union-find structure
+            for doc_id1, doc_id2, _, _, _ in merged_pairs:
+                union(doc_id1, doc_id2)
+            
+            # Group documents by their root parent
+            groups = {}
+            for doc_id in doc_embeddings.keys():
+                root = find(doc_id)
+                if root not in groups:
+                    groups[root] = []
+                groups[root].append(doc_id)
+            
+            # Merge each group into the same cluster
+            for root, doc_group in groups.items():
+                if len(doc_group) < 2:
+                    continue
+                
+                # Find all clusters containing documents in this group
+                clusters_in_group = set()
+                for doc_id in doc_group:
+                    if doc_id in doc_to_cluster:
+                        clusters_in_group.add(doc_to_cluster[doc_id])
+                
+                if len(clusters_in_group) > 1:
+                    # Merge all documents to the smallest cluster ID
+                    target_cluster = min(clusters_in_group)
+                    
+                    for doc_id in doc_group:
+                        current_cluster = doc_to_cluster.get(doc_id)
+                        if current_cluster is not None and current_cluster != target_cluster:
+                            # Move document to target cluster
+                            if current_cluster in clusters and doc_id in clusters[current_cluster]:
+                                clusters[current_cluster].remove(doc_id)
+                            if target_cluster not in clusters:
+                                clusters[target_cluster] = []
+                            if doc_id not in clusters[target_cluster]:
+                                clusters[target_cluster].append(doc_id)
+                            doc_to_cluster[doc_id] = target_cluster
+                            logger.debug(f"Moved {doc_id} from cluster {current_cluster} to cluster {target_cluster}")
+            
+            # Remove empty clusters
+            empty_clusters = [cid for cid, docs in clusters.items() if not docs]
+            for cid in empty_clusters:
+                del clusters[cid]
+                logger.debug(f"Removed empty cluster {cid}")
+            
+            logger.info(f"Successfully merged duplicate documents. Final cluster count: {len(clusters)}")
+        
+        return clusters
+        
+    except Exception as e:
+        logger.error(f"Error merging duplicate documents: {str(e)}", exc_info=True)
+        # Return original clusters if merge fails
+        return clusters
+
+
 def kmeans_cluster_documents(doc_embeddings: Dict[str, np.ndarray], k: Optional[int] = None) -> Dict[int, List[str]]:
     """
     Cluster documents using K-means
@@ -265,6 +403,13 @@ def kmeans_cluster_documents(doc_embeddings: Dict[str, np.ndarray], k: Optional[
         # Log cluster sizes
         for cluster_id, docs in clusters.items():
             logger.info(f"Cluster {cluster_id}: {len(docs)} documents")
+        
+        # Post-process: merge duplicate documents that were split into different clusters
+        clusters = merge_duplicate_documents_in_clusters(clusters, doc_embeddings, similarity_threshold=0.98)
+        
+        # Log final cluster sizes after merge
+        for cluster_id, docs in clusters.items():
+            logger.info(f"Final cluster {cluster_id}: {len(docs)} documents")
         
         return clusters
         
