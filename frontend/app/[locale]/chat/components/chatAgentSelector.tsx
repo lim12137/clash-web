@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, MousePointerClick } from "lucide-react";
+import { ChevronDown, MousePointerClick, AlertCircle } from "lucide-react";
 
 import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
@@ -34,6 +34,39 @@ export function ChatAgentSelector({
     (agent) => agent.agent_id === selectedAgentId
   );
 
+  // Detect duplicate agent names and mark later-added agents as disabled
+  // For agents with the same name, keep the first one (smallest ID) enabled, disable the rest
+  const duplicateAgentInfo = useMemo(() => {
+    // Create a map to track agents by name
+    const nameToAgents = new Map<string, Agent[]>();
+    
+    agents.forEach((agent) => {
+      const agentName = agent.name;
+      if (!nameToAgents.has(agentName)) {
+        nameToAgents.set(agentName, []);
+      }
+      nameToAgents.get(agentName)!.push(agent);
+    });
+
+    // For each group of agents with the same name, sort by ID (smallest first)
+    // Mark all except the first one as disabled
+    const disabledAgentIds = new Set<number>();
+    
+    nameToAgents.forEach((agents, name) => {
+      if (agents.length > 1) {
+        // Sort by agent_id (smallest first)
+        const sortedAgents = [...agents].sort((a, b) => a.agent_id - b.agent_id);
+        
+        // Mark all except the first one as disabled
+        for (let i = 1; i < sortedAgents.length; i++) {
+          disabledAgentIds.add(sortedAgents[i].agent_id);
+        }
+      }
+    });
+
+    return { disabledAgentIds, nameToAgents };
+  }, [agents]);
+
   /**
    * Handle URL parameter auto-selection logic for Agent
    */
@@ -46,11 +79,17 @@ export function ChatAgentSelector({
     );
     if (agentId === null) return;
 
-    // Check if agentId is a valid agent
+    // Check if agentId is a valid and effectively available agent
     const agent = agents.find((a) => a.agent_id === agentId);
-    if (agent && agent.is_available) {
-      handleAgentSelect(agentId);
-      setIsAutoSelectInit(true);
+    if (agent) {
+      const isAvailable = agent.is_available !== false;
+      const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
+      const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+      
+      if (isEffectivelyAvailable) {
+        handleAgentSelect(agentId);
+        setIsAutoSelectInit(true);
+      }
     }
   };
 
@@ -61,7 +100,8 @@ export function ChatAgentSelector({
   // Execute auto-selection logic when agents are loaded
   useEffect(() => {
     handleAutoSelectAgent();
-  }, [agents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agents, duplicateAgentInfo]);
 
   // Calculate dropdown position
   useEffect(() => {
@@ -157,11 +197,17 @@ export function ChatAgentSelector({
   };
 
   const handleAgentSelect = (agentId: number | null) => {
-    // Only available agents can be selected
+    // Only effectively available agents can be selected
     if (agentId !== null) {
       const agent = agents.find((a) => a.agent_id === agentId);
-      if (agent && !agent.is_available) {
-        return; // Unavailable agents cannot be selected
+      if (agent) {
+        const isAvailable = agent.is_available !== false;
+        const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
+        const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+        
+        if (!isEffectivelyAvailable) {
+          return; // Unavailable agents cannot be selected
+        }
       }
     }
 
@@ -301,90 +347,111 @@ export function ChatAgentSelector({
                     )}
                   </div>
                 ) : (
-                  allAgents.map((agent, idx) => (
-                    <div
-                      key={agent.agent_id}
-                      className={`
-                      flex items-start gap-3 px-3.5 py-2.5 text-sm
-                      transition-all duration-150 ease-in-out
-                      ${
-                        agent.is_available
-                          ? `hover:bg-slate-50 cursor-pointer ${
-                              selectedAgentId === agent.agent_id
-                                ? "bg-blue-50/70 text-blue-600 hover:bg-blue-50/70"
-                                : ""
-                            }`
-                          : "cursor-not-allowed bg-slate-50/50"
+                  allAgents.map((agent, idx) => {
+                    const isAvailable = agent.is_available !== false;
+                    const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
+                    const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+                    
+                    // Determine the reason for unavailability
+                    let unavailableReason: string | null = null;
+                    if (!isEffectivelyAvailable) {
+                      if (isDuplicateDisabled) {
+                        unavailableReason = t("subAgentPool.tooltip.duplicateNameDisabled");
+                      } else if (!isAvailable) {
+                        unavailableReason = t("subAgentPool.tooltip.hasUnavailableTools");
                       }
-                      ${
-                        selectedAgentId === agent.agent_id
-                          ? "shadow-[inset_2px_0_0_0] shadow-blue-500"
-                          : ""
-                      }
-                      ${idx !== 0 ? "border-t border-slate-100" : ""}
-                    `}
-                      onClick={() =>
-                        agent.is_available && handleAgentSelect(agent.agent_id)
-                      }
-                    >
-                      {/* Agent Icon */}
-                      <div className="flex-shrink-0 mt-0.5">
-                        <MousePointerClick
-                          className={`h-4 w-4 ${
-                            agent.is_available
-                              ? selectedAgentId === agent.agent_id
-                                ? "text-blue-500"
-                                : "text-slate-500"
-                              : "text-slate-300"
-                          }`}
-                        />
-                      </div>
+                    }
 
-                      {/* Agent Info */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`font-medium truncate ${
-                            agent.is_available
-                              ? selectedAgentId === agent.agent_id
-                                ? "text-blue-600"
-                                : "text-slate-700 hover:text-slate-900"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            {agent.display_name && (
-                              <span className="text-sm leading-none">
-                                {agent.display_name}
-                              </span>
-                            )}
-                            <span
-                              className={`text-sm leading-none align-baseline ${
-                                agent.display_name ? "ml-2" : "text-sm"
+                    return (
+                      <div
+                        key={agent.agent_id}
+                        className={`
+                        flex items-start gap-3 px-3.5 py-2.5 text-sm
+                        transition-all duration-150 ease-in-out
+                        ${
+                          isEffectivelyAvailable
+                            ? `hover:bg-slate-50 cursor-pointer ${
+                                selectedAgentId === agent.agent_id
+                                  ? "bg-blue-50/70 text-blue-600 hover:bg-blue-50/70"
+                                  : ""
+                              }`
+                            : "opacity-60 cursor-not-allowed bg-slate-50/50"
+                        }
+                        ${
+                          selectedAgentId === agent.agent_id
+                            ? "shadow-[inset_2px_0_0_0] shadow-blue-500"
+                            : ""
+                        }
+                        ${idx !== 0 ? "border-t border-slate-100" : ""}
+                      `}
+                        onClick={() =>
+                          isEffectivelyAvailable && handleAgentSelect(agent.agent_id)
+                        }
+                      >
+                        {/* Agent Icon */}
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isEffectivelyAvailable ? (
+                            <MousePointerClick
+                              className={`h-4 w-4 ${
+                                selectedAgentId === agent.agent_id
+                                  ? "text-blue-500"
+                                  : "text-slate-500"
                               }`}
-                            >
-                              {agent.name}
-                            </span>
-                          </div>
-                        </div>
-                        <div
-                          className={`text-xs mt-1 leading-relaxed ${
-                            agent.is_available
-                              ? selectedAgentId === agent.agent_id
-                                ? "text-blue-500"
-                                : "text-slate-500"
-                              : "text-slate-300"
-                          }`}
-                        >
-                          {agent.description}
-                          {!agent.is_available && (
-                            <span className="block mt-1 text-red-400">
-                              {t("agentSelector.agentUnavailable")}
-                            </span>
+                            />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-amber-500" />
                           )}
                         </div>
+
+                        {/* Agent Info */}
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`font-medium truncate ${
+                              isEffectivelyAvailable
+                                ? selectedAgentId === agent.agent_id
+                                  ? "text-blue-600"
+                                  : "text-slate-700 hover:text-slate-900"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              {!isEffectivelyAvailable && (
+                                <AlertCircle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                              )}
+                              {agent.display_name && (
+                                <span className="text-sm leading-none">
+                                  {agent.display_name}
+                                </span>
+                              )}
+                              <span
+                                className={`text-sm leading-none align-baseline ${
+                                  agent.display_name ? "ml-2" : "text-sm"
+                                }`}
+                              >
+                                {agent.name}
+                              </span>
+                            </div>
+                          </div>
+                          <div
+                            className={`text-xs mt-1 leading-relaxed ${
+                              isEffectivelyAvailable
+                                ? selectedAgentId === agent.agent_id
+                                  ? "text-blue-500"
+                                  : "text-slate-500"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {agent.description}
+                            {unavailableReason && (
+                              <span className="block mt-1.5 text-amber-600 font-medium">
+                                {unavailableReason}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

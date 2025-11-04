@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { App, Button } from "antd";
@@ -26,6 +26,7 @@ export default function SubAgentPool({
   isGeneratingAgent = false,
   editingAgent = null,
   isCreatingNewAgent = false,
+  editingAgentName = null,
 }: SubAgentPoolProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -47,6 +48,51 @@ export default function SubAgentPool({
     setCallRelationshipModalVisible(false);
     setSelectedAgentForRelationship(null);
   };
+
+  // Detect duplicate agent names and mark later-added agents as disabled
+  // For agents with the same name, keep the first one (smallest ID) enabled, disable the rest
+  const duplicateAgentInfo = useMemo(() => {
+    // Create a map to track agents by name
+    const nameToAgents = new Map<string, Agent[]>();
+    
+    subAgentList.forEach((agent) => {
+      // Use the current editing name if this agent is being edited, otherwise use the original name
+      const agentName = 
+        editingAgent && String(editingAgent.id) === String(agent.id) && editingAgentName
+          ? editingAgentName
+          : agent.name;
+      
+      if (!nameToAgents.has(agentName)) {
+        nameToAgents.set(agentName, []);
+      }
+      nameToAgents.get(agentName)!.push(agent);
+    });
+
+    // For each group of agents with the same name, sort by ID (smallest first)
+    // Mark all except the first one as disabled
+    const disabledAgentIds = new Set<string>();
+    
+    nameToAgents.forEach((agents, name) => {
+      if (agents.length > 1) {
+        // Sort by ID (treating as number if possible, otherwise as string)
+        const sortedAgents = [...agents].sort((a, b) => {
+          const idA = Number(a.id);
+          const idB = Number(b.id);
+          if (!isNaN(idA) && !isNaN(idB)) {
+            return idA - idB;
+          }
+          return String(a.id).localeCompare(String(b.id));
+        });
+        
+        // Mark all except the first one as disabled
+        for (let i = 1; i < sortedAgents.length; i++) {
+          disabledAgentIds.add(String(sortedAgents[i].id));
+        }
+      }
+    });
+
+    return { disabledAgentIds, nameToAgents };
+  }, [subAgentList, editingAgent, editingAgentName]);
 
   return (
     <TooltipProvider>
@@ -177,6 +223,11 @@ export default function SubAgentPool({
                   const isAvailable = agent.is_available !== false; // Default is true, only unavailable when explicitly false
                   const isCurrentlyEditing =
                     editingAgent && String(editingAgent.id) === String(agent.id); // Ensure type matching
+                  
+                  // Check if this agent is disabled due to duplicate name
+                  const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(String(agent.id));
+                  // Combined availability: must be available AND not duplicate disabled
+                  const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
 
                   return (
                     <Tooltip key={agent.id}>
@@ -185,7 +236,9 @@ export default function SubAgentPool({
                           className={`py-3 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 h-[80px] ${
                             isCurrentlyEditing
                               ? "bg-blue-50 border-l-4 border-l-blue-500" // Highlight editing agent, add left vertical line
-                              : "hover:bg-gray-50 cursor-pointer"
+                              : isEffectivelyAvailable
+                              ? "hover:bg-gray-50 cursor-pointer"
+                              : "opacity-60 cursor-pointer" // All unavailable agents can be clicked to edit
                           }`}
                           onClick={async (e) => {
                             // Prevent event bubbling
@@ -193,11 +246,12 @@ export default function SubAgentPool({
                             e.stopPropagation();
 
                             if (!isGeneratingAgent) {
+                              // Allow all unavailable agents to enter edit mode for configuration
                               if (isCurrentlyEditing) {
                                 // If currently editing this Agent, click to exit edit mode
                                 onExitEditMode?.();
                               } else {
-                                // Otherwise enter edit mode (or switch to this Agent)
+                                // Enter edit mode (all agents can be edited)
                                 onEditAgent(agent);
                               }
                             }
@@ -207,11 +261,11 @@ export default function SubAgentPool({
                             <div className="flex-1 overflow-hidden">
                               <div
                                 className={`font-medium text-base truncate transition-colors duration-300 ${
-                                  !isAvailable ? "text-gray-500" : ""
+                                  !isEffectivelyAvailable ? "text-gray-500" : ""
                                 }`}
                               >
                                 <div className="flex items-center gap-1.5">
-                                  {!isAvailable && (
+                                  {!isEffectivelyAvailable && (
                                     <ExclamationCircleOutlined className="text-amber-500 text-sm flex-shrink-0" />
                                   )}
                                   {agent.display_name && (
@@ -232,7 +286,7 @@ export default function SubAgentPool({
                               </div>
                               <div
                                 className={`text-xs line-clamp-2 transition-colors duration-300 leading-[1.25] overflow-hidden ${
-                                  !isAvailable ? "text-gray-400" : "text-gray-500"
+                                  !isEffectivelyAvailable ? "text-gray-400" : "text-gray-500"
                                 }`}
                                 style={{
                                   display: '-webkit-box',
@@ -259,11 +313,11 @@ export default function SubAgentPool({
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      if (isAvailable) {
+                                      if (isEffectivelyAvailable) {
                                         handleViewCallRelationship(agent);
                                       }
                                     }}
-                                    disabled={!isAvailable}
+                                    disabled={!isEffectivelyAvailable}
                                     className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
                                   />
                                 </TooltipTrigger>
@@ -276,10 +330,12 @@ export default function SubAgentPool({
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {!isAvailable
-                          ? t("subAgentPool.tooltip.hasUnavailableTools")
-                          : isCurrentlyEditing
+                        {isCurrentlyEditing
                           ? t("subAgentPool.tooltip.exitEditMode")
+                          : isDuplicateDisabled
+                          ? t("subAgentPool.tooltip.duplicateNameDisabled")
+                          : !isEffectivelyAvailable
+                          ? t("subAgentPool.tooltip.hasUnavailableTools")
                           : `${t("subAgentPool.tooltip.editAgent")} ${
                               agent.display_name || agent.name
                             }`}

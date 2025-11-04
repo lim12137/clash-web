@@ -937,6 +937,7 @@ export default function AgentSetupOrchestrator({
               isGeneratingAgent={isGeneratingAgent}
               editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
+              editingAgentName={agentName || null}
             />
           </div>
 
