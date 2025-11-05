@@ -415,9 +415,6 @@ export function ChatAgentSelector({
                             }`}
                           >
                             <div className="flex items-center gap-1.5">
-                              {!isEffectivelyAvailable && (
-                                <AlertCircle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                              )}
                               {agent.display_name && (
                                 <span className="text-sm leading-none">
                                   {agent.display_name}

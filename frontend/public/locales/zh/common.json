@@ -337,7 +337,7 @@
   "subAgentPool.button.import": "导入Agent",
   "subAgentPool.button.importing": "导入中...",
   "subAgentPool.tooltip.unavailableAgent": "Agent不可用",
-  "subAgentPool.tooltip.hasUnavailableTools": "该智能体因包含不可用的工具，请修改工具配置后使用",
+  "subAgentPool.tooltip.hasUnavailableTools": "该智能体因包含不可用工具而被禁用，请修改工具配置后使用",
   "subAgentPool.section.agentList": "智能体列表",
   "subAgentPool.description.exitCreate": "退出创建模式",
   "subAgentPool.description.createAgent": "创建自定义智能体",
