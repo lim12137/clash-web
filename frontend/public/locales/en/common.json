@@ -336,7 +336,7 @@
   "subAgentPool.button.import": "Import Agent",
   "subAgentPool.button.importing": "Importing...",
   "subAgentPool.tooltip.unavailableAgent": "Agent is unavailable",
-  "subAgentPool.tooltip.hasUnavailableTools": "This agent contains unusable tools. Please modify the tool configuration before using it",
+  "subAgentPool.tooltip.hasUnavailableTools": "This agent has been disabled because it contains unavailable tools. Please modify the tool configuration before using it",
   "subAgentPool.section.agentList": "Agent List",
   "subAgentPool.description.exitCreate": "Exit create mode",
   "subAgentPool.description.createAgent": "Create custom agent",
