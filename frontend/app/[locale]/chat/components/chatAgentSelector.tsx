@@ -82,9 +82,9 @@ export function ChatAgentSelector({
     // Check if agentId is a valid and effectively available agent
     const agent = agents.find((a) => a.agent_id === agentId);
     if (agent) {
-      const isAvailable = agent.is_available !== false;
+      const isAvailableTool = agent.is_available !== false;
       const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
-      const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+      const isEffectivelyAvailable = isAvailableTool && !isDuplicateDisabled;
       
       if (isEffectivelyAvailable) {
         handleAgentSelect(agentId);
@@ -201,9 +201,9 @@ export function ChatAgentSelector({
     if (agentId !== null) {
       const agent = agents.find((a) => a.agent_id === agentId);
       if (agent) {
-        const isAvailable = agent.is_available !== false;
+        const isAvailableTool = agent.is_available !== false;
         const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
-        const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+        const isEffectivelyAvailable = isAvailableTool && !isDuplicateDisabled;
         
         if (!isEffectivelyAvailable) {
           return; // Unavailable agents cannot be selected
@@ -348,16 +348,16 @@ export function ChatAgentSelector({
                   </div>
                 ) : (
                   allAgents.map((agent, idx) => {
-                    const isAvailable = agent.is_available !== false;
+                    const isAvailableTool = agent.is_available !== false;
                     const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(agent.agent_id);
-                    const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+                    const isEffectivelyAvailable = isAvailableTool && !isDuplicateDisabled;
                     
                     // Determine the reason for unavailability
                     let unavailableReason: string | null = null;
                     if (!isEffectivelyAvailable) {
                       if (isDuplicateDisabled) {
                         unavailableReason = t("subAgentPool.tooltip.duplicateNameDisabled");
-                      } else if (!isAvailable) {
+                      } else if (!isAvailableTool) {
                         unavailableReason = t("subAgentPool.tooltip.hasUnavailableTools");
                       }
                     }
