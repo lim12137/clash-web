@@ -562,7 +562,7 @@
   "model.dialog.error.connectivityRequired": "Please verify model connectivity and ensure connection is successful before adding the model",
   "model.dialog.error.addFailed": "Failed to add model",
   "model.dialog.error.addFailedLog": "Failed to add model",
-  "model.dialog.error.noModelsFetched": "Please check your API key and network connectivity",
+  "model.dialog.error.noModelsFetched": "Operation failed! Please check your API key and network connectivity",
   "model.dialog.message.noModels": "Please fetch models first",
   "model.dialog.success.updateSuccess": "Updated successfully",
   "model.dialog.editTitle": "Edit Model",
