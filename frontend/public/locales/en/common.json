@@ -336,7 +336,7 @@
   "subAgentPool.button.import": "Import Agent",
   "subAgentPool.button.importing": "Importing...",
   "subAgentPool.tooltip.unavailableAgent": "Agent is unavailable",
-  "subAgentPool.tooltip.hasUnavailableTools": "Contains unavailable tools",
+  "subAgentPool.tooltip.hasUnavailableTools": "This agent has been disabled because it contains unavailable tools. Please modify the tool configuration before using it",
   "subAgentPool.section.agentList": "Agent List",
   "subAgentPool.description.exitCreate": "Exit create mode",
   "subAgentPool.description.createAgent": "Create custom agent",
@@ -346,6 +346,8 @@
   "subAgentPool.tooltip.exitCreateMode": "Click to exit create mode",
   "subAgentPool.tooltip.exitEditMode": "Click to exit edit mode",
   "subAgentPool.tooltip.editAgent": "Click to edit",
+  "subAgentPool.tooltip.duplicateNameDisabled": "This agent is disabled due to duplicate name with other agents. Please change the name to use it",
+  "subAgentPool.message.duplicateNameDisabled": "This agent is disabled due to duplicate name with other agents. Please change the name to use it",
 
   "toolConfig.title.paramConfig": "Parameter Configuration",
   "toolConfig.message.loadError": "Failed to load tool configuration",
