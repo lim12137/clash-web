@@ -271,3 +271,6 @@ LLM_SLOW_TOKEN_RATE_THRESHOLD = float(
 
 # APP Version
 APP_VERSION = "v1.7.5.1"
+
+DEFAULT_ZH_TITLE = "新对话"
+DEFAULT_EN_TITLE = "New Conversation"
