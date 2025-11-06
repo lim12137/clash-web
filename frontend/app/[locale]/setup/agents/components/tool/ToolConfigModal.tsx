@@ -382,8 +382,17 @@ export default function ToolConfigModal({
         configParams // tool configuration parameters
       );
 
-      // Display the raw API response directly in the test result box
-      setTestResult(JSON.stringify(result, null, 2));
+      // Format the JSON string response
+      let formattedResult: string;
+      try {
+        const parsedResult =
+          typeof result === "string" ? JSON.parse(result) : result;
+        formattedResult = JSON.stringify(parsedResult, null, 2);
+      } catch (parseError) {
+        log.error("Failed to parse JSON result:", parseError);
+        formattedResult = typeof result === "string" ? result : String(result);
+      }
+      setTestResult(formattedResult);
     } catch (error) {
       log.error("Tool test execution failed:", error);
       setTestResult(`Test failed: ${error}`);
@@ -531,7 +540,7 @@ export default function ToolConfigModal({
               <button
                 onClick={handleTestTool}
                 disabled={!tool}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
               >
                 {t("toolConfig.button.testTool")}
               </button>
@@ -539,14 +548,14 @@ export default function ToolConfigModal({
             <div className="flex gap-2">
               <button
                 onClick={onCancel}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
               >
                 {t("common.button.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
               >
                 {isLoading
                   ? t("common.button.saving")

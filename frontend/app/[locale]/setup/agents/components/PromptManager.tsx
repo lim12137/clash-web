@@ -177,6 +177,7 @@ export interface PromptManagerProps {
   // Basic data
   agentId?: number;
   businessLogic?: string;
+  businessLogicError?: boolean;
   dutyContent?: string;
   constraintContent?: string;
   fewShotsContent?: string;
@@ -229,6 +230,7 @@ export interface PromptManagerProps {
 export default function PromptManager({
   agentId,
   businessLogic = "",
+  businessLogicError = false,
   dutyContent = "",
   constraintContent = "",
   fewShotsContent = "",
@@ -543,10 +545,16 @@ export default function PromptManager({
           </div>
           
           {/* 重新设计的容器：分为文本区域和控件区域 */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm" style={{ minHeight: "120px", maxHeight: "200px" }}>
+          <div 
+            className={`border rounded-lg overflow-hidden bg-white shadow-sm transition-all duration-300 ${
+              businessLogicError ? "border-red-500 border-2" : "border-gray-200"
+            }`}
+            style={{ minHeight: "120px", maxHeight: "200px" }}
+          >
             {/* 文本内容区域 */}
             <div className="px-2 pt-2 pb-1 overflow-hidden" style={{ minHeight: "80px", maxHeight: "160px" }}>
               <Input.TextArea
+                data-business-logic-input
                 value={businessLogic}
                 onChange={(e) => onBusinessLogicChange?.(e.target.value)}
                 placeholder={t("businessLogic.placeholder")}
