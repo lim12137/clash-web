@@ -319,39 +319,53 @@ export default function ToolConfigModal({
     try {
       // Prepare parameters for tool validation with correct types
       const toolParams: Record<string, any> = {};
-      dynamicInputParams.forEach((paramName) => {
-        const value = paramValues[paramName];
-        const paramInfo = parsedInputs[paramName];
-        const paramType = paramInfo?.type || DEFAULT_TYPE;
 
-        if (value && value.trim() !== "") {
-          // Convert value to correct type based on parameter type from inputs
-          switch (paramType) {
-            case "integer":
-            case "number":
-              const numValue = Number(value.trim());
-              if (!isNaN(numValue)) {
-                toolParams[paramName] = numValue;
-              } else {
-                toolParams[paramName] = value.trim(); // fallback to string if conversion fails
-              }
-              break;
-            case "boolean":
-              toolParams[paramName] = value.trim().toLowerCase() === "true";
-              break;
-            case "array":
-            case "object":
-              try {
-                toolParams[paramName] = JSON.parse(value.trim());
-              } catch {
-                toolParams[paramName] = value.trim(); // fallback to string if JSON parsing fails
-              }
-              break;
-            default:
-              toolParams[paramName] = value.trim();
-          }
+      if (isManualInputMode) {
+        // Use manual JSON input
+        try {
+          const manualParams = JSON.parse(manualJsonInput);
+          Object.assign(toolParams, manualParams);
+        } catch (error) {
+          log.error("Failed to parse manual JSON input:", error);
+          setTestResult(`Test failed: Invalid JSON format in manual input`);
+          return;
         }
-      });
+      } else {
+        // Use parsed parameters
+        dynamicInputParams.forEach((paramName) => {
+          const value = paramValues[paramName];
+          const paramInfo = parsedInputs[paramName];
+          const paramType = paramInfo?.type || DEFAULT_TYPE;
+
+          if (value && value.trim() !== "") {
+            // Convert value to correct type based on parameter type from inputs
+            switch (paramType) {
+              case "integer":
+              case "number":
+                const numValue = Number(value.trim());
+                if (!isNaN(numValue)) {
+                  toolParams[paramName] = numValue;
+                } else {
+                  toolParams[paramName] = value.trim(); // fallback to string if conversion fails
+                }
+                break;
+              case "boolean":
+                toolParams[paramName] = value.trim().toLowerCase() === "true";
+                break;
+              case "array":
+              case "object":
+                try {
+                  toolParams[paramName] = JSON.parse(value.trim());
+                } catch {
+                  toolParams[paramName] = value.trim(); // fallback to string if JSON parsing fails
+                }
+                break;
+              default:
+                toolParams[paramName] = value.trim();
+            }
+          }
+        });
+      }
 
       // Prepare configuration parameters from current params
       const configParams = currentParams.reduce((acc, param) => {
@@ -368,8 +382,17 @@ export default function ToolConfigModal({
         configParams // tool configuration parameters
       );
 
-      // Display the raw API response directly in the test result box
-      setTestResult(JSON.stringify(result, null, 2));
+      // Format the JSON string response
+      let formattedResult: string;
+      try {
+        const parsedResult =
+          typeof result === "string" ? JSON.parse(result) : result;
+        formattedResult = JSON.stringify(parsedResult, null, 2);
+      } catch (parseError) {
+        log.error("Failed to parse JSON result:", parseError);
+        formattedResult = typeof result === "string" ? result : String(result);
+      }
+      setTestResult(formattedResult);
     } catch (error) {
       log.error("Tool test execution failed:", error);
       setTestResult(`Test failed: ${error}`);
@@ -517,7 +540,7 @@ export default function ToolConfigModal({
               <button
                 onClick={handleTestTool}
                 disabled={!tool}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
               >
                 {t("toolConfig.button.testTool")}
               </button>
@@ -525,14 +548,14 @@ export default function ToolConfigModal({
             <div className="flex gap-2">
               <button
                 onClick={onCancel}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
               >
                 {t("common.button.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
               >
                 {isLoading
                   ? t("common.button.saving")
@@ -767,6 +790,46 @@ export default function ToolConfigModal({
                               setManualJsonInput(
                                 JSON.stringify(currentParamsJson, null, 2)
                               );
+                            } else {
+                              // From manual input mode to parsed mode
+                              try {
+                                const manualParams =
+                                  JSON.parse(manualJsonInput);
+                                const updatedParamValues: Record<
+                                  string,
+                                  string
+                                > = {};
+                                dynamicInputParams.forEach((paramName) => {
+                                  const manualValue = manualParams[paramName];
+                                  const paramInfo = parsedInputs[paramName];
+                                  const paramType =
+                                    paramInfo?.type || DEFAULT_TYPE;
+
+                                  if (manualValue !== undefined) {
+                                    // Convert to string for display based on parameter type
+                                    switch (paramType) {
+                                      case "boolean":
+                                        updatedParamValues[paramName] =
+                                          manualValue ? "true" : "false";
+                                        break;
+                                      case "array":
+                                      case "object":
+                                        updatedParamValues[paramName] =
+                                          JSON.stringify(manualValue, null, 2);
+                                        break;
+                                      default:
+                                        updatedParamValues[paramName] =
+                                          String(manualValue);
+                                    }
+                                  }
+                                });
+                                setParamValues(updatedParamValues);
+                              } catch (error) {
+                                log.error(
+                                  "Failed to sync manual input to parsed mode:",
+                                  error
+                                );
+                              }
                             }
                           }}
                         >

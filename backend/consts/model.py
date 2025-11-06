@@ -57,6 +57,8 @@ class ModelRequest(BaseModel):
     used_token: Optional[int] = 0
     display_name: Optional[str] = ''
     connect_status: Optional[str] = ''
+    expected_chunk_size: Optional[int] = None
+    maximum_chunk_size: Optional[int] = None
 
 
 class ProviderModelRequest(BaseModel):
@@ -156,6 +158,8 @@ class TaskRequest(BaseModel):
     chunking_strategy: Optional[str] = None
     index_name: Optional[str] = None
     original_filename: Optional[str] = None
+    embedding_model_id: Optional[int] = None
+    tenant_id: Optional[str] = None
     additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -274,6 +278,10 @@ class ExportAndImportAgentInfo(BaseModel):
     enabled: bool
     tools: List[ToolConfig]
     managed_agents: List[int]
+    model_id: Optional[int] = None
+    model_name: Optional[str] = None
+    business_logic_model_id: Optional[int] = None
+    business_logic_model_name: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True

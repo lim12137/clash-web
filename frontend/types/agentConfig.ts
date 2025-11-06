@@ -87,6 +87,7 @@ export interface TreeNodeDatum {
 export interface AgentSetupOrchestratorProps {
   businessLogic: string;
   setBusinessLogic: (value: string) => void;
+  businessLogicError?: boolean;
   selectedTools: Tool[];
   setSelectedTools: (tools: Tool[]) => void;
   isCreatingNewAgent: boolean;
@@ -146,6 +147,7 @@ export interface SubAgentPoolProps {
   isGeneratingAgent?: boolean;
   editingAgent?: Agent | null;
   isCreatingNewAgent?: boolean;
+  editingAgentName?: string | null;
 }
 
 // ToolPool component props interface

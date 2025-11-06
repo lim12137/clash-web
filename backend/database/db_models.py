@@ -156,6 +156,10 @@ class ModelRecord(TableBase):
     connect_status = Column(String(
         100), doc="Model connectivity status of the latest detection. Optional values: Detecting, Available, Unavailable")
     tenant_id = Column(String(100), doc="Tenant ID for filtering")
+    expected_chunk_size = Column(
+        Integer, doc="Expected chunk size for embedding models, used during document chunking")
+    maximum_chunk_size = Column(
+        Integer, doc="Maximum chunk size for embedding models, used during document chunking")
 
 
 class ToolInfo(TableBase):
@@ -257,7 +261,7 @@ class TenantConfig(TableBase):
     value_type = Column(String(
         100), doc=" the data type of config_value, optional values: single/multi", default="single")
     config_key = Column(String(100), doc="the key of the config")
-    config_value = Column(String(10000), doc="the value of the config")
+    config_value = Column(Text, doc="the value of the config")
 
 
 class MemoryUserConfig(TableBase):
