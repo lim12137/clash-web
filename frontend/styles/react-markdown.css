@@ -131,10 +131,16 @@
   color: var(--color-nord0);
 }
 
+/* Remove first br from paragraphs inside list items */
+.markdown-li > br:first-child {
+  display: none;
+}
+
 /* Remove extra spacing from paragraphs inside list items */
 .markdown-ol li > p,
 .markdown-ul li > p,
 .markdown-li > p {
+  display: inline;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
 }
