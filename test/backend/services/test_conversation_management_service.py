@@ -346,6 +346,68 @@ class TestConversationManagementService(unittest.TestCase):
         mock_llm_instance.assert_called_once()
         mock_get_prompt_template.assert_called_once_with(language='zh')
 
+    @patch('backend.services.conversation_management_service.OpenAIServerModel')
+    @patch('backend.services.conversation_management_service.get_generate_title_prompt_template')
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_call_llm_for_title_response_none_zh(self, mock_get_model_config, mock_get_prompt_template, mock_openai):
+        """Test call_llm_for_title returns default ZH title when response is None."""
+        # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+
+        mock_prompt_template = {
+            "SYSTEM_PROMPT": "Generate a short title",
+            "USER_PROMPT": "Generate a title for: {{content}}"
+        }
+        mock_get_prompt_template.return_value = mock_prompt_template
+
+        mock_llm_instance = mock_openai.return_value
+        mock_llm_instance.return_value = None
+
+        # Execute
+        result = call_llm_for_title(
+            "What is AI?", tenant_id=self.tenant_id, language="zh")
+
+        # Assert
+        self.assertEqual(result, "新对话")
+        mock_openai.assert_called_once()
+        mock_get_prompt_template.assert_called_once_with(language='zh')
+
+    @patch('backend.services.conversation_management_service.OpenAIServerModel')
+    @patch('backend.services.conversation_management_service.get_generate_title_prompt_template')
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_call_llm_for_title_response_none_en(self, mock_get_model_config, mock_get_prompt_template, mock_openai):
+        """Test call_llm_for_title returns default EN title when response is None."""
+        # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+
+        mock_prompt_template = {
+            "SYSTEM_PROMPT": "Generate a short title",
+            "USER_PROMPT": "Generate a title for: {{content}}"
+        }
+        mock_get_prompt_template.return_value = mock_prompt_template
+
+        mock_llm_instance = mock_openai.return_value
+        mock_llm_instance.return_value = None
+
+        # Execute
+        result = call_llm_for_title(
+            "What is AI?", tenant_id=self.tenant_id, language="en")
+
+        # Assert
+        self.assertEqual(result, "New Conversation")
+        mock_openai.assert_called_once()
+        mock_get_prompt_template.assert_called_once_with(language='en')
+
     @patch('backend.services.conversation_management_service.rename_conversation')
     def test_update_conversation_title(self, mock_rename_conversation):
         # Setup
