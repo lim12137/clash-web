@@ -802,7 +802,7 @@ export const conversationService = {
     const data = await response.json();
 
     if (data.code === 0) {
-      return data.data || null;
+      return data.data;
     }
 
     throw new ApiError(data.code, data.message);
