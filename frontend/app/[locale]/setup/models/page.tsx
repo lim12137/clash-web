@@ -27,7 +27,7 @@ export default function ModelSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -47,16 +47,18 @@ export default function ModelSetupPage() {
 
   // Check login status and permission
   useEffect(() => {
-    if (!userLoading && !user) {
-      router.push("/");
+    if (!isSpeedMode && !userLoading && !user) {
+      openLoginModal();
       return;
     }
-  }, [user, userLoading, router]);
+  }, [isSpeedMode, user, userLoading, openLoginModal]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    checkModelEngineConnection();
-  }, []);
+    if (isSpeedMode || (user && !userLoading)) {
+      checkModelEngineConnection();
+    }
+  }, [isSpeedMode, user, userLoading]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {

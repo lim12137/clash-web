@@ -57,11 +57,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         const version = data.content?.deployment_version || data.deployment_version;
         
         setIsSpeedMode(version === 'speed');
-        
-        // If in speed mode and no user exists, perform auto login
-        if (version === 'speed' && !user) {
-          await performAutoLogin();
-        }
+        // In speed mode, do not perform any auto login; UI should not depend on login
       }
     } catch (error) {
       log.error('Failed to check deployment version:', error);
@@ -128,8 +124,9 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     checkDeploymentVersion();
   }, []); // When user status changes, check again
 
-  // Check user login status
+  // Check user login status (skip in speed mode)
   useEffect(() => {
+    if (isSpeedMode) return;
     if (!isLoading && !user) {
       // When page is loaded, if not logged in, trigger session expired event
       // Only trigger on non-home path, and only when there is a session before
@@ -140,11 +137,11 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         setShouldCheckSession(false); // After triggering the expired event, disable session check
       }
     }
-  }, [user, isLoading, pathname, shouldCheckSession, t]);
+  }, [user, isLoading, pathname, shouldCheckSession, t, isSpeedMode]);
 
-  // Session validity check, ensure the session in local storage is not expired
+  // Session validity check, ensure the session in local storage is not expired (skip in speed mode)
   useEffect(() => {
-    if (!user || isLoading || !shouldCheckSession) return;
+    if (isSpeedMode || !user || isLoading || !shouldCheckSession) return;
 
     const verifySession = () => {
       const lastVerifyTime = Number(localStorage.getItem('lastSessionVerifyTime') || 0);
@@ -177,7 +174,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     const intervalId = setInterval(verifySession, 10000);
 
     return () => clearInterval(intervalId);
-  }, [user, isLoading, shouldCheckSession, t]);
+  }, [isSpeedMode, user, isLoading, shouldCheckSession, t]);
 
   const openLoginModal = () => {
     setIsRegisterModalOpen(false)
