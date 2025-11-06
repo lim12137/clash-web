@@ -89,6 +89,10 @@ async def prepare_model_dict(provider: str, model: dict, model_url: str, model_a
     model_repo, model_name = split_repo_name(model["id"])
     model_display_name = add_repo_to_name(model_repo, model_name)
 
+    # Initialize chunk size variables for all model types; only embeddings use them
+    expected_chunk_size = None
+    maximum_chunk_size = None
+
     # For embedding models, apply default values when chunk sizes are null
     if model["model_type"] in ["embedding", "multi_embedding"]:
         expected_chunk_size = model.get("expected_chunk_size", DEFAULT_EXPECTED_CHUNK_SIZE)
