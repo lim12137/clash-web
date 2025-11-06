@@ -25,7 +25,7 @@ export default function KnowledgeSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -35,14 +35,15 @@ export default function KnowledgeSetupPage() {
 
   // Check login status and permission
   useEffect(() => {
-    if (!userLoading && !user) {
-      router.push("/");
+    if (!isSpeedMode && !userLoading && !user) {
+      openLoginModal();
       return;
     }
-  }, [user, userLoading, router]);
+  }, [isSpeedMode, user, userLoading, openLoginModal]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
+    if (!(isSpeedMode || user)) return;
     checkModelEngineConnection();
 
     // Trigger knowledge base data acquisition when the page is initialized
@@ -54,7 +55,7 @@ export default function KnowledgeSetupPage() {
 
     // Load config for normal user
     const loadConfigForNormalUser = async () => {
-      if (user && user.role !== USER_ROLES.ADMIN) {
+      if (!isSpeedMode && user && user.role !== USER_ROLES.ADMIN) {
         try {
           await configService.loadConfigToFrontend();
           configStore.reloadFromStorage();
@@ -65,7 +66,7 @@ export default function KnowledgeSetupPage() {
     };
 
     loadConfigForNormalUser();
-  }, [user]);
+  }, [isSpeedMode, user]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {

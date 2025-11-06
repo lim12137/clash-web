@@ -78,8 +78,9 @@ export function SessionListeners() {
     };
   }, []);
 
-  // Listen for session expiration events
+  // Listen for session expiration events (skip in speed mode)
   useEffect(() => {
+    if (isSpeedMode) return;
     const handleSessionExpired = (event: CustomEvent) => {
       // Directly call the wrapper function
       showSessionExpiredModal();
@@ -99,7 +100,7 @@ export function SessionListeners() {
       );
     };
     // Remove confirm from dependency array to avoid duplicate registration due to function reference changes
-  }, [router, pathname, openLoginModal, setIsFromSessionExpired, modal]);
+  }, [router, pathname, openLoginModal, setIsFromSessionExpired, modal, isSpeedMode]);
 
   // When component first mounts, if no local session is found, show modal immediately
   useEffect(() => {
