@@ -540,7 +540,7 @@ export default function ToolConfigModal({
               <button
                 onClick={handleTestTool}
                 disabled={!tool}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8 mr-auto"
               >
                 {t("toolConfig.button.testTool")}
               </button>
@@ -548,14 +548,14 @@ export default function ToolConfigModal({
             <div className="flex gap-2">
               <button
                 onClick={onCancel}
-                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors duration-200 h-8"
               >
                 {t("common.button.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
+                className="flex items-center justify-center px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 h-8"
               >
                 {isLoading
                   ? t("common.button.saving")

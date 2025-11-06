@@ -229,118 +229,128 @@ export default function SubAgentPool({
                   // Combined availability: must be available AND not duplicate disabled
                   const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
 
-                  return (
-                    <Tooltip key={agent.id}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={`py-3 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 h-[80px] ${
-                            isCurrentlyEditing
-                              ? "bg-blue-50 border-l-4 border-l-blue-500" // Highlight editing agent, add left vertical line
-                              : isEffectivelyAvailable
-                              ? "hover:bg-gray-50 cursor-pointer"
-                              : "opacity-60 cursor-pointer" // All unavailable agents can be clicked to edit
-                          }`}
-                          onClick={async (e) => {
-                            // Prevent event bubbling
-                            e.preventDefault();
-                            e.stopPropagation();
+                  // Only show tooltip when agent is unavailable (duplicate name or has unavailable tools)
+                  const shouldShowTooltip = isDuplicateDisabled || !isEffectivelyAvailable;
+                  const tooltipContent = isDuplicateDisabled
+                    ? t("subAgentPool.tooltip.duplicateNameDisabled")
+                    : !isEffectivelyAvailable
+                    ? t("subAgentPool.tooltip.hasUnavailableTools")
+                    : "";
 
-                            if (!isGeneratingAgent) {
-                              // Allow all unavailable agents to enter edit mode for configuration
-                              if (isCurrentlyEditing) {
-                                // If currently editing this Agent, click to exit edit mode
-                                onExitEditMode?.();
-                              } else {
-                                // Enter edit mode (all agents can be edited)
-                                onEditAgent(agent);
-                              }
-                            }
-                          }}
-                        >
-                          <div className="flex items-center h-full">
-                            <div className="flex-1 overflow-hidden">
-                              <div
-                                className={`font-medium text-base truncate transition-colors duration-300 ${
-                                  !isEffectivelyAvailable ? "text-gray-500" : ""
+                  const agentItem = (
+                    <div
+                      className={`py-3 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 h-[80px] ${
+                        isCurrentlyEditing
+                          ? "bg-blue-50 border-l-4 border-l-blue-500" // Highlight editing agent, add left vertical line
+                          : isEffectivelyAvailable
+                          ? "hover:bg-gray-50 cursor-pointer"
+                          : "opacity-60 cursor-pointer" // All unavailable agents can be clicked to edit
+                      }`}
+                      onClick={async (e) => {
+                        // Prevent event bubbling
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (!isGeneratingAgent) {
+                          // Allow all unavailable agents to enter edit mode for configuration
+                          if (isCurrentlyEditing) {
+                            // If currently editing this Agent, click to exit edit mode
+                            onExitEditMode?.();
+                          } else {
+                            // Enter edit mode (all agents can be edited)
+                            onEditAgent(agent);
+                          }
+                        }
+                      }}
+                    >
+                      <div className="flex items-center h-full">
+                        <div className="flex-1 overflow-hidden">
+                          <div
+                            className={`font-medium text-base truncate transition-colors duration-300 ${
+                              !isEffectivelyAvailable ? "text-gray-500" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              {!isEffectivelyAvailable && (
+                                <ExclamationCircleOutlined className="text-amber-500 text-sm flex-shrink-0" />
+                              )}
+                              {agent.display_name && (
+                                <span className="text-base leading-normal">
+                                  {agent.display_name}
+                                </span>
+                              )}
+                              <span
+                                className={`leading-normal ${
+                                  agent.display_name
+                                    ? "ml-2 text-sm"
+                                    : "text-base"
                                 }`}
                               >
-                                <div className="flex items-center gap-1.5">
-                                  {!isEffectivelyAvailable && (
-                                    <ExclamationCircleOutlined className="text-amber-500 text-sm flex-shrink-0" />
-                                  )}
-                                  {agent.display_name && (
-                                    <span className="text-base leading-normal">
-                                      {agent.display_name}
-                                    </span>
-                                  )}
-                                  <span
-                                    className={`leading-normal ${
-                                      agent.display_name
-                                        ? "ml-2 text-sm"
-                                        : "text-base"
-                                    }`}
-                                  >
-                                    {agent.name}
-                                  </span>
-                                </div>
-                              </div>
-                              <div
-                                className={`text-xs line-clamp-2 transition-colors duration-300 leading-[1.25] overflow-hidden ${
-                                  !isEffectivelyAvailable ? "text-gray-400" : "text-gray-500"
-                                }`}
-                                style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  maxHeight: '2.5rem'
-                                }}
-                              >
-                                {agent.description}
-                              </div>
-                            </div>
-
-                            {/* Operation button area */}
-                            <div className="flex items-center gap-1 ml-2">
-                              {/* View call relationship button */}
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<LinkOutlined />}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if (isEffectivelyAvailable) {
-                                        handleViewCallRelationship(agent);
-                                      }
-                                    }}
-                                    disabled={!isEffectivelyAvailable}
-                                    className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {t("agent.action.viewCallRelationship")}
-                                </TooltipContent>
-                              </Tooltip>
+                                {agent.name}
+                              </span>
                             </div>
                           </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {isCurrentlyEditing
-                          ? t("subAgentPool.tooltip.exitEditMode")
-                          : isDuplicateDisabled
-                          ? t("subAgentPool.tooltip.duplicateNameDisabled")
-                          : !isEffectivelyAvailable
-                          ? t("subAgentPool.tooltip.hasUnavailableTools")
-                          : `${t("subAgentPool.tooltip.editAgent")} ${
-                              agent.display_name || agent.name
+                          <div
+                            className={`text-xs line-clamp-2 transition-colors duration-300 leading-[1.25] overflow-hidden ${
+                              !isEffectivelyAvailable ? "text-gray-400" : "text-gray-500"
                             }`}
-                      </TooltipContent>
-                    </Tooltip>
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxHeight: '2.5rem'
+                            }}
+                          >
+                            {agent.description}
+                          </div>
+                        </div>
+
+                        {/* Operation button area */}
+                        <div className="flex items-center gap-1 ml-2">
+                          {/* View call relationship button */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<LinkOutlined />}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (isEffectivelyAvailable) {
+                                    handleViewCallRelationship(agent);
+                                  }
+                                }}
+                                disabled={!isEffectivelyAvailable}
+                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t("agent.action.viewCallRelationship")}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div key={agent.id}>
+                      {shouldShowTooltip ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {agentItem}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {tooltipContent}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        agentItem
+                      )}
+                    </div>
                   );
                 })}
               </div>

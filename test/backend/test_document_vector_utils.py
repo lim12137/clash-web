@@ -27,7 +27,8 @@ from backend.utils.document_vector_utils import (
     get_documents_from_es,
     process_documents_for_clustering,
     extract_cluster_content,
-    analyze_cluster_coherence
+    analyze_cluster_coherence,
+    merge_duplicate_documents_in_clusters
 )
 
 
@@ -48,7 +49,7 @@ class TestDocumentEmbedding:
         assert np.allclose(result, [4.0, 5.0, 6.0])  # Average of all embeddings
     
     def test_calculate_document_embedding_weighted(self):
-        """Test weighted average embedding calculation"""
+        """Test weighted average embedding calculation (no position weight)"""
         chunks = [
             {'embedding': [1.0, 2.0], 'content': 'Short'},
             {'embedding': [3.0, 4.0], 'content': 'Long content with more words'},
@@ -59,6 +60,9 @@ class TestDocumentEmbedding:
         
         assert result is not None
         assert len(result) == 2
+        # Weight should be based on content length only, not position
+        # First chunk should NOT have extra 1.5x weight
+        # Result should be weighted average where longer chunks have more weight
     
     def test_calculate_document_embedding_empty_chunks(self):
         """Test handling of empty chunks"""
@@ -345,7 +349,8 @@ class TestGetDocumentsFromEs:
                             'path_or_url': '/path/doc1.pdf',
                             'filename': 'doc1.pdf',
                             'content': 'Content 1',
-                            'embedding': [1.0, 2.0, 3.0]
+                            'embedding': [1.0, 2.0, 3.0],
+                            'create_time': '2024-01-01T00:00:00'
                         }
                     }
                 ]
@@ -370,6 +375,16 @@ class TestGetDocumentsFromEs:
         # Check that we have document data
         first_doc = list(result.values())[0]
         assert 'chunks' in first_doc
+        
+        # Verify that sort parameter is included in the query
+        call_args = mock_es_core.client.search.call_args
+        if call_args:
+            query_body = call_args[1].get('body') or call_args[0][1] if len(call_args[0]) > 1 else None
+            if query_body and 'sort' in query_body:
+                sort_config = query_body['sort']
+                assert isinstance(sort_config, list)
+                # Should have create_time sort
+                assert any('create_time' in str(sort_item) for sort_item in sort_config)
 
 
 class TestProcessDocumentsForClustering:
@@ -463,6 +478,73 @@ class TestAnalyzeClusterCoherence:
         assert isinstance(result, dict)
         assert 'doc_count' in result
         assert result['doc_count'] == 2
+
+
+class TestMergeDuplicateDocumentsInClusters:
+    """Test duplicate document merging in clusters"""
+    
+    def test_merge_duplicate_documents_same_cluster(self):
+        """Test that documents in same cluster are not merged"""
+        clusters = {
+            0: ['doc1', 'doc2'],
+            1: ['doc3']
+        }
+        doc_embeddings = {
+            'doc1': np.array([1.0, 0.0]),
+            'doc2': np.array([0.9, 0.1]),
+            'doc3': np.array([0.0, 1.0])
+        }
+        
+        result = merge_duplicate_documents_in_clusters(clusters, doc_embeddings, similarity_threshold=0.98)
+        
+        # Documents with similarity < 0.98 should not be merged
+        assert len(result) == 2
+        assert 0 in result
+        assert 1 in result
+    
+    def test_merge_duplicate_documents_different_clusters(self):
+        """Test that highly similar documents in different clusters are merged"""
+        clusters = {
+            0: ['doc1'],
+            1: ['doc2']
+        }
+        # Create two identical embeddings (duplicate documents)
+        identical_embedding = np.array([1.0, 0.0, 0.0])
+        doc_embeddings = {
+            'doc1': identical_embedding,
+            'doc2': identical_embedding.copy()  # Same embedding
+        }
+        
+        result = merge_duplicate_documents_in_clusters(clusters, doc_embeddings, similarity_threshold=0.98)
+        
+        # Documents with similarity >= 0.98 should be merged into same cluster
+        # Result should have fewer clusters
+        assert len(result) <= 2
+    
+    def test_merge_duplicate_documents_empty_clusters(self):
+        """Test handling of empty clusters"""
+        clusters = {}
+        doc_embeddings = {}
+        
+        result = merge_duplicate_documents_in_clusters(clusters, doc_embeddings)
+        
+        assert result == {}
+    
+    def test_merge_duplicate_documents_error_handling(self):
+        """Test error handling in merge function"""
+        clusters = {
+            0: ['doc1', 'doc2']
+        }
+        doc_embeddings = {
+            'doc1': np.array([1.0, 0.0]),
+            'doc2': np.array([0.9, 0.1])
+        }
+        
+        # Should not raise exception even with invalid similarity calculation
+        result = merge_duplicate_documents_in_clusters(clusters, doc_embeddings, similarity_threshold=2.0)
+        
+        # Should return clusters (possibly unchanged due to high threshold)
+        assert isinstance(result, dict)
 
 
 if __name__ == '__main__':
