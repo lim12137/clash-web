@@ -39,6 +39,70 @@ interface ModelAddDialogProps {
 
 // Connectivity status type comes from utils
 
+// Helper function to translate error messages from backend
+const translateError = (errorMessage: string, t: (key: string, params?: any) => string): string => {
+  if (!errorMessage) return errorMessage
+
+  const errorLower = errorMessage.toLowerCase()
+
+  // Extract model name from patterns like "Name 'xxx' is already in use"
+  // Matches: "Name 'xxx' is already in use" or "Name xxx is already in use"
+  const nameMatch = errorMessage.match(/Name\s+(?:['"]([^'"]+)['"]|([^\s,]+))\s+is already in use/i)
+  if (nameMatch) {
+    const modelName = nameMatch[1] || nameMatch[2]
+    return t('model.dialog.error.nameAlreadyInUse', { name: modelName })
+  }
+
+  // Model not found pattern
+  if (errorLower.includes('model not found') || errorLower.includes('not found')) {
+    const modelNameMatch = errorMessage.match(/(?:Model not found|not found)[:\s]+([^\s,]+)/i)
+    if (modelNameMatch) {
+      return t('model.dialog.error.modelNotFound', { name: modelNameMatch[1] })
+    }
+    return t('model.dialog.error.modelNotFound', { name: '' })
+  }
+
+  // Unsupported model type
+  if (errorLower.includes('unsupported model type')) {
+    const typeMatch = errorMessage.match(/unsupported model type[:\s]+([^\s,]+)/i)
+    if (typeMatch) {
+      return t('model.dialog.error.unsupportedModelType', { type: typeMatch[1] })
+    }
+    return t('model.dialog.error.unsupportedModelType', { type: 'unknown' })
+  }
+
+  // Connection failed patterns - extract model name and URL from backend error
+  if (errorLower.includes('failed to connect') || errorLower.includes('connection failed') ||
+      errorLower.includes('connection error') || errorLower.includes('unable to connect')) {
+    // Try to extract model name and URL from pattern: "Failed to connect to model 'xxx' at https://..."
+    // Match URL that may end with period before the next sentence (e.g., "https://api.example.com. Please verify...")
+    // Match URL pattern: http:// or https:// followed by domain (may contain dots) and optional path
+    // Example: "Failed to connect to model 'qwen-plus' at https://api.siliconflow.cn. Please verify..."
+    const connectMatch = errorMessage.match(/Failed to connect to model\s+['"]([^'"]+)['"]\s+at\s+(https?:\/\/[^\s]+?)(?:\.\s|\.$|$)/i)
+    if (connectMatch) {
+      // Remove trailing period if present (URL might end with period before next sentence)
+      let url = connectMatch[2].replace(/\.$/, '')
+      // Return fully translated message with model name and URL
+      return t('model.dialog.error.failedToConnect', {
+        modelName: connectMatch[1],
+        url: url
+      })
+    }
+    // Fallback: return original error message (will be wrapped by connectivityFailed)
+    return errorMessage
+  }
+
+  // Invalid configuration
+  if (errorLower.includes('invalid') && errorLower.includes('config')) {
+    // Extract the actual error description
+    const configError = errorMessage.replace(/^.*?invalid[^:]*:?\s*/i, '').trim() || errorMessage
+    return t('model.dialog.error.invalidConfiguration', { error: configError })
+  }
+
+  // Return original error if no pattern matches
+  return errorMessage
+}
+
 export const ModelAddDialog = ({
   isOpen,
   onClose,
@@ -66,7 +130,6 @@ export const ModelAddDialog = ({
     // For other errors, return generic error key without showing backend details
     return { key: 'model.dialog.error.addFailed' }
   }
-
   const [form, setForm] = useState({
     type: MODEL_TYPES.LLM as ModelType,
     name: "",
@@ -231,9 +294,14 @@ export const ModelAddDialog = ({
           status: "unavailable",
           message: t("model.dialog.connectivity.status.unavailable")
         });
-        // Show detailed error message using message.error (same as add failure)
+        // Show detailed error message using internationalized component (same as add failure)
         if (result.error) {
-          message.error(result.error)
+          const translatedError = translateError(result.error, t)
+          // Ensure translatedError is a valid string, fallback to original error if needed
+          const errorText = (translatedError && translatedError.length > 0)
+            ? translatedError
+            : (result.error || 'Unknown error')
+          message.error(t('model.dialog.error.connectivityFailed', { error: errorText }))
         }
       }
     } catch (error) {
@@ -242,8 +310,11 @@ export const ModelAddDialog = ({
         status: "unavailable",
         message: t("model.dialog.connectivity.status.unavailable"),
       });
-      // Show error message using message.error (same as add failure)
-      message.error(errorMessage || t("model.dialog.connectivity.status.unavailable"))
+      // Show error message using internationalized component (same as add failure)
+      const translatedError = translateError(errorMessage || t('model.dialog.connectivity.status.unavailable'), t)
+      // Ensure translatedError is a valid string
+      const errorText = translatedError ? translatedError : (errorMessage || t("model.dialog.connectivity.status.unavailable"))
+      message.error(t('model.dialog.error.connectivityFailed', { error: errorText }))
     } finally {
       setVerifyingConnectivity(false);
     }
@@ -280,8 +351,9 @@ export const ModelAddDialog = ({
         onSuccess();
       }
     } catch (error: any) {
-      const errorInfo = parseModelError(error?.message || "")
-      message.error(t(errorInfo.key, errorInfo.params))
+      const errorMessage = error?.message || t("model.dialog.error.addFailedLog");
+      const translatedError = translateError(errorMessage, t)
+      message.error(t("model.dialog.error.addFailed", { error: translatedError }));
     }
 
     setForm((prev) => ({
@@ -441,8 +513,8 @@ export const ModelAddDialog = ({
       onClose();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorInfo = parseModelError(errorMessage)
-      message.error(t(errorInfo.key, errorInfo.params));
+      const translatedError = translateError(errorMessage, t)
+      message.error(t("model.dialog.error.addFailed", { error: translatedError }));
       log.error(t("model.dialog.error.addFailedLog"), error);
     } finally {
       setLoading(false);
