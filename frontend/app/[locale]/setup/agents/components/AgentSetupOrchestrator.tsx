@@ -32,6 +32,7 @@ import PromptManager from "./PromptManager";
 export default function AgentSetupOrchestrator({
   businessLogic,
   setBusinessLogic,
+  businessLogicError = false,
   selectedTools,
   setSelectedTools,
   isCreatingNewAgent,
@@ -937,6 +938,7 @@ export default function AgentSetupOrchestrator({
               isGeneratingAgent={isGeneratingAgent}
               editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
+              editingAgentName={agentName || null}
             />
           </div>
 
@@ -1021,6 +1023,7 @@ export default function AgentSetupOrchestrator({
                   : undefined
               }
               businessLogic={businessLogic}
+              businessLogicError={businessLogicError}
               dutyContent={dutyContent}
               constraintContent={constraintContent}
               fewShotsContent={fewShotsContent}

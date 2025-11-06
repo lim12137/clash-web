@@ -29,7 +29,8 @@ from backend.utils.document_vector_utils import (
     merge_cluster_summaries,
     calculate_document_embedding,
     auto_determine_k,
-    kmeans_cluster_documents
+    kmeans_cluster_documents,
+    merge_duplicate_documents_in_clusters
 )
 
 
