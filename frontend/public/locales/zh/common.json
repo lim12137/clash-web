@@ -567,7 +567,6 @@
   "model.dialog.error.nameAlreadyInUse": "名称 '{{name}}' 已被使用，请选择其他显示名称",
   "model.dialog.error.modelNotFound": "模型未找到：{{name}}",
   "model.dialog.error.failedToConnect": "无法连接到模型 '{{modelName}}'（{{url}}）。请检查URL、API密钥和网络连接。",
-  "model.dialog.error.failedToConnectGeneric": "连接失败：{{error}}",
   "model.dialog.error.unsupportedModelType": "不支持的模型类型：{{type}}",
   "model.dialog.error.invalidConfiguration": "配置无效：{{error}}",
   "model.dialog.error.addFailedLog": "添加模型失败",
