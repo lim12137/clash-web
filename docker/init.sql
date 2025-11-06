@@ -163,6 +163,8 @@ CREATE TABLE IF NOT EXISTS "model_record_t" (
   "base_url" varchar(500) COLLATE "pg_catalog"."default",
   "max_tokens" int4,
   "used_token" int4,
+  "expected_chunk_size" int4,
+  "maximum_chunk_size" int4,
   "display_name" varchar(100) COLLATE "pg_catalog"."default",
   "connect_status" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
@@ -183,6 +185,8 @@ COMMENT ON COLUMN "model_record_t"."api_key" IS 'Model API key, used for authent
 COMMENT ON COLUMN "model_record_t"."base_url" IS 'Base URL address, used for requesting remote model services';
 COMMENT ON COLUMN "model_record_t"."max_tokens" IS 'Maximum available tokens for the model';
 COMMENT ON COLUMN "model_record_t"."used_token" IS 'Number of tokens already used by the model in Q&A';
+COMMENT ON COLUMN "model_record_t".expected_chunk_size IS 'Expected chunk size for embedding models, used during document chunking';
+COMMENT ON COLUMN "model_record_t".maximum_chunk_size IS 'Maximum chunk size for embedding models, used during document chunking';
 COMMENT ON COLUMN "model_record_t"."display_name" IS 'Model name displayed directly in frontend, customized by user';
 COMMENT ON COLUMN "model_record_t"."connect_status" IS 'Model connectivity status from last check, optional values: "检测中"、"可用"、"不可用"';
 COMMENT ON COLUMN "model_record_t"."create_time" IS 'Creation time, audit field';
@@ -407,7 +411,7 @@ CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
     user_id VARCHAR(100),
     value_type VARCHAR(100),
     config_key VARCHAR(100),
-    config_value VARCHAR(10000),
+    config_value TEXT,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),

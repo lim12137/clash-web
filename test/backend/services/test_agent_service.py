@@ -3498,3 +3498,1457 @@ async def test_list_all_agent_info_impl_all_disabled_agents():
         # No tool queries should be made since no agents are enabled
         mock_search_tools.assert_not_called()
         mock_check_tools.assert_not_called()
+
+
+# ============================================================================
+# Tests for Agent Export/Import Integration with model_name fields
+# ============================================================================
+
+
+@patch('backend.services.agent_service.create_tool_config_list')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_export_agent_includes_model_names(
+    mock_search_agent_info,
+    mock_get_model_by_model_id,
+    mock_query_sub_agents,
+    mock_create_tool_config
+):
+    """
+    Test that export_agent_by_agent_id correctly includes model_name and
+    business_logic_model_name in the exported data.
+    """
+    # Setup - Agent info from database
+    mock_agent_info_from_db = {
+        "name": "test_agent",
+        "display_name": "Test Agent",
+        "description": "Test description",
+        "business_description": "Test business description",
+        "max_steps": 5,
+        "provide_run_summary": False,
+        "duty_prompt": "Test duty",
+        "constraint_prompt": "Test constraints",
+        "few_shots_prompt": "Test examples",
+        "enabled": True,
+        "model_id": 5,
+        "business_logic_model_id": 4
+    }
+    mock_search_agent_info.return_value = mock_agent_info_from_db
+
+    # Mock model lookup - this is where model_name comes from
+    def get_model_side_effect(model_id):
+        if model_id == 5:
+            return {"display_name": "Qwen/Qwen3-8B", "model_id": 5}
+        elif model_id == 4:
+            return {"display_name": "Qwen/QwQ-32B", "model_id": 4}
+        return None
+
+    mock_get_model_by_model_id.side_effect = get_model_side_effect
+
+    mock_query_sub_agents.return_value = []
+    mock_create_tool_config.return_value = []
+
+    # Execute export
+    exported_agent = await export_agent_by_agent_id(
+        agent_id=123,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert - verify exported data includes model names
+    assert isinstance(exported_agent, ExportAndImportAgentInfo)
+
+    # Critical assertions - these fields must be present for import to work
+    assert exported_agent.model_id == 5
+    assert exported_agent.model_name == "Qwen/Qwen3-8B"  # ← Must be present
+    assert exported_agent.business_logic_model_id == 4
+    assert exported_agent.business_logic_model_name == "Qwen/QwQ-32B"  # ← Must be present
+
+    # Verify other fields
+    assert exported_agent.name == "test_agent"
+    assert exported_agent.display_name == "Test Agent"
+
+
+@patch('backend.services.agent_service.create_tool_config_list')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_export_agent_with_null_model_id(
+    mock_search_agent_info,
+    mock_get_model_by_model_id,
+    mock_query_sub_agents,
+    mock_create_tool_config
+):
+    """
+    Test export when model_id is NULL in database.
+    """
+    # Setup - Agent with NULL model_id
+    mock_agent_info_from_db = {
+        "name": "agent_without_model",
+        "display_name": "Agent Without Model",
+        "description": "Test description",
+        "business_description": "Test business description",
+        "max_steps": 5,
+        "provide_run_summary": False,
+        "duty_prompt": "Test duty",
+        "constraint_prompt": "Test constraints",
+        "few_shots_prompt": "Test examples",
+        "enabled": True,
+        "model_id": None,  # NULL in database
+        "business_logic_model_id": None  # NULL in database
+    }
+    mock_search_agent_info.return_value = mock_agent_info_from_db
+    mock_query_sub_agents.return_value = []
+    mock_create_tool_config.return_value = []
+
+    # Execute export
+    exported_agent = await export_agent_by_agent_id(
+        agent_id=123,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert - should handle NULL gracefully
+    assert exported_agent.model_id is None
+    assert exported_agent.model_name is None
+    assert exported_agent.business_logic_model_id is None
+    assert exported_agent.business_logic_model_name is None
+
+    # get_model_by_model_id should not have been called
+    mock_get_model_by_model_id.assert_not_called()
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@patch('backend.services.agent_service.create_tool_config_list')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_export_then_import_preserves_model_names(
+    mock_search_agent_info,
+    mock_get_model_by_model_id,
+    mock_query_sub_agents,
+    mock_create_tool_config,
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id_by_display_name
+):
+    """
+    Integration test: Export an agent, then import it, verify model names are preserved.
+
+    This test simulates the complete export/import cycle to ensure data integrity.
+    """
+    # ========== STEP 1: EXPORT ==========
+
+    # Setup - Agent in source tenant
+    mock_agent_info_from_db = {
+        "name": "iot_knowledge_qa_assistant",
+        "display_name": "物联网知识问答助手",
+        "description": "IoT Q&A Assistant",
+        "business_description": "IoT knowledge retrieval",
+        "max_steps": 5,
+        "provide_run_summary": False,
+        "duty_prompt": "You are an IoT assistant",
+        "constraint_prompt": "Follow safety rules",
+        "few_shots_prompt": "Example tasks",
+        "enabled": True,
+        "model_id": 10,  # Model ID in source tenant
+        "business_logic_model_id": 9  # Business logic model ID in source tenant
+    }
+    mock_search_agent_info.return_value = mock_agent_info_from_db
+
+    # Mock model lookup for export
+    def get_model_for_export(model_id):
+        if model_id == 10:
+            return {"display_name": "Qwen/Qwen3-8B", "model_id": 10}
+        elif model_id == 9:
+            return {"display_name": "Qwen/QwQ-32B", "model_id": 9}
+        return None
+
+    mock_get_model_by_model_id.side_effect = get_model_for_export
+    mock_query_sub_agents.return_value = []
+    mock_create_tool_config.return_value = []
+
+    # Execute export
+    exported_agent = await export_agent_by_agent_id(
+        agent_id=123,
+        tenant_id="source_tenant",
+        user_id="source_user"
+    )
+
+    # Verify export includes model names
+    assert exported_agent.model_id == 10
+    assert exported_agent.model_name == "Qwen/Qwen3-8B"
+    assert exported_agent.business_logic_model_id == 9
+    assert exported_agent.business_logic_model_name == "Qwen/QwQ-32B"
+
+    # ========== STEP 2: IMPORT ==========
+
+    # Setup for import - simulate different model IDs in target tenant
+    mock_query_all_tools.return_value = []
+
+    # In target tenant, same models have different IDs
+    # Source: model_id=10 → Target: model_id=5
+    # Source: business_logic_model_id=9 → Target: business_logic_model_id=4
+    mock_get_model_id_by_display_name.side_effect = [5, 4]
+
+    mock_create_agent.return_value = {"agent_id": 999}
+
+    # Execute import
+    new_agent_id = await import_agent_by_agent_id(
+        import_agent_info=exported_agent,
+        tenant_id="target_tenant",
+        user_id="target_user"
+    )
+
+    # Verify import was successful
+    assert new_agent_id == 999
+
+    # ========== STEP 3: VERIFY DATA INTEGRITY ==========
+
+    # Verify create_agent was called with correct model information
+    mock_create_agent.assert_called_once()
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    # Model IDs should be REMAPPED to target tenant IDs
+    assert agent_info_dict["model_id"] == 5  # Remapped from 10 to 5
+    assert agent_info_dict["business_logic_model_id"] == 4  # Remapped from 9 to 4
+
+    # Model NAMES should be PRESERVED (not remapped)
+    assert agent_info_dict["model_name"] == "Qwen/Qwen3-8B"  # ← Preserved
+    assert agent_info_dict["business_logic_model_name"] == "Qwen/QwQ-32B"  # ← Preserved
+
+    # Other fields should also be preserved
+    assert agent_info_dict["name"] == "iot_knowledge_qa_assistant"
+    assert agent_info_dict["display_name"] == "物联网知识问答助手"
+    assert agent_info_dict["description"] == "IoT Q&A Assistant"
+    assert agent_info_dict["max_steps"] == 5
+
+    # Verify model lookup was done by display name (model_name)
+    assert mock_get_model_id_by_display_name.call_count == 2
+    first_call = mock_get_model_id_by_display_name.call_args_list[0]
+    second_call = mock_get_model_id_by_display_name.call_args_list[1]
+
+    # get_model_id_by_display_name(display_name: str, tenant_id: str) uses positional args
+    assert first_call[0][0] == "Qwen/Qwen3-8B"  # display_name
+    assert first_call[0][1] == "target_tenant"  # tenant_id
+    assert second_call[0][0] == "Qwen/QwQ-32B"  # display_name
+    assert second_call[0][1] == "target_tenant"  # tenant_id
+
+
+@patch('backend.services.agent_service.create_tool_config_list')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.get_model_by_model_id')
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@pytest.mark.asyncio
+async def test_export_agent_model_not_found(
+    mock_search_agent_info,
+    mock_get_model_by_model_id,
+    mock_query_sub_agents,
+    mock_create_tool_config
+):
+    """
+    Test export when model_id exists but model record is not found.
+
+    This can happen if:
+    - Model was deleted after agent creation
+    - Database inconsistency
+    """
+    # Setup
+    mock_agent_info_from_db = {
+        "name": "orphaned_agent",
+        "display_name": "Orphaned Agent",
+        "description": "Agent with missing model",
+        "business_description": "Test",
+        "max_steps": 5,
+        "provide_run_summary": False,
+        "duty_prompt": "Test",
+        "constraint_prompt": "Test",
+        "few_shots_prompt": "Test",
+        "enabled": True,
+        "model_id": 999,  # This model doesn't exist
+        "business_logic_model_id": 998  # This model doesn't exist
+    }
+    mock_search_agent_info.return_value = mock_agent_info_from_db
+
+    # Model lookup returns None (model not found)
+    mock_get_model_by_model_id.return_value = None
+
+    mock_query_sub_agents.return_value = []
+    mock_create_tool_config.return_value = []
+
+    # Execute export
+    exported_agent = await export_agent_by_agent_id(
+        agent_id=123,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert - should handle gracefully
+    assert exported_agent.model_id == 999  # ID is preserved
+    assert exported_agent.model_name is None  # But name is None (model not found)
+    assert exported_agent.business_logic_model_id == 998
+    assert exported_agent.business_logic_model_name is None
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_model_name_consistency(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id_by_display_name
+):
+    """
+    Test that both model_id and model_name are consistently saved during import.
+
+    This test ensures that:
+    1. model_id is looked up from model_name
+    2. Both model_id AND model_name are saved to database
+    3. This maintains data consistency and cross-tenant compatibility
+    """
+    # Setup
+    mock_query_all_tools.return_value = []
+    mock_get_model_id_by_display_name.side_effect = [5, 4]
+
+    # Track what was passed to create_agent
+    captured_agent_info = {}
+
+    def capture_agent_info(agent_info, tenant_id, user_id):
+        captured_agent_info.update(agent_info)
+        return {"agent_id": 888}
+
+    mock_create_agent.side_effect = capture_agent_info
+
+    # Create import data
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="consistency_test_agent",
+        display_name="Consistency Test Agent",
+        description="Testing model field consistency",
+        business_description="Test",
+        max_steps=5,
+        provide_run_summary=False,
+        duty_prompt="Test",
+        constraint_prompt="Test",
+        few_shots_prompt="Test",
+        enabled=True,
+        tools=[],
+        managed_agents=[],
+        model_id=100,  # Original ID (will be remapped)
+        model_name="Qwen/Qwen3-8B",  # Used for lookup
+        business_logic_model_id=99,  # Original ID (will be remapped)
+        business_logic_model_name="Qwen/QwQ-32B"  # Used for lookup
+    )
+
+    # Execute import
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert
+    assert result == 888
+
+    # Verify BOTH model_id (remapped) AND model_name (preserved) are in database
+    assert "model_id" in captured_agent_info
+    assert "model_name" in captured_agent_info
+    assert "business_logic_model_id" in captured_agent_info
+    assert "business_logic_model_name" in captured_agent_info
+
+    # Verify consistency between ID and name
+    assert captured_agent_info["model_id"] == 5  # Remapped ID
+    assert captured_agent_info["model_name"] == "Qwen/Qwen3-8B"  # Preserved name
+
+    assert captured_agent_info["business_logic_model_id"] == 4  # Remapped ID
+    assert captured_agent_info["business_logic_model_name"] == "Qwen/QwQ-32B"  # Preserved name
+
+    # This consistency allows:
+    # 1. Fast lookups by model_id (integer index)
+    # 2. Human-readable model information (model_name)
+    # 3. Cross-tenant import compatibility (lookup by name, save by ID)
+
+
+# ============================================================================
+# Tests for Agent Import with Quick Config Model Fallback
+# ============================================================================
+
+
+@pytest.fixture
+def mock_tenant_id():
+    """Fixture for tenant ID"""
+    return "test_tenant_123"
+
+
+@pytest.fixture
+def mock_user_id():
+    """Fixture for user ID"""
+    return "test_user_456"
+
+
+@pytest.fixture
+def sample_agent_info():
+    """Fixture for sample agent import information"""
+    return {
+        "agent_id": 1,
+        "name": "test_agent",
+        "display_name": "Test Agent",
+        "description": "Test description",
+        "business_description": "Test business description",
+        "model_id": 10,  # Original model ID from source tenant
+        "model_name": "Qwen/Qwen3-8B",  # Model that might not exist in target tenant
+        "business_logic_model_id": 20,  # Original business logic model ID
+        "business_logic_model_name": "Qwen/QwQ-32B",  # Business logic model
+        "max_steps": 5,
+        "provide_run_summary": True,
+        "duty_prompt": "Test duty",
+        "constraint_prompt": "Test constraint",
+        "few_shots_prompt": "Test few shots",
+        "enabled": True,
+        "tools": [],
+        "managed_agents": []
+    }
+
+
+@pytest.fixture
+def sample_quick_config_model():
+    """Fixture for quick config LLM model"""
+    return {
+        "model_id": 100,
+        "model_name": "DeepSeek/DeepSeek-V3",
+        "display_name": "DeepSeek V3",
+        "model_repo": "DeepSeek",
+        "model_type": "chat",
+        "api_key": "test_key",
+        "base_url": "https://api.deepseek.com"
+    }
+
+
+@pytest.fixture
+def mock_import_agent_info(sample_agent_info):
+    """Fixture for ExportAndImportAgentInfo object"""
+    return ExportAndImportAgentInfo(**sample_agent_info)
+
+
+@pytest.mark.asyncio
+@patch("backend.services.agent_service.query_all_tools")
+@patch("backend.services.agent_service.get_model_id_by_display_name")
+@patch("backend.services.agent_service.tenant_config_manager")
+@patch("backend.services.agent_service.create_agent")
+async def test_main_model_fallback_to_quick_config(
+    mock_create_agent,
+    mock_tenant_config_manager,
+    mock_get_model_id,
+    mock_query_tools,
+    mock_tenant_id,
+    mock_user_id,
+    sample_agent_info,
+    sample_quick_config_model,
+    mock_import_agent_info
+):
+    """
+    Test that when main model is not found, system falls back to quick config LLM model
+    
+    Scenario:
+    - Agent config specifies "Qwen/Qwen3-8B" as main model
+    - Model not found in target tenant
+    - System should fallback to quick config LLM model (DeepSeek V3)
+    - Agent should be created with quick config model_id
+    """
+    # Setup: No tools to process
+    mock_query_tools.return_value = []
+    
+    # Setup: Model not found by display name, but quick config exists
+    mock_get_model_id.side_effect = [
+        None,  # Main model not found
+        50  # Business logic model found
+    ]
+    
+    mock_tenant_config_manager.get_model_config.return_value = sample_quick_config_model
+    
+    mock_create_agent.return_value = {
+        "agent_id": 999,
+        "name": sample_agent_info["name"]
+    }
+    
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=mock_import_agent_info,
+        tenant_id=mock_tenant_id,
+        user_id=mock_user_id
+    )
+    
+    # Verify: Quick config model was requested
+    from consts.const import MODEL_CONFIG_MAPPING
+    mock_tenant_config_manager.get_model_config.assert_called_with(
+        key=MODEL_CONFIG_MAPPING["llm"],
+        tenant_id=mock_tenant_id
+    )
+    
+    # Verify: Agent was created with quick config model_id
+    mock_create_agent.assert_called_once()
+    call_args = mock_create_agent.call_args
+    agent_info = call_args.kwargs["agent_info"]
+    
+    assert agent_info["model_id"] == sample_quick_config_model["model_id"]
+    assert result == 999
+
+
+@pytest.mark.asyncio
+@patch("backend.services.agent_service.query_all_tools")
+@patch("backend.services.agent_service.get_model_id_by_display_name")
+@patch("backend.services.agent_service.tenant_config_manager")
+@patch("backend.services.agent_service.create_agent")
+async def test_business_logic_model_fallback_to_quick_config(
+    mock_create_agent,
+    mock_tenant_config_manager,
+    mock_get_model_id,
+    mock_query_tools,
+    mock_tenant_id,
+    mock_user_id,
+    sample_agent_info,
+    sample_quick_config_model,
+    mock_import_agent_info
+):
+    """
+    Test that when business logic model is not found, system falls back to quick config LLM model
+    
+    Scenario:
+    - Agent config specifies "Qwen/QwQ-32B" as business logic model
+    - Business logic model not found in target tenant
+    - System should fallback to quick config LLM model
+    - Agent should be created with quick config model_id for business logic
+    """
+    # Setup: No tools to process
+    mock_query_tools.return_value = []
+    
+    # Setup: Main model found, but business logic model not found
+    main_model_id = 50
+    mock_get_model_id.side_effect = [
+        main_model_id,  # Main model found
+        None  # Business logic model not found
+    ]
+    
+    mock_tenant_config_manager.get_model_config.return_value = sample_quick_config_model
+    
+    mock_create_agent.return_value = {
+        "agent_id": 888,
+        "name": sample_agent_info["name"]
+    }
+    
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=mock_import_agent_info,
+        tenant_id=mock_tenant_id,
+        user_id=mock_user_id
+    )
+    
+    # Verify: Quick config model was requested for business logic model
+    from consts.const import MODEL_CONFIG_MAPPING
+    mock_tenant_config_manager.get_model_config.assert_called_with(
+        key=MODEL_CONFIG_MAPPING["llm"],
+        tenant_id=mock_tenant_id
+    )
+    
+    # Verify: Agent was created with correct model IDs
+    mock_create_agent.assert_called_once()
+    call_args = mock_create_agent.call_args
+    agent_info = call_args.kwargs["agent_info"]
+    
+    assert agent_info["model_id"] == main_model_id
+    assert agent_info["business_logic_model_id"] == sample_quick_config_model["model_id"]
+    assert result == 888
+
+
+@pytest.mark.asyncio
+@patch("backend.services.agent_service.query_all_tools")
+@patch("backend.services.agent_service.get_model_id_by_display_name")
+@patch("backend.services.agent_service.tenant_config_manager")
+@patch("backend.services.agent_service.create_agent")
+async def test_both_models_fallback_to_quick_config(
+    mock_create_agent,
+    mock_tenant_config_manager,
+    mock_get_model_id,
+    mock_query_tools,
+    mock_tenant_id,
+    mock_user_id,
+    sample_agent_info,
+    sample_quick_config_model,
+    mock_import_agent_info
+):
+    """
+    Test that both main and business logic models fallback to quick config when not found
+    
+    Scenario:
+    - Neither main model nor business logic model found in target tenant
+    - Both should fallback to quick config LLM model
+    - Agent should be created with quick config model_id for both fields
+    """
+    # Setup: No tools to process
+    mock_query_tools.return_value = []
+    
+    # Setup: Both models not found
+    mock_get_model_id.side_effect = [
+        None,  # Main model not found
+        None  # Business logic model not found
+    ]
+    
+    mock_tenant_config_manager.get_model_config.return_value = sample_quick_config_model
+    
+    mock_create_agent.return_value = {
+        "agent_id": 777,
+        "name": sample_agent_info["name"]
+    }
+    
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=mock_import_agent_info,
+        tenant_id=mock_tenant_id,
+        user_id=mock_user_id
+    )
+    
+    # Verify: Quick config model was requested twice (once for each model)
+    assert mock_tenant_config_manager.get_model_config.call_count == 2
+    
+    # Verify: Agent was created with quick config model_id for both fields
+    mock_create_agent.assert_called_once()
+    call_args = mock_create_agent.call_args
+    agent_info = call_args.kwargs["agent_info"]
+    
+    assert agent_info["model_id"] == sample_quick_config_model["model_id"]
+    assert agent_info["business_logic_model_id"] == sample_quick_config_model["model_id"]
+    assert result == 777
+
+
+@pytest.mark.asyncio
+@patch("backend.services.agent_service.query_all_tools")
+@patch("backend.services.agent_service.get_model_id_by_display_name")
+@patch("backend.services.agent_service.tenant_config_manager")
+@patch("backend.services.agent_service.create_agent")
+async def test_no_quick_config_model_available(
+    mock_create_agent,
+    mock_tenant_config_manager,
+    mock_get_model_id,
+    mock_query_tools,
+    mock_tenant_id,
+    mock_user_id,
+    sample_agent_info,
+    mock_import_agent_info
+):
+    """
+    Test behavior when model not found and no quick config model is available
+    
+    Scenario:
+    - Main model not found in target tenant
+    - Quick config LLM model also not configured
+    - Agent should be created with model_id = None
+    """
+    # Setup: No tools to process
+    mock_query_tools.return_value = []
+    
+    # Setup: Model not found and no quick config
+    mock_get_model_id.side_effect = [
+        None,  # Main model not found
+        50  # Business logic model found
+    ]
+    
+    mock_tenant_config_manager.get_model_config.return_value = None  # No quick config
+    
+    mock_create_agent.return_value = {
+        "agent_id": 666,
+        "name": sample_agent_info["name"]
+    }
+    
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=mock_import_agent_info,
+        tenant_id=mock_tenant_id,
+        user_id=mock_user_id
+    )
+    
+    # Verify: Quick config was attempted
+    from consts.const import MODEL_CONFIG_MAPPING
+    mock_tenant_config_manager.get_model_config.assert_called_with(
+        key=MODEL_CONFIG_MAPPING["llm"],
+        tenant_id=mock_tenant_id
+    )
+    
+    # Verify: Agent was created with model_id = None
+    mock_create_agent.assert_called_once()
+    call_args = mock_create_agent.call_args
+    agent_info = call_args.kwargs["agent_info"]
+    
+    assert agent_info["model_id"] is None
+    assert agent_info["business_logic_model_id"] == 50
+    assert result == 666
+
+
+@pytest.mark.asyncio
+@patch("backend.services.agent_service.query_all_tools")
+@patch("backend.services.agent_service.get_model_id_by_display_name")
+@patch("backend.services.agent_service.tenant_config_manager")
+@patch("backend.services.agent_service.create_agent")
+async def test_model_found_no_fallback_needed(
+    mock_create_agent,
+    mock_tenant_config_manager,
+    mock_get_model_id,
+    mock_query_tools,
+    mock_tenant_id,
+    mock_user_id,
+    sample_agent_info,
+    mock_import_agent_info
+):
+    """
+    Test that quick config fallback is NOT used when model is found
+    
+    Scenario:
+    - Both main model and business logic model found in target tenant
+    - Quick config should NOT be called
+    - Agent should be created with found model IDs
+    """
+    # Setup: No tools to process
+    mock_query_tools.return_value = []
+    
+    # Setup: Both models found
+    main_model_id = 30
+    business_logic_model_id = 40
+    
+    mock_get_model_id.side_effect = [
+        main_model_id,  # Main model found
+        business_logic_model_id  # Business logic model found
+    ]
+    
+    mock_create_agent.return_value = {
+        "agent_id": 555,
+        "name": sample_agent_info["name"]
+    }
+    
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=mock_import_agent_info,
+        tenant_id=mock_tenant_id,
+        user_id=mock_user_id
+    )
+    
+    # Verify: Quick config was NOT called
+    mock_tenant_config_manager.get_model_config.assert_not_called()
+    
+    # Verify: Agent was created with found model IDs
+    mock_create_agent.assert_called_once()
+    call_args = mock_create_agent.call_args
+    agent_info = call_args.kwargs["agent_info"]
+    
+    assert agent_info["model_id"] == main_model_id
+    assert agent_info["business_logic_model_id"] == business_logic_model_id
+    assert result == 555
+
+
+# ============================================================================
+# Tests for Model Name Fields in Import
+# ============================================================================
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_includes_model_names(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id
+):
+    """
+    Test that import_agent_by_agent_id passes model_name and business_logic_model_name
+    to create_agent, ensuring these fields are not NULL in the database.
+
+    This test verifies the fix for the bug where these fields were missing from the
+    agent_info dictionary passed to create_agent().
+    """
+    # Setup
+    mock_tool_info = [
+        {
+            "tool_id": 101,
+            "class_name": "TestTool",
+            "source": "local",
+            "params": [{"name": "param1", "type": "string"}],
+            "description": "Test tool",
+            "name": "Test Tool",
+            "inputs": "test input",
+            "output_type": "string"
+        }
+    ]
+    mock_query_all_tools.return_value = mock_tool_info
+
+    # Mock model ID lookup to return valid IDs
+    mock_get_model_id.side_effect = [5, 4]  # First call for model_id, second for business_logic_model_id
+
+    mock_create_agent.return_value = {"agent_id": 999}
+
+    # Create import data with model_name and business_logic_model_name
+    from nexent.core.agents.agent_model import ToolConfig as NexentToolConfig
+    
+    tool_config = NexentToolConfig(
+        class_name="TestTool",
+        name="Test Tool",
+        source="local",
+        params={"param1": "value1"},
+        metadata={},
+        description="Test tool",
+        inputs="test input",
+        output_type="string",
+        usage=None
+    )
+
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="iot_knowledge_qa_assistant",
+        display_name="物联网知识问答助手",
+        description="IoT Q&A Assistant",
+        business_description="IoT knowledge retrieval assistant",
+        max_steps=5,
+        provide_run_summary=False,
+        duty_prompt="You are an IoT Q&A assistant",
+        constraint_prompt="Follow safety guidelines",
+        few_shots_prompt="Example tasks...",
+        enabled=True,
+        tools=[tool_config],
+        managed_agents=[],
+        model_id=5,
+        model_name="Qwen/Qwen3-8B",  # This is critical
+        business_logic_model_id=4,
+        business_logic_model_name="Qwen/QwQ-32B"  # This is critical
+    )
+
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert - verify the agent was created
+    assert result == 999
+
+    # Critical assertion: verify that model_name and business_logic_model_name
+    # were passed to create_agent
+    mock_create_agent.assert_called_once()
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    # Verify all model-related fields are present
+    assert "model_id" in agent_info_dict
+    assert "model_name" in agent_info_dict  # ← This was missing before the fix
+    assert "business_logic_model_id" in agent_info_dict
+    assert "business_logic_model_name" in agent_info_dict  # ← This was missing before the fix
+
+    # Verify the values are correct
+    assert agent_info_dict["model_name"] == "Qwen/Qwen3-8B"
+    assert agent_info_dict["business_logic_model_name"] == "Qwen/QwQ-32B"
+
+    # Verify other fields are also present
+    assert agent_info_dict["name"] == "iot_knowledge_qa_assistant"
+    assert agent_info_dict["display_name"] == "物联网知识问答助手"
+    assert agent_info_dict["max_steps"] == 5
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_without_business_logic_model(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id
+):
+    """
+    Test import when business_logic_model_name is None.
+
+    Verifies that the function handles cases where business logic model is not set.
+    """
+    # Setup
+    mock_query_all_tools.return_value = []
+    mock_get_model_id.return_value = 5  # Only one model lookup
+    mock_create_agent.return_value = {"agent_id": 888}
+
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="simple_agent",
+        display_name="Simple Agent",
+        description="A simple agent",
+        business_description="Simple agent description",
+        max_steps=3,
+        provide_run_summary=False,
+        duty_prompt="Do your duty",
+        constraint_prompt="Follow constraints",
+        few_shots_prompt="Examples",
+        enabled=True,
+        tools=[],
+        managed_agents=[],
+        model_id=5,
+        model_name="Qwen/Qwen3-8B",
+        business_logic_model_id=None,  # No business logic model
+        business_logic_model_name=None
+    )
+
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert
+    assert result == 888
+    mock_create_agent.assert_called_once()
+
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    # Verify model fields are present
+    assert agent_info_dict["model_name"] == "Qwen/Qwen3-8B"
+    assert agent_info_dict["business_logic_model_name"] is None
+    assert agent_info_dict["business_logic_model_id"] is None
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_model_lookup_by_display_name(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id
+):
+    """
+    Test that model_id is looked up by display_name (model_name) for cross-tenant compatibility.
+
+    This test verifies that the import process uses model_name to find the corresponding
+    model_id in the target tenant, rather than directly using the exported model_id.
+    """
+    # Setup
+    mock_query_all_tools.return_value = []
+
+    # Simulate cross-tenant import where model IDs are different
+    # Exported: model_id=10, model_name="Qwen/Qwen3-8B"
+    # Target tenant: model_id=5 for "Qwen/Qwen3-8B"
+    mock_get_model_id.side_effect = [5, 4]  # Returns different IDs than exported
+
+    mock_create_agent.return_value = {"agent_id": 777}
+
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="cross_tenant_agent",
+        display_name="Cross Tenant Agent",
+        description="Agent imported from another tenant",
+        business_description="Cross-tenant import test",
+        max_steps=5,
+        provide_run_summary=False,
+        duty_prompt="Cross-tenant duty",
+        constraint_prompt="Cross-tenant constraints",
+        few_shots_prompt="Cross-tenant examples",
+        enabled=True,
+        tools=[],
+        managed_agents=[],
+        model_id=10,  # Original model_id in source tenant
+        model_name="Qwen/Qwen3-8B",  # Used for lookup in target tenant
+        business_logic_model_id=9,  # Original business logic model_id
+        business_logic_model_name="Qwen/QwQ-32B"  # Used for lookup
+    )
+
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="target_tenant",
+        user_id="test_user"
+    )
+
+    # Assert
+    assert result == 777
+
+    # Verify model lookup was called with display names (model_name)
+    assert mock_get_model_id.call_count == 2
+    first_call = mock_get_model_id.call_args_list[0]
+    second_call = mock_get_model_id.call_args_list[1]
+
+    # First call should be for model_name
+    # get_model_id_by_display_name(display_name: str, tenant_id: str) uses positional args
+    assert first_call[0][0] == "Qwen/Qwen3-8B"  # display_name
+    assert first_call[0][1] == "target_tenant"  # tenant_id
+
+    # Second call should be for business_logic_model_name
+    assert second_call[0][0] == "Qwen/QwQ-32B"  # display_name
+    assert second_call[0][1] == "target_tenant"  # tenant_id
+
+    # Verify the NEW model IDs (from target tenant) were used, not the exported ones
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    assert agent_info_dict["model_id"] == 5  # New ID, not 10
+    assert agent_info_dict["business_logic_model_id"] == 4  # New ID, not 9
+
+    # Verify model_name fields are preserved
+    assert agent_info_dict["model_name"] == "Qwen/Qwen3-8B"
+    assert agent_info_dict["business_logic_model_name"] == "Qwen/QwQ-32B"
+
+
+@patch('backend.services.agent_service.tenant_config_manager')
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_model_not_found_in_target_tenant(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id,
+    mock_tenant_config_manager
+):
+    """
+    Test that import fails gracefully when the model doesn't exist in target tenant.
+    """
+    # Setup
+    mock_query_all_tools.return_value = []
+
+    # Simulate model not found in target tenant
+    mock_get_model_id.return_value = None
+    
+    # Mock the tenant config manager to return None (no quick config fallback)
+    mock_tenant_config_manager.get_model_config.return_value = None
+
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="missing_model_agent",
+        display_name="Agent with Missing Model",
+        description="Test missing model",
+        business_description="Missing model test",
+        max_steps=5,
+        provide_run_summary=False,
+        duty_prompt="Duty",
+        constraint_prompt="Constraints",
+        few_shots_prompt="Examples",
+        enabled=True,
+        tools=[],
+        managed_agents=[],
+        model_id=10,
+        model_name="NonExistent/Model",  # This model doesn't exist in target tenant
+        business_logic_model_id=None,
+        business_logic_model_name=None
+    )
+
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="target_tenant",
+        user_id="test_user"
+    )
+
+    # Assert - should still create agent but with None model_id
+    assert result is not None
+    mock_create_agent.assert_called_once()
+
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    # model_id should be None since model wasn't found
+    assert agent_info_dict["model_id"] is None
+    # But model_name should still be preserved
+    assert agent_info_dict["model_name"] == "NonExistent/Model"
+
+
+@patch('backend.services.agent_service.get_model_id_by_display_name')
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.create_agent')
+@patch('backend.services.agent_service.query_all_tools')
+@pytest.mark.asyncio
+async def test_import_agent_all_model_fields_in_database(
+    mock_query_all_tools,
+    mock_create_agent,
+    mock_create_tool,
+    mock_get_model_id
+):
+    """
+    Integration-style test to verify all model fields are correctly passed to the database.
+
+    This test ensures that after the fix, all four model-related fields are included:
+    - model_id
+    - model_name
+    - business_logic_model_id
+    - business_logic_model_name
+    """
+    # Setup
+    mock_query_all_tools.return_value = []
+    mock_get_model_id.side_effect = [5, 4]
+
+    # Mock create_agent to return the agent info as it would be inserted
+    def mock_create_agent_impl(agent_info, tenant_id, user_id):
+        return {
+            "agent_id": 666,
+            **agent_info  # Simulate returning all fields that were passed in
+        }
+
+    mock_create_agent.side_effect = mock_create_agent_impl
+
+    agent_info = ExportAndImportAgentInfo(
+        agent_id=123,
+        name="complete_agent",
+        display_name="Complete Agent",
+        description="Agent with all fields",
+        business_description="Complete test",
+        max_steps=5,
+        provide_run_summary=True,
+        duty_prompt="Complete duty",
+        constraint_prompt="Complete constraints",
+        few_shots_prompt="Complete examples",
+        enabled=True,
+        tools=[],
+        managed_agents=[],
+        model_id=10,
+        model_name="Qwen/Qwen3-8B",
+        business_logic_model_id=9,
+        business_logic_model_name="Qwen/QwQ-32B"
+    )
+
+    # Execute
+    result = await import_agent_by_agent_id(
+        import_agent_info=agent_info,
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+    # Assert
+    assert result == 666
+
+    # Verify all four model fields were passed to create_agent
+    call_kwargs = mock_create_agent.call_args[1]
+    agent_info_dict = call_kwargs["agent_info"]
+
+    # All four fields should be present and not None
+    assert "model_id" in agent_info_dict
+    assert "model_name" in agent_info_dict
+    assert "business_logic_model_id" in agent_info_dict
+    assert "business_logic_model_name" in agent_info_dict
+
+    assert agent_info_dict["model_id"] == 5
+    assert agent_info_dict["model_name"] == "Qwen/Qwen3-8B"
+    assert agent_info_dict["business_logic_model_id"] == 4
+    assert agent_info_dict["business_logic_model_name"] == "Qwen/QwQ-32B"
+
+    # Verify other standard fields
+    assert agent_info_dict["name"] == "complete_agent"
+    assert agent_info_dict["display_name"] == "Complete Agent"
+    assert agent_info_dict["description"] == "Agent with all fields"
+    assert agent_info_dict["business_description"] == "Complete test"
+    assert agent_info_dict["max_steps"] == 5
+    assert agent_info_dict["provide_run_summary"] is True
+    assert agent_info_dict["duty_prompt"] == "Complete duty"
+    assert agent_info_dict["constraint_prompt"] == "Complete constraints"
+    assert agent_info_dict["few_shots_prompt"] == "Complete examples"
+    assert agent_info_dict["enabled"] is True
+
+
+# =====================================================================
+# Tests for _resolve_model_with_fallback helper function
+# =====================================================================
+
+
+class TestResolveModelWithFallback:
+    """Test suite for the _resolve_model_with_fallback helper function."""
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_success_found_in_tenant(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test successful model resolution when model exists in tenant."""
+        # Arrange
+        mock_get_model_id.return_value = "resolved_model_123"
+        
+        # Import the function
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="GPT-4",
+            exported_model_id="old_model_456",
+            model_label="Model",
+            tenant_id="tenant_001"
+        )
+        
+        # Assert
+        assert result == "resolved_model_123"
+        mock_get_model_id.assert_called_once_with("GPT-4", "tenant_001")
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_fallback_to_quick_config(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test fallback to quick config LLM model when model not found in tenant."""
+        # Arrange
+        mock_get_model_id.return_value = None  # Model not found in tenant
+        mock_get_model_config.return_value = {
+            "model_id": "quick_config_model_789",
+            "display_name": "Default LLM Model"
+        }
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="NonExistentModel",
+            exported_model_id="exported_999",
+            model_label="Model",
+            tenant_id="tenant_002"
+        )
+        
+        # Assert
+        assert result == "quick_config_model_789"
+        mock_get_model_id.assert_called_once_with("NonExistentModel", "tenant_002")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_no_fallback_available(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when neither tenant model nor quick config model is available."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.return_value = None  # No quick config model
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="NonExistentModel",
+            exported_model_id="exported_999",
+            model_label="Model",
+            tenant_id="tenant_003"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_called_once_with("NonExistentModel", "tenant_003")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_none_model_name(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when model_name is None."""
+        # Arrange
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name=None,
+            exported_model_id="exported_123",
+            model_label="Model",
+            tenant_id="tenant_004"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_not_called()
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_empty_model_name(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when model_name is an empty string."""
+        # Arrange
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="",
+            exported_model_id="exported_456",
+            model_label="Model",
+            tenant_id="tenant_005"
+        )
+        
+        # Assert
+        assert result is None
+        mock_get_model_id.assert_not_called()
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_business_logic_model_success(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test successful resolution of business logic model."""
+        # Arrange
+        mock_get_model_id.return_value = "business_model_555"
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="Qwen/QwQ-32B",
+            exported_model_id="old_business_model_777",
+            model_label="Business logic model",
+            tenant_id="tenant_006"
+        )
+        
+        # Assert
+        assert result == "business_model_555"
+        mock_get_model_id.assert_called_once_with("Qwen/QwQ-32B", "tenant_006")
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_quick_config_no_model_id(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when quick config exists but has no model_id."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.return_value = {
+            "display_name": "Default Model",
+            # No model_id field
+        }
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act
+        result = _resolve_model_with_fallback(
+            model_display_name="SomeModel",
+            exported_model_id="exported_888",
+            model_label="Model",
+            tenant_id="tenant_007"
+        )
+        
+        # Assert
+        assert result is None  # Should return None when model_id is missing
+        mock_get_model_id.assert_called_once_with("SomeModel", "tenant_007")
+        mock_get_model_config.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_with_various_labels(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test that different model_labels are handled correctly."""
+        # Arrange
+        mock_get_model_id.return_value = "model_111"
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert - Test with "Model" label
+        result1 = _resolve_model_with_fallback(
+            model_display_name="TestModel",
+            exported_model_id="exp_1",
+            model_label="Model",
+            tenant_id="tenant_008"
+        )
+        assert result1 == "model_111"
+        
+        # Reset mock
+        mock_get_model_id.reset_mock()
+        mock_get_model_id.return_value = "model_222"
+        
+        # Act & Assert - Test with "Business logic model" label
+        result2 = _resolve_model_with_fallback(
+            model_display_name="TestModel2",
+            exported_model_id="exp_2",
+            model_label="Business logic model",
+            tenant_id="tenant_009"
+        )
+        assert result2 == "model_222"
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_exception_handling(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test that exceptions from database calls are propagated."""
+        # Arrange
+        mock_get_model_id.side_effect = Exception("Database connection error")
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert
+        with pytest.raises(Exception, match="Database connection error"):
+            _resolve_model_with_fallback(
+                model_display_name="TestModel",
+                exported_model_id="exp_3",
+                model_label="Model",
+                tenant_id="tenant_010"
+            )
+        
+        mock_get_model_config.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('backend.services.agent_service.get_model_id_by_display_name')
+    @patch('backend.services.agent_service.tenant_config_manager.get_model_config')
+    async def test_resolve_model_quick_config_exception(
+        self,
+        mock_get_model_config,
+        mock_get_model_id,
+    ):
+        """Test when quick config retrieval raises an exception."""
+        # Arrange
+        mock_get_model_id.return_value = None
+        mock_get_model_config.side_effect = Exception("Config service error")
+        
+        from backend.services.agent_service import _resolve_model_with_fallback
+        
+        # Act & Assert
+        with pytest.raises(Exception, match="Config service error"):
+            _resolve_model_with_fallback(
+                model_display_name="TestModel",
+                exported_model_id="exp_4",
+                model_label="Model",
+                tenant_id="tenant_011"
+            )

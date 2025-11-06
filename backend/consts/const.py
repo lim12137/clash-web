@@ -159,6 +159,11 @@ BOOLEAN_TRUE_VALUES = {"true", "1", "y", "yes", "on"}
 DEFAULT_LLM_MAX_TOKENS = 4096
 
 
+# Embedding Model Chunk Size Defaults
+DEFAULT_EXPECTED_CHUNK_SIZE = 1024
+DEFAULT_MAXIMUM_CHUNK_SIZE = 1536
+
+
 # MCP Server
 LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
 
@@ -265,4 +270,4 @@ LLM_SLOW_TOKEN_RATE_THRESHOLD = float(
     os.getenv("LLM_SLOW_TOKEN_RATE_THRESHOLD", "10.0"))  # tokens per second
 
 # APP Version
-APP_VERSION = "v1.7.4.1"
+APP_VERSION = "v1.7.5.1"

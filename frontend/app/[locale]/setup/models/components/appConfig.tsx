@@ -7,28 +7,32 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Pencil } from 'lucide-react';
 
 import { useConfig } from '@/hooks/useConfig';
-import { presetIcons, colorOptions } from "@/const/avatar"
-import { generateAvatarUri } from '@/lib/avatar';
+import { configService } from "@/services/configService";
+import { presetIcons, colorOptions } from "@/const/avatar";
+import { generateAvatarUri } from "@/lib/avatar";
 import log from "@/lib/logger";
-import { LAYOUT_CONFIG, CARD_THEMES, ICON_TYPES } from '@/const/modelConfig';
+import { LAYOUT_CONFIG, CARD_THEMES, ICON_TYPES } from "@/const/modelConfig";
 
-import 'bootstrap-icons/font/bootstrap-icons.css';
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 const { TextArea } = Input;
 const { Text } = Typography;
 
 // Dynamically import Modal component to avoid SSR hydration errors
-const DynamicModal = dynamic(() => import('antd/es/modal'), { ssr: false });
+const DynamicModal = dynamic(() => import("antd/es/modal"), { ssr: false });
 
 export const AppConfigSection: React.FC = () => {
   const { t } = useTranslation();
   const { message } = App.useApp();
-  const { appConfig, updateAppConfig, getAppAvatarUrl } = useConfig();
-  
+  const { appConfig, updateAppConfig, getAppAvatarUrl, getConfig } =
+    useConfig();
+
   // Add local state management for input values
   const [localAppName, setLocalAppName] = useState(appConfig.appName);
-  const [localAppDescription, setLocalAppDescription] = useState(appConfig.appDescription);
-  
+  const [localAppDescription, setLocalAppDescription] = useState(
+    appConfig.appDescription
+  );
+
   // Add error state management
   const [appNameError, setAppNameError] = useState(false);
 
@@ -40,19 +44,29 @@ export const AppConfigSection: React.FC = () => {
 
   // Avatar-related state
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  const [selectedIconKey, setSelectedIconKey] = useState<string>(presetIcons[0].key);
+  const [selectedIconKey, setSelectedIconKey] = useState<string>(
+    presetIcons[0].key
+  );
   const [tempIconKey, setTempIconKey] = useState<string>(presetIcons[0].key);
   const [tempColor, setTempColor] = useState<string>("#2689cb");
-  const [avatarType, setAvatarType] = useState<typeof ICON_TYPES[keyof typeof ICON_TYPES]>(appConfig.iconType);
-  const [tempAvatarType, setTempAvatarType] = useState<typeof ICON_TYPES[keyof typeof ICON_TYPES]>(appConfig.iconType);
-  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(appConfig.customIconUrl);
-  const [tempCustomAvatarUrl, setTempCustomAvatarUrl] = useState<string | null>(appConfig.customIconUrl);
-  
+  const [avatarType, setAvatarType] = useState<
+    (typeof ICON_TYPES)[keyof typeof ICON_TYPES]
+  >(appConfig.iconType);
+  const [tempAvatarType, setTempAvatarType] = useState<
+    (typeof ICON_TYPES)[keyof typeof ICON_TYPES]
+  >(appConfig.iconType);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(
+    appConfig.customIconUrl
+  );
+  const [tempCustomAvatarUrl, setTempCustomAvatarUrl] = useState<string | null>(
+    appConfig.customIconUrl
+  );
+
   // Get current avatar URL
   const avatarUrl = getAppAvatarUrl(60);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Add configuration change listener, synchronize local state when config is loaded from backend
   useEffect(() => {
     const handleConfigChanged = (event: any) => {
@@ -67,7 +81,7 @@ export const AppConfigSection: React.FC = () => {
         }
         setAvatarType(config.app.iconType || ICON_TYPES.PRESET);
         setCustomAvatarUrl(config.app.customIconUrl || null);
-        
+
         // Reset error state
         if (config.app.appName && config.app.appName.trim()) {
           setAppNameError(false);
@@ -75,9 +89,9 @@ export const AppConfigSection: React.FC = () => {
       }
     };
 
-    window.addEventListener('configChanged', handleConfigChanged);
+    window.addEventListener("configChanged", handleConfigChanged);
     return () => {
-      window.removeEventListener('configChanged', handleConfigChanged);
+      window.removeEventListener("configChanged", handleConfigChanged);
     };
   }, []);
 
@@ -92,25 +106,36 @@ export const AppConfigSection: React.FC = () => {
     }
     setAvatarType(appConfig.iconType);
     setCustomAvatarUrl(appConfig.customIconUrl);
-  }, [appConfig.appName, appConfig.appDescription, appConfig.iconType, appConfig.customIconUrl]);
-  
+  }, [
+    appConfig.appName,
+    appConfig.appDescription,
+    appConfig.iconType,
+    appConfig.customIconUrl,
+  ]);
+
   // Listen for highlight missing field events
   useEffect(() => {
     const handleHighlightMissingField = (event: any) => {
       const { field } = event.detail;
-      if (field === 'appName') {
+      if (field === "appName") {
         setAppNameError(true);
         // Scroll to app name input field
-        const appNameInput = document.querySelector('.app-name-input');
+        const appNameInput = document.querySelector(".app-name-input");
         if (appNameInput) {
-          appNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          appNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }
     };
-    
-    window.addEventListener('highlightMissingField', handleHighlightMissingField);
+
+    window.addEventListener(
+      "highlightMissingField",
+      handleHighlightMissingField
+    );
     return () => {
-      window.removeEventListener('highlightMissingField', handleHighlightMissingField);
+      window.removeEventListener(
+        "highlightMissingField",
+        handleHighlightMissingField
+      );
     };
   }, []);
 
@@ -131,7 +156,7 @@ export const AppConfigSection: React.FC = () => {
     const newAppName = e.target.value;
     isUserTypingAppName.current = true;
     setLocalAppName(newAppName);
-    
+
     // If value is entered, clear error state
     if (newAppName.trim()) {
       setAppNameError(false);
@@ -158,7 +183,9 @@ export const AppConfigSection: React.FC = () => {
     isUserTypingAppName.current = false;
   };
 
-  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleDescriptionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
     const newDescription = e.target.value;
     isUserTypingDescription.current = true;
     setLocalAppDescription(newDescription);
@@ -208,12 +235,12 @@ export const AppConfigSection: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        message.error(t('appConfig.upload.imageOnly'));
+        message.error(t("appConfig.upload.imageOnly"));
         return;
       }
 
       if (file.size > 2 * 1024 * 1024) {
-        message.error(t('appConfig.upload.sizeLimit'));
+        message.error(t("appConfig.upload.sizeLimit"));
         return;
       }
 
@@ -226,11 +253,19 @@ export const AppConfigSection: React.FC = () => {
       };
       reader.readAsDataURL(file);
     }
+    // Clear the input value to allow re-selecting the same file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Trigger file selection dialog
   const triggerFileUpload = () => {
-    fileInputRef.current?.click();
+    if (fileInputRef.current) {
+      // Reset value so selecting the same file triggers onChange
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
   };
 
   // Confirm avatar selection
@@ -238,28 +273,40 @@ export const AppConfigSection: React.FC = () => {
     try {
       setSelectedIconKey(tempIconKey);
       setAvatarType(tempAvatarType);
-      setCustomAvatarUrl(tempAvatarType === ICON_TYPES.CUSTOM ? tempCustomAvatarUrl : null);
+      setCustomAvatarUrl(
+        tempAvatarType === ICON_TYPES.CUSTOM ? tempCustomAvatarUrl : null
+      );
       setIsAvatarModalOpen(false);
 
       if (tempAvatarType === ICON_TYPES.PRESET) {
         // Generate avatar URI and save
         const avatarUri = generateAvatarUri(tempIconKey, tempColor);
-        
+
         updateAppConfig({
           iconType: ICON_TYPES.PRESET,
           customIconUrl: null,
-          avatarUri: avatarUri
+          avatarUri: avatarUri,
         });
       } else {
         updateAppConfig({
           iconType: ICON_TYPES.CUSTOM,
-          customIconUrl: tempCustomAvatarUrl,
-          avatarUri: tempCustomAvatarUrl || null
+          customIconUrl: tempCustomAvatarUrl || null,
+          avatarUri: null,
         });
       }
+
+      // Auto-save configuration after avatar selection changes
+      try {
+        const ok = await configService.saveConfigToBackend(getConfig() as any);
+        if (!ok) {
+          message.error(t("setup.page.error.saveConfig"));
+        }
+      } catch (e) {
+        message.error(t("setup.page.error.saveConfig"));
+      }
     } catch (error) {
-      message.error(t('appConfig.icon.saveError'));
-      log.error(t('appConfig.icon.saveErrorLog'), error);
+      message.error(t("appConfig.icon.saveError"));
+      log.error(t("appConfig.icon.saveErrorLog"), error);
     }
   };
 
@@ -284,13 +331,17 @@ export const AppConfigSection: React.FC = () => {
         }
       `}</style>
 
-      <Row gutter={[12, 12]} justify="center" style={{ height: "100%", marginLeft: "-30px" }}>
+      <Row
+        gutter={[12, 12]}
+        justify="center"
+        style={{ height: "100%", marginLeft: "-30px" }}
+      >
         <Col xs={24} md={24} lg={24} xl={24}>
           <Card
             variant="outlined"
             className="app-config-card"
             styles={{
-              body: { padding: LAYOUT_CONFIG.APP_CARD_BODY_PADDING}
+              body: { padding: LAYOUT_CONFIG.APP_CARD_BODY_PADDING },
             }}
             style={{
               minHeight: "300px",
@@ -301,30 +352,38 @@ export const AppConfigSection: React.FC = () => {
               border: `0px solid ${CARD_THEMES.default.borderColor}`,
             }}
           >
-            <div className="flex items-start justify-center mx-auto my-2" style={{ maxWidth: "95%" }}>
+            <div
+              className="flex items-start justify-center mx-auto my-2"
+              style={{ maxWidth: "95%" }}
+            >
               <div className="mr-6 mt-1 relative group">
-                <div 
+                <div
                   className="h-[60px] w-[60px] rounded-full overflow-hidden cursor-pointer"
                   style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
                   onClick={handleAvatarClick}
                 >
-                  <img 
-                    src={avatarUrl} 
+                  <img
+                    src={avatarUrl}
                     alt={appConfig.appName}
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="absolute -right-1 -bottom-1 bg-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={handleAvatarClick}>
+                <div
+                  className="absolute -right-1 -bottom-1 bg-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  onClick={handleAvatarClick}
+                >
                   <Pencil className="h-3 w-3 text-gray-500" />
                 </div>
               </div>
               <div className="flex-1">
                 <div className="mb-4">
                   <div className="flex items-center mb-2 min-h-[24px]">
-                    <Text className="text-base text-gray-700 font-bold">{t('appConfig.appName.label')}</Text>
+                    <Text className="text-base text-gray-700 font-bold">
+                      {t("appConfig.appName.label")}
+                    </Text>
                   </div>
                   <Input
-                    placeholder={t('appConfig.appName.placeholder')}
+                    placeholder={t("appConfig.appName.placeholder")}
                     value={localAppName}
                     onChange={handleAppNameChange}
                     onBlur={handleAppNameBlur}
@@ -336,10 +395,12 @@ export const AppConfigSection: React.FC = () => {
                 </div>
                 <div className="mb-1">
                   <div className="flex items-center mb-2 min-h-[24px]">
-                    <Text className="text-base text-gray-700 font-bold">{t('appConfig.description.label')}</Text>
+                    <Text className="text-base text-gray-700 font-bold">
+                      {t("appConfig.description.label")}
+                    </Text>
                   </div>
                   <TextArea
-                    placeholder={t('appConfig.description.placeholder')}
+                    placeholder={t("appConfig.description.placeholder")}
                     value={localAppDescription}
                     onChange={handleDescriptionChange}
                     onBlur={handleDescriptionBlur}
@@ -356,12 +417,16 @@ export const AppConfigSection: React.FC = () => {
 
       {isAvatarModalOpen && (
         <DynamicModal
-          title={t('appConfig.icon.modalTitle')}
+          title={t("appConfig.icon.modalTitle")}
           open={isAvatarModalOpen}
           onCancel={cancelAvatarSelection}
           footer={[
-            <Button key="submit" type="primary" onClick={confirmAvatarSelection}>
-              {t('common.confirm')}
+            <Button
+              key="submit"
+              type="primary"
+              onClick={confirmAvatarSelection}
+            >
+              {t("common.confirm")}
             </Button>,
           ]}
           destroyOnClose={true}
@@ -374,8 +439,12 @@ export const AppConfigSection: React.FC = () => {
               onChange={(e) => setTempAvatarType(e.target.value)}
               className="mb-4"
             >
-              <Radio.Button value={ICON_TYPES.PRESET}>{t('appConfig.icon.preset')}</Radio.Button>
-              <Radio.Button value={ICON_TYPES.CUSTOM}>{t('appConfig.icon.custom')}</Radio.Button>
+              <Radio.Button value={ICON_TYPES.PRESET}>
+                {t("appConfig.icon.preset")}
+              </Radio.Button>
+              <Radio.Button value={ICON_TYPES.CUSTOM}>
+                {t("appConfig.icon.custom")}
+              </Radio.Button>
             </Radio.Group>
           </div>
 
@@ -383,7 +452,7 @@ export const AppConfigSection: React.FC = () => {
             <div>
               <div className="mb-3">
                 <div className="text-sm font-medium text-gray-500 mb-2">
-                  <Text>{t('appConfig.icon.selectIcon')}</Text>
+                  <Text>{t("appConfig.icon.selectIcon")}</Text>
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {presetIcons.map((iconOption) => (
@@ -396,7 +465,10 @@ export const AppConfigSection: React.FC = () => {
                       }`}
                       onClick={() => handleIconSelect(iconOption.key)}
                     >
-                      <i className={`bi bi-${iconOption.icon}`} style={{ color: "#273746" }}></i>
+                      <i
+                        className={`bi bi-${iconOption.icon}`}
+                        style={{ color: "#273746" }}
+                      ></i>
                     </div>
                   ))}
                 </div>
@@ -404,7 +476,7 @@ export const AppConfigSection: React.FC = () => {
 
               <div>
                 <div className="text-sm font-medium text-gray-500 mb-2">
-                  <Text>{t('appConfig.icon.selectColor')}</Text>
+                  <Text>{t("appConfig.icon.selectColor")}</Text>
                 </div>
                 <div className="flex items-center w-full">
                   <ColorPicker
@@ -414,19 +486,17 @@ export const AppConfigSection: React.FC = () => {
                     disabledAlpha={true}
                     presets={[
                       {
-                        label: t('appConfig.icon.presetColors'),
+                        label: t("appConfig.icon.presetColors"),
                         colors: colorOptions as any,
-                      }
+                      },
                     ]}
                     panelRender={(panel) => (
-                      <div className="color-picker-rounded">
-                        {panel}
-                      </div>
+                      <div className="color-picker-rounded">{panel}</div>
                     )}
                     styles={{
                       popupOverlayInner: {
-                        width: 'auto',
-                      }
+                        width: "auto",
+                      },
                     }}
                     className="color-picker-rounded"
                   />
@@ -435,25 +505,27 @@ export const AppConfigSection: React.FC = () => {
 
               <div>
                 <div className="text-sm font-medium text-gray-500 mb-2 mt-4">
-                  <Text>{t('appConfig.icon.preview')}</Text>
+                  <Text>{t("appConfig.icon.preview")}</Text>
                 </div>
                 <div className="mt-4 flex justify-center">
-                  <div 
+                  <div
                     className="h-[60px] w-[60px] rounded-full overflow-hidden"
                     style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
                   >
                     {tempAvatarType === ICON_TYPES.PRESET ? (
-                      <img 
-                        src={generateAvatarUri(tempIconKey, tempColor)} 
-                        alt={t('appConfig.icon.previewAlt')}
+                      <img
+                        src={generateAvatarUri(tempIconKey, tempColor)}
+                        alt={t("appConfig.icon.previewAlt")}
                         className="h-full w-full object-cover"
                       />
-                    ) : tempCustomAvatarUrl && (
-                      <img 
-                        src={tempCustomAvatarUrl} 
-                        alt={t('appConfig.icon.previewAlt')}
-                        className="h-full w-full object-cover"
-                      />
+                    ) : (
+                      tempCustomAvatarUrl && (
+                        <img
+                          src={tempCustomAvatarUrl}
+                          alt={t("appConfig.icon.previewAlt")}
+                          className="h-full w-full object-cover"
+                        />
+                      )
                     )}
                   </div>
                 </div>
@@ -465,49 +537,56 @@ export const AppConfigSection: React.FC = () => {
             <div className="flex flex-col items-center">
               {tempCustomAvatarUrl ? (
                 <div className="mb-4 text-center flex flex-col items-center">
-                  <div 
+                  <div
                     className="h-[120px] w-[120px] rounded-full overflow-hidden"
                     style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
                   >
-                    <img 
+                    <img
                       src={tempCustomAvatarUrl}
-                      alt={t('appConfig.icon.customAlt')}
+                      alt={t("appConfig.icon.customAlt")}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <Button 
-                    type="text" 
-                    danger 
+                  <Button
+                    type="text"
+                    danger
                     className="mt-4"
-                    onClick={() => setTempCustomAvatarUrl(null)}
+                    onClick={() => {
+                      setTempCustomAvatarUrl(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
                   >
-                    {t('appConfig.icon.removeImage')}
+                    {t("appConfig.icon.removeImage")}
                   </Button>
                 </div>
               ) : (
-                <div 
+                <div
                   className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-blue-500"
                   onClick={triggerFileUpload}
                 >
                   <div className="text-center">
-                    <PlusOutlined style={{ fontSize: '24px', color: '#8c8c8c' }} />
-                    <p className="mt-2 text-gray-500">{t('appConfig.icon.uploadHint')}</p>
+                    <PlusOutlined
+                      style={{ fontSize: "24px", color: "#8c8c8c" }}
+                    />
+                    <p className="mt-2 text-gray-500">
+                      {t("appConfig.icon.uploadHint")}
+                    </p>
                   </div>
                 </div>
               )}
-              
+
               <input
                 type="file"
                 ref={fileInputRef}
                 style={{ display: "none" }}
                 accept="image/*"
                 onChange={handleFileUpload}
-                title={t('appConfig.icon.uploadHint')}
-                placeholder={t('appConfig.icon.uploadHint')}
+                title={t("appConfig.icon.uploadHint")}
+                placeholder={t("appConfig.icon.uploadHint")}
               />
-              
+
               <div className="text-xs text-gray-500 mt-2">
-                <Text>{t('appConfig.icon.uploadTip')}</Text>
+                <Text>{t("appConfig.icon.uploadTip")}</Text>
               </div>
             </div>
           )}
