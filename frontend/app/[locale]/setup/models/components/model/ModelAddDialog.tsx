@@ -298,7 +298,7 @@ export const ModelAddDialog = ({
         if (result.error) {
           const translatedError = translateError(result.error, t)
           // Ensure translatedError is a valid string, fallback to original error if needed
-          const errorText = (translatedError && typeof translatedError === 'string' && translatedError.length > 0)
+          const errorText = (translatedError && translatedError.length > 0)
             ? translatedError
             : (result.error || 'Unknown error')
           message.error(t('model.dialog.error.connectivityFailed', { error: errorText }))
@@ -313,7 +313,7 @@ export const ModelAddDialog = ({
       // Show error message using internationalized component (same as add failure)
       const translatedError = translateError(errorMessage || t('model.dialog.connectivity.status.unavailable'), t)
       // Ensure translatedError is a valid string
-      const errorText = translatedError && typeof translatedError === 'string' ? translatedError : (errorMessage || t("model.dialog.connectivity.status.unavailable"))
+      const errorText = translatedError ? translatedError : (errorMessage || t("model.dialog.connectivity.status.unavailable"))
       message.error(t('model.dialog.error.connectivityFailed', { error: errorText }))
     } finally {
       setVerifyingConnectivity(false);

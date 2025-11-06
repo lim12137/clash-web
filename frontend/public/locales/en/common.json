@@ -567,7 +567,6 @@
   "model.dialog.error.nameAlreadyInUse": "Name '{{name}}' is already in use, please choose another display name",
   "model.dialog.error.modelNotFound": "Model not found: {{name}}",
   "model.dialog.error.failedToConnect": "Failed to connect to model '{{modelName}}' at {{url}}. Please verify the URL, API key, and network connection.",
-  "model.dialog.error.failedToConnectGeneric": "Connection failed: {{error}}",
   "model.dialog.error.unsupportedModelType": "Unsupported model type: {{type}}",
   "model.dialog.error.invalidConfiguration": "Invalid configuration: {{error}}",
   "model.dialog.error.addFailedLog": "Failed to add model",
