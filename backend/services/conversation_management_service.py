@@ -277,7 +277,8 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["Z
 
     # Call the model
     response = llm(messages, max_tokens=10)
-
+    if response is None or response.content is None:
+        return ""
     return remove_think_blocks(response.content.strip())
 
 

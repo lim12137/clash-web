@@ -897,9 +897,8 @@ export const handleStreamResponse = async (
                 history,
               });
               // Update the title above the conversation
-              if (title) {
-                setConversationTitle(title);
-              }
+              const finalTitle = title || t("chatInterface.newConversation");
+              setConversationTitle(finalTitle);
               // Update the list
               await fetchConversationList();
             } catch (error) {
