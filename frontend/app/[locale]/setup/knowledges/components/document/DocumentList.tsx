@@ -245,7 +245,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
       setSummary("");
 
       try {
-        await knowledgeBaseService.summaryIndex(
+        const result = await knowledgeBaseService.summaryIndex(
           knowledgeBaseName,
           1000,
           (newText) => {
@@ -253,7 +253,13 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
           },
           selectedModel
         );
-        message.success(t("document.summary.completed"));
+        // Only show success message if summary was actually generated
+        if (result && result.trim()) {
+          message.success(t("document.summary.completed"));
+        } else {
+          // If no summary was generated, show error message
+          message.error(t("knowledgeBase.summary.notGenerated"));
+        }
       } catch (error) {
         message.error(t("document.summary.error"));
         log.error(t("document.summary.error"), error);
