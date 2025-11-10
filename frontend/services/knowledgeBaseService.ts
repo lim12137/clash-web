@@ -1,5 +1,7 @@
 // Unified encapsulation of knowledge base related API calls
 
+import i18n from "i18next";
+
 import { API_ENDPOINTS } from "./api";
 
 import { NAME_CHECK_STATUS } from "@/const/agentConfig";
@@ -463,6 +465,19 @@ class KnowledgeBaseService {
                 summary += data.message;
 
                 // If progress callback is provided, call it
+                if (onProgress) {
+                  onProgress(data.message);
+                }
+              } else if (data.status === "completed") {
+                // Check if message field exists when status is completed
+                if (!data.message || data.message.trim() === "") {
+                  // No summary was generated, throw internationalized error
+                  const errorMessage = i18n.t(
+                    "knowledgeBase.summary.notGenerated"
+                  );
+                  throw new Error(errorMessage);
+                }
+                summary += data.message;
                 if (onProgress) {
                   onProgress(data.message);
                 }
