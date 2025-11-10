@@ -424,9 +424,8 @@ def summarize_document(document_content: str, filename: str, language: str = LAN
                 {"role": MESSAGE_ROLE["USER"], "content": user_prompt}
             ]
             
-            # Call LLM
+            # Call LLM, allow more tokens for generation
             response = llm(messages, max_tokens=max_words * 2)
-            # Allow more tokens for generation
             if not response or not response.content:
                 return ""
             return response.content.strip()
