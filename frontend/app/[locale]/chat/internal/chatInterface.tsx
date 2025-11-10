@@ -61,7 +61,7 @@ const getI18nKeyByType = (type: string): string => {
 
 export function ChatInterface() {
   const router = useRouter();
-  const { user } = useAuth(); // Get user information
+  const { user, isSpeedMode } = useAuth(); // Get user information
   const [input, setInput] = useState("");
   // Replace the original messages state
   const [sessionMessages, setSessionMessages] = useState<{
@@ -1539,8 +1539,8 @@ export function ChatInterface() {
     // Both admin and regular users now use dropdown menus
   };
 
-  // Settings menu items based on user role
-  const settingsMenuItems = user?.role === "admin" ? [
+  // Settings menu items based on user role (speed mode is treated as admin)
+  const settingsMenuItems = (isSpeedMode || user?.role === "admin") ? [
     // Admin has three options
     {
       key: "models",
