@@ -75,17 +75,30 @@ export default function AgentConfig() {
   const [isGeneratingAgent, setIsGeneratingAgent] = useState(false);
   const [isEmbeddingConfigured, setIsEmbeddingConfigured] = useState(false);
 
+  // Error state for business logic input
+  const [businessLogicError, setBusinessLogicError] = useState(false);
+
   // Only auto scan once flag
   const hasAutoScanned = useRef(false);
 
   // Handle generate agent
   const handleGenerateAgent = async (selectedModel?: ModelOption) => {
     if (!businessLogic || businessLogic.trim() === "") {
+      setBusinessLogicError(true);
       message.warning(
         t("businessLogic.config.error.businessDescriptionRequired")
       );
+      // Scroll to business logic input after a short delay to ensure it's visible
+      setTimeout(() => {
+        const businessLogicInput = document.querySelector('[data-business-logic-input]');
+        if (businessLogicInput) {
+          businessLogicInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
       return;
     }
+    // Clear error when validation passes
+    setBusinessLogicError(false);
 
     const currentAgentId = getCurrentAgentId();
     if (!currentAgentId) {
@@ -296,6 +309,7 @@ export default function AgentConfig() {
         setDutyContent("");
         setConstraintContent("");
         setFewShotsContent("");
+        setBusinessLogicError(false);
         // Clear agent name and description only when not in editing mode
         if (!isEditingAgent) {
           setAgentName("");
@@ -364,11 +378,13 @@ export default function AgentConfig() {
     if (isEditing && agent) {
       setAgentName(agent.name || "");
       setAgentDescription(agent.description || "");
+      setBusinessLogicError(false);
     } else if (!isEditing) {
       // When stopping editing, clear name description box
       setAgentName("");
       setAgentDescription("");
       setAgentDisplayName("");
+      setBusinessLogicError(false);
     }
   };
 
@@ -388,6 +404,7 @@ export default function AgentConfig() {
     setFewShotsContent("");
     setAgentName("");
     setAgentDescription("");
+    setBusinessLogicError(false);
   };
 
   // Refresh tool list
@@ -427,10 +444,15 @@ export default function AgentConfig() {
               businessLogic={businessLogic}
               setBusinessLogic={(value) => {
                 setBusinessLogic(value);
+                // Clear error when user starts typing
+                if (businessLogicError && value.trim() !== "") {
+                  setBusinessLogicError(false);
+                }
                 if (isCreatingNewAgent) {
                   setBusinessLogic(value);
                 }
               }}
+              businessLogicError={businessLogicError}
               selectedTools={selectedTools}
               setSelectedTools={setSelectedTools}
               isCreatingNewAgent={isCreatingNewAgent}
