@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
-from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE, DEFAULT_EN_TITLE, DEFAULT_ZH_TITLE
 from consts.model import AgentRequest, ConversationResponse, MessageRequest, MessageUnit
 from database.conversation_db import (
     create_conversation,
@@ -277,7 +277,8 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["Z
 
     # Call the model
     response = llm(messages, max_tokens=10)
-
+    if not response or not response.content or not response.content.strip():
+        return DEFAULT_EN_TITLE if language == LANGUAGE["EN"] else DEFAULT_ZH_TITLE
     return remove_think_blocks(response.content.strip())
 
 

@@ -453,15 +453,12 @@ export const ModelDeleteDialog = ({
             maxTokens: maxTokens || m.maxTokens,
           }));
 
-        const result = await modelService.updateBatchModel(
+        await modelService.updateBatchModel(
           currentModelPayloads
         );
 
-        if (result.code !== 200) {
-          message.error(t("model.dialog.error.noModelsFetched"));
-        } else {
-          message.success(t("model.dialog.success.updateSuccess"));
-        }
+        // Show success message since no exception was thrown
+        message.success(t("model.dialog.success.updateSuccess"));
 
         // Optionally use currentModelPayloads for subsequent API calls if needed
       } catch (e) {
