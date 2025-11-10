@@ -45,10 +45,10 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
   userRole,
 }) => {
   // Get user role from authentication context
-  const { user } = useAuth();
+  const { user, isSpeedMode } = useAuth();
   const { message } = App.useApp();
   const role: (typeof USER_ROLES)[keyof typeof USER_ROLES] = (userRole ??
-    (user?.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER)) as (typeof USER_ROLES)[keyof typeof USER_ROLES];
+    (isSpeedMode || user?.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER)) as (typeof USER_ROLES)[keyof typeof USER_ROLES];
 
   // Get user role from other hooks / context
   const currentUserId = "user1";
