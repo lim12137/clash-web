@@ -15,6 +15,7 @@ sys.modules['nexent'] = MagicMock()
 sys.modules['nexent.memory'] = MagicMock()
 nexent_memory_service = MagicMock()
 sys.modules['nexent.memory.memory_service'] = nexent_memory_service
+sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
 
 from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException, UnauthorizedError
 

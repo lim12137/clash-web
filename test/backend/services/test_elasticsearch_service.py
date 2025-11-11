@@ -26,6 +26,7 @@ sys.modules['nexent.core.nlp'] = MagicMock()
 sys.modules['nexent.core.nlp.tokenizer'] = MagicMock()
 sys.modules['nexent.vector_database'] = MagicMock()
 sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
+sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
 
 # Mock specific classes that are imported
 sys.modules['nexent.core.agents.agent_model'].ToolConfig = MagicMock()
