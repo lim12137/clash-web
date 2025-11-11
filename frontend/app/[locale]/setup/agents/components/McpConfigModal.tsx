@@ -24,7 +24,7 @@ import {
   RedoOutlined,
 } from "@ant-design/icons";
 
-import { McpConfigModalProps } from "@/types/agentConfig";
+import { McpConfigModalProps, AgentRefreshEvent } from "@/types/agentConfig";
 import {
   getMcpServerList,
   addMcpServer,
@@ -34,6 +34,7 @@ import {
   checkMcpServerHealth,
 } from "@/services/mcpService";
 import { McpServer, McpTool } from "@/types/agentConfig";
+import log from "@/lib/logger";
 
 const { Text, Title } = Typography;
 
@@ -59,6 +60,29 @@ export default function McpConfigModal({
   const [healthCheckLoading, setHealthCheckLoading] = useState<{
     [key: string]: boolean;
   }>({});
+
+  // Helper function to refresh tools and agents asynchronously
+  const refreshToolsAndAgents = async () => {
+    setUpdatingTools(true);
+    try {
+      // Update tool list to refresh MCP tool availability status
+      const updateResult = await updateToolList();
+      if (updateResult.success) {
+        // Notify parent component to update tool list
+        window.dispatchEvent(new CustomEvent("toolsUpdated"));
+      }
+      
+      // Refresh agent list to update agent availability status
+      window.dispatchEvent(
+        new CustomEvent("refreshAgentList") as AgentRefreshEvent
+      );
+    } catch (error) {
+      // Silently handle errors to avoid interrupting user experience
+      log.error("Failed to refresh tools and agents:", error);
+    } finally {
+      setUpdatingTools(false);
+    }
+  };
 
   // Load MCP server list
   const loadServerList = async () => {
@@ -117,19 +141,12 @@ export default function McpConfigModal({
         setNewServerUrl("");
         await loadServerList(); // Reload list
 
-        // Set tool update status and auto refresh tool list
-        setUpdatingTools(true);
-        try {
-          const updateResult = await updateToolList();
-          if (updateResult.success) {
-            // Notify parent component to update tool list
-            window.dispatchEvent(new CustomEvent("toolsUpdated"));
-          }
-        } catch (updateError) {
-          message.warning(t("mcpConfig.message.addServerSuccessToolsFailed"));
-        } finally {
-          setUpdatingTools(false);
-        }
+        // Refresh tools and agents asynchronously after adding server
+        // This will update MCP tool availability and agent availability status
+        await refreshToolsAndAgents();
+        
+        // Show success message after refresh completes to avoid message overlap
+        message.success(t("mcpService.message.addServerSuccess"));
       } else {
         message.error(result.message);
       }
@@ -159,21 +176,12 @@ export default function McpConfigModal({
           if (result.success) {
             await loadServerList(); // Reload list
 
-            // After successful deletion, immediately close confirmation modal, then async update tool list
-            setTimeout(async () => {
-              setUpdatingTools(true);
-              try {
-                const updateResult = await updateToolList();
-                if (updateResult.success) {
-                  // Notify parent component to update tool list
-                  window.dispatchEvent(new CustomEvent("toolsUpdated"));
-                }
-              } catch (updateError) {
-                message.warning(t("mcpConfig.message.toolsListUpdateFailed"));
-              } finally {
-                setUpdatingTools(false);
-              }
-            }, 100); // Give confirmation modal some time to close
+            // After successful deletion, refresh tools and agents asynchronously
+            // This will update MCP tool availability and agent availability status
+            await refreshToolsAndAgents();
+
+            // Show success message after refresh completes to avoid message overlap
+            message.success(t("mcpService.message.deleteServerSuccess"));
           } else {
             message.error(result.message);
           }
@@ -233,15 +241,27 @@ export default function McpConfigModal({
       if (result.success) {
         message.success(t("mcpConfig.message.healthCheckSuccess"));
         await loadServerList();
+        
+        // Refresh tools and agents asynchronously after health check
+        // This will update MCP tool availability and agent availability status
+        refreshToolsAndAgents();
       } else {
         message.error(
           result.message || t("mcpConfig.message.healthCheckFailed")
         );
         await loadServerList();
+        
+        // Refresh tools and agents even if health check failed
+        // This will update MCP tool availability and agent availability status
+        refreshToolsAndAgents();
       }
     } catch (error) {
       message.error(t("mcpConfig.message.healthCheckFailed"));
       await loadServerList();
+      
+      // Refresh tools and agents even if health check failed
+      // This will update MCP tool availability and agent availability status
+      refreshToolsAndAgents();
     } finally {
       setHealthCheckLoading((prev) => ({ ...prev, [key]: false }));
     }

@@ -32,6 +32,7 @@ interface FinalMessageProps {
   hideButtons?: boolean;
   index?: number;
   currentConversationId?: number;
+  onCitationHover?: () => void;
 }
 
 // TTS playback status
@@ -48,6 +49,7 @@ export function ChatStreamFinalMessage({
   hideButtons = false,
   index,
   currentConversationId,
+  onCitationHover,
 }: FinalMessageProps) {
   const { t } = useTranslation("common");
 
@@ -269,6 +271,7 @@ export function ChatStreamFinalMessage({
               <MarkdownRenderer
                 content={message.finalAnswer || message.content || ""}
                 searchResults={message?.searchResults}
+                onCitationHover={onCitationHover}
               />
 
               {/* Button group - only show when hideButtons is false and message is complete */}
@@ -287,6 +290,11 @@ export function ChatStreamFinalMessage({
                             isSelected ? "bg-gray-100" : ""
                           }`}
                           onClick={handleMessageSelect}
+                          onMouseEnter={() => {
+                            if (onCitationHover) {
+                              onCitationHover();
+                            }
+                          }}
                         >
                           <span>
                             {searchResultsCount > 0 &&
