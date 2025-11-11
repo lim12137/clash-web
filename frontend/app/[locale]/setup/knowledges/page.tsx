@@ -123,7 +123,7 @@ export default function KnowledgeSetupPage() {
 
   // Handle back button click
   const handleBack = () => {
-    if (user?.role === USER_ROLES.ADMIN) {
+    if (isSpeedMode || user?.role === USER_ROLES.ADMIN) {
       router.push("/setup/models");
     } else {
       message.error(t("setup.page.error.adminOnly"));
@@ -152,8 +152,8 @@ export default function KnowledgeSetupPage() {
     duration: 0.4,
   };
 
-  // Determine which button to show based on user role
-  const isAdmin = user?.role === USER_ROLES.ADMIN;
+  // Determine which button to show based on user role (speed mode is treated as admin)
+  const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
   return (
     <SetupLayout
