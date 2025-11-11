@@ -460,6 +460,14 @@ export const ModelDeleteDialog = ({
         // Show success message since no exception was thrown
         message.success(t("model.dialog.success.updateSuccess"));
 
+        // Synchronize providerModels state with the updated maxTokens
+        setProviderModels((prev) =>
+          prev.map((model) => ({
+            ...model,
+            max_tokens: maxTokens || model.max_tokens || 4096,
+          }))
+        );
+
         // Optionally use currentModelPayloads for subsequent API calls if needed
       } catch (e) {
         message.error(t("model.dialog.error.noModelsFetched"));
