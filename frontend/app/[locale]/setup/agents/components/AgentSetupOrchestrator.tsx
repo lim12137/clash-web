@@ -18,7 +18,7 @@ import {
   searchToolConfig,
   updateToolConfig,
 } from "@/services/agentConfigService";
-import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
+import { Agent, AgentSetupOrchestratorProps, Tool } from "@/types/agentConfig";
 import log from "@/lib/logger";
 
 import SubAgentPool from "./agent/SubAgentPool";
@@ -93,6 +93,11 @@ export default function AgentSetupOrchestrator({
   const [isEmbeddingAutoUnsetOpen, setIsEmbeddingAutoUnsetOpen] =
     useState(false);
   const lastProcessedAgentIdForEmbedding = useRef<number | null>(null);
+  
+  // Flag to track if we need to refresh enabledToolIds after tools update
+  const shouldRefreshEnabledToolIds = useRef(false);
+  // Track previous tools prop to detect when it's updated
+  const previousToolsRef = useRef<Tool[] | undefined>(undefined);
 
   // Edit agent related status
   const [isEditingAgent, setIsEditingAgent] = useState(false);
@@ -259,10 +264,15 @@ export default function AgentSetupOrchestrator({
 
   // Listen for changes in the tool status, update the selected tool
   useEffect(() => {
-    if (!tools || !enabledToolIds || isLoadingTools) return;
+    if (!tools || isLoadingTools) return;
+    // Allow empty enabledToolIds array (it's valid when no tools are selected)
+    if (enabledToolIds === undefined || enabledToolIds === null) return;
 
-    const enabledTools = tools.filter((tool) =>
-      enabledToolIds.includes(Number(tool.id))
+    // Filter out unavailable tools (is_available === false) to prevent deleted MCP tools from showing
+    const enabledTools = tools.filter(
+      (tool) =>
+        enabledToolIds.includes(Number(tool.id)) &&
+        tool.is_available !== false
     );
 
     setSelectedTools(enabledTools);
@@ -337,6 +347,205 @@ export default function AgentSetupOrchestrator({
       window.removeEventListener("refreshAgentList", handleRefreshAgentList);
     };
   }, [t]);
+
+  // Listen for tools updated events and refresh enabledToolIds if agent is selected
+  useEffect(() => {
+    const handleToolsUpdated = async () => {
+      // If there's a selected agent (mainAgentId or editingAgent), refresh enabledToolIds
+      const currentAgentId = (isEditingAgent && editingAgent
+        ? Number(editingAgent.id)
+        : mainAgentId
+        ? Number(mainAgentId)
+        : undefined) as number | undefined;
+
+      if (currentAgentId) {
+        try {
+          // First, refresh the tools list to ensure it's up to date
+          // Pass false to prevent showing success message (MCP modal will show its own message)
+          if (onToolsRefresh) {
+            // First, synchronize the selected tools once using search_info.
+            await refreshAgentToolSelectionsFromServer(currentAgentId);
+            // Then refresh the tool list
+            await onToolsRefresh(false);
+            // Wait for React state to update and tools prop to be updated
+            // Use setTimeout to ensure tools prop is updated before refreshing enabledToolIds
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            // Set flag to refresh enabledToolIds after tools prop updates
+            shouldRefreshEnabledToolIds.current = true;
+          }
+        } catch (error) {
+          log.error("Failed to refresh tools after tools update:", error);
+        }
+      }
+    };
+
+    window.addEventListener("toolsUpdated", handleToolsUpdated);
+
+    return () => {
+      window.removeEventListener("toolsUpdated", handleToolsUpdated);
+    };
+  }, [mainAgentId, isEditingAgent, editingAgent, onToolsRefresh, t]);
+
+  const refreshAgentToolSelectionsFromServer = useCallback(
+    async (agentId: number) => {
+      try {
+        const agentInfoResult = await searchAgentInfo(agentId);
+        if (agentInfoResult.success && agentInfoResult.data) {
+          const remoteTools = Array.isArray(agentInfoResult.data.tools)
+            ? agentInfoResult.data.tools
+            : [];
+          const enabledIdsFromServer = remoteTools
+            .filter(
+              (remoteTool: any) =>
+                remoteTool && remoteTool.is_available !== false
+            )
+            .map((remoteTool: any) => Number(remoteTool.id))
+            .filter((id) => !Number.isNaN(id));
+
+          const filteredIds = enabledIdsFromServer.filter((toolId) => {
+            const toolMeta = tools?.find(
+              (tool) => Number(tool.id) === Number(toolId)
+            );
+            return toolMeta && toolMeta.is_available !== false;
+          });
+
+          const dedupedIds = Array.from(new Set(filteredIds));
+          setEnabledToolIds(dedupedIds);
+          log.info("Refreshed agent tool selection from search_info", {
+            agentId,
+            toolIds: dedupedIds,
+          });
+        } else {
+          log.error(
+            "Failed to refresh agent tool selection via search_info",
+            agentInfoResult.message
+          );
+        }
+      } catch (error) {
+        log.error(
+          "Failed to refresh agent tool selection via search_info:",
+          error
+        );
+      }
+    },
+    [tools, setEnabledToolIds, setSelectedTools]
+  );
+
+  // Refresh enabledToolIds when tools prop updates after toolsUpdated event
+  useEffect(() => {
+    const prevTools = previousToolsRef.current;
+    const haveTools = tools && tools.length > 0;
+    const prevLen = prevTools?.length ?? 0;
+    const currLen = tools?.length ?? 0;
+    const idsChanged =
+      prevTools === undefined ||
+      JSON.stringify(prevTools?.map((t) => t.id).sort()) !==
+        JSON.stringify((tools || []).map((t) => t.id).sort());
+    const grew = currLen > prevLen;
+
+    // Always update the previous ref for future comparisons
+    previousToolsRef.current = tools;
+
+    // If there are no tools, nothing to do
+    if (!haveTools) {
+      return;
+    }
+
+    const currentAgentId = (isEditingAgent && editingAgent
+      ? Number(editingAgent.id)
+      : mainAgentId
+      ? Number(mainAgentId)
+      : undefined) as number | undefined;
+
+    if (!currentAgentId) {
+      shouldRefreshEnabledToolIds.current = false;
+      return;
+    }
+
+    const refreshEnabledToolIds = async () => {
+      try {
+        // Small delay to allow tools prop to stabilize after updates
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await refreshAgentToolSelectionsFromServer(currentAgentId);
+      } catch (error) {
+        log.error(
+          "Failed to refresh enabled tool IDs after tools update:",
+          error
+        );
+      }
+      shouldRefreshEnabledToolIds.current = false;
+    };
+
+    // Trigger when:
+    // 1) We explicitly flagged a refresh after a toolsUpdated event, OR
+    // 2) The tool list grew (e.g., an MCP tool was added) or IDs changed,
+    //    which indicates the available tool set has changed and we should re-sync
+    if (shouldRefreshEnabledToolIds.current || grew || idsChanged) {
+      // Optimistically update selected tools to reduce perceived delay/flicker
+      if (haveTools && Array.isArray(enabledToolIds) && enabledToolIds.length > 0) {
+        try {
+          const optimisticSelected = (tools || []).filter((tool) =>
+            enabledToolIds.includes(Number(tool.id))
+          );
+          setSelectedTools(optimisticSelected);
+        } catch (e) {
+          log.warn("Optimistic selection update failed; will rely on refresh", e);
+        }
+      }
+      refreshEnabledToolIds();
+    }
+  }, [
+    tools,
+    mainAgentId,
+    isEditingAgent,
+    editingAgent,
+    enabledToolIds,
+    refreshAgentToolSelectionsFromServer,
+  ]);
+
+  // Immediately reflect UI selection from enabledToolIds and latest tools (no server wait)
+  useEffect(() => {
+    const haveTools = Array.isArray(tools) && tools.length > 0;
+    if (!haveTools) {
+      setSelectedTools([]);
+      return;
+    }
+    if (!Array.isArray(enabledToolIds) || enabledToolIds.length === 0) {
+      setSelectedTools([]);
+      return;
+    }
+    try {
+      const nextSelected = (tools || []).filter((tool) =>
+        enabledToolIds.includes(Number(tool.id))
+      );
+      setSelectedTools(nextSelected);
+    } catch (e) {
+      log.warn("Failed to sync selectedTools from enabledToolIds", e);
+    }
+  }, [enabledToolIds, tools, setSelectedTools]);
+
+  // When tools change, sanitize enabledToolIds against availability to prevent transient flicker
+  useEffect(() => {
+    if (!Array.isArray(tools) || tools.length === 0) {
+      return;
+    }
+    if (!Array.isArray(enabledToolIds)) {
+      return;
+    }
+    const availableIdSet = new Set(
+      (tools || [])
+        .filter((t) => t && t.is_available !== false)
+        .map((t) => Number(t.id))
+        .filter((id) => !Number.isNaN(id))
+    );
+    const sanitized = enabledToolIds.filter((id) => availableIdSet.has(Number(id)));
+    if (
+      sanitized.length !== enabledToolIds.length ||
+      sanitized.some((id, idx) => Number(id) !== Number(enabledToolIds[idx]))
+    ) {
+      setEnabledToolIds(sanitized);
+    }
+  }, [tools, enabledToolIds, setEnabledToolIds]);
 
   // Handle the creation of a new Agent
   const handleCreateNewAgent = async () => {
@@ -646,10 +855,14 @@ export default function AgentSetupOrchestrator({
       setFewShotsContent?.(agentDetail.few_shots_prompt || "");
 
       // Load Agent tools
+      // Filter out unavailable tools (is_available === false) to prevent deleted MCP tools from showing
       if (agentDetail.tools && agentDetail.tools.length > 0) {
-        setSelectedTools(agentDetail.tools);
-        // Set enabled tool IDs
-        const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
+        const availableTools = agentDetail.tools.filter(
+          (tool: any) => tool.is_available !== false
+        );
+        setSelectedTools(availableTools);
+        // Set enabled tool IDs only for available tools
+        const toolIds = availableTools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
       } else {
         setSelectedTools([]);
@@ -883,11 +1096,28 @@ export default function AgentSetupOrchestrator({
   };
 
   // Refresh tool list
-  const handleToolsRefresh = useCallback(async () => {
-    if (onToolsRefresh) {
-      onToolsRefresh();
-    }
-  }, [onToolsRefresh]);
+  const handleToolsRefresh = useCallback(
+    async (showSuccessMessage = true) => {
+      if (onToolsRefresh) {
+        // Before refreshing the tool list, synchronize the selected tools using search_info.
+        const currentAgentId = (isEditingAgent && editingAgent
+          ? Number(editingAgent.id)
+          : mainAgentId
+          ? Number(mainAgentId)
+          : undefined) as number | undefined;
+        if (currentAgentId) {
+          await refreshAgentToolSelectionsFromServer(currentAgentId);
+        }
+        const refreshedTools = await onToolsRefresh(showSuccessMessage);
+        if (refreshedTools) {
+          shouldRefreshEnabledToolIds.current = true;
+        }
+        return refreshedTools;
+      }
+      return undefined;
+    },
+    [onToolsRefresh, isEditingAgent, editingAgent, mainAgentId, refreshAgentToolSelectionsFromServer]
+  );
 
   // Get button tooltip information
   const getLocalButtonTitle = () => {
