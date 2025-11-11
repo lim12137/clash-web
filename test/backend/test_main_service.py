@@ -28,7 +28,7 @@ sys.modules['nexent.vector_database'] = MagicMock()
 sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
 sys.modules['nexent.core.agents'] = MagicMock()
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
-
+sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
 # Pre-inject a stubbed base_app to avoid import side effects
 backend_pkg = types.ModuleType("backend")
 apps_pkg = types.ModuleType("backend.apps")

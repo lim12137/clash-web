@@ -54,6 +54,7 @@ sys.modules['nexent.core.models.stt_model'].STTConfig = MockSTTConfig
 sys.modules['nexent.core.models.stt_model'].STTModel = MockSTTModel
 sys.modules['nexent.core.models.tts_model'].TTSConfig = MockTTSConfig
 sys.modules['nexent.core.models.tts_model'].TTSModel = MockTTSModel
+sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
 
 # Import the modules we need with all dependencies mocked
 with patch('botocore.client.BaseClient._make_api_call'), \

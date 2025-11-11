@@ -108,6 +108,11 @@ export default function AgentSetupPage() {
     duration: 0.4,
   };
 
+  // Prevent rendering if user doesn't have permission (full mode)
+  if (!isSpeedMode && !userLoading && (!user || user.role !== USER_ROLES.ADMIN)) {
+    return null;
+  }
+
   return (
     <SetupLayout
       connectionStatus={connectionStatus}

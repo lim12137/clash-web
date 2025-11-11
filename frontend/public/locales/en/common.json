@@ -474,6 +474,7 @@
   "knowledgeBase.empty.description": "Please select a knowledge base from the list on the left, or create a new one",
   "knowledgeBase.error.createUpload": "Failed to create knowledge base or upload files:",
   "knowledgeBase.error.getSummary": "Failed to generate knowledge base summary:",
+  "knowledgeBase.summary.notGenerated": "Knowledge base summary was not generated, please change model configuration and retry",
   "knowledgeBase.name.new": "new_base",
   "knowledgeBase.message.getDocumentsFailed": "Failed to get documents",
 

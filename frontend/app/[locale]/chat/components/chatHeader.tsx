@@ -50,8 +50,8 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation("common");
   const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
-  const { user } = useAuth();
-  const isAdmin = user?.role === USER_ROLES.ADMIN;
+  const { user, isSpeedMode } = useAuth();
+  const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
   const goToModelSetup = () => {
     router.push(`/${currentLanguage}/setup/models`);
