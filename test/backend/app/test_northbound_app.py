@@ -395,6 +395,7 @@ def test_request_body_read_failure_is_tolerated(monkeypatch):
         json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
         headers=_std_headers(),
     )
+
     # Should continue with empty body and succeed
     assert resp.status_code == 200
     assert captured["seen"] == ""
