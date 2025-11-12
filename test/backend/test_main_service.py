@@ -61,7 +61,7 @@ with patch('database.client.MinioClient', return_value=minio_client_mock), \
         # Mock logging configuration
         with patch('utils.logging_utils.configure_logging'), \
                 patch('utils.logging_utils.configure_elasticsearch_logging'):
-            from main_service import startup_initialization
+            from edit_time_service import startup_initialization
 
 
 class TestMainService:
