@@ -8,7 +8,13 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
+import { sessionService } from "@/services/sessionService";
+import { getSessionFromStorage } from "@/lib/auth";
 import { EVENTS } from "@/const/auth";
+import {
+  TOKEN_REFRESH_BEFORE_EXPIRY_MS,
+  MIN_ACTIVITY_CHECK_INTERVAL_MS,
+} from "@/const/constants";
 import log from "@/lib/logger";
 
 /**
@@ -129,6 +135,9 @@ export function SessionListeners() {
               detail: { message: "Session expired, please sign in again" },
             })
           );
+        } else if (!session && !hadLocalSession) {
+          // Full mode with no prior session: proactively prompt login
+          openLoginModal();
         }
       } catch (error) {
         log.error("Error checking session status:", error);
@@ -136,7 +145,79 @@ export function SessionListeners() {
     };
 
     checkSession();
-  }, [pathname]);
+  }, [pathname, isSpeedMode, openLoginModal]);
+
+  // Sliding expiration: refresh token shortly before expiry on user activity (skip in speed mode)
+  useEffect(() => {
+    if (isSpeedMode) return;
+
+    let lastActivityCheckAt = 0;
+
+    const maybeRefreshOnActivity = async () => {
+      try {
+        // Throttle activity-driven checks
+        const now = Date.now();
+        if (now - lastActivityCheckAt < MIN_ACTIVITY_CHECK_INTERVAL_MS) return;
+        lastActivityCheckAt = now;
+
+        // Do not run when page is hidden
+        if (typeof document !== "undefined" && document.hidden) return;
+
+        const sessionObj = getSessionFromStorage();
+        if (!sessionObj?.expires_at) return;
+
+        const msUntilExpiry = sessionObj.expires_at * 1000 - now;
+        if (msUntilExpiry <= TOKEN_REFRESH_BEFORE_EXPIRY_MS) {
+          const ok = await sessionService.checkAndRefreshToken();
+          if (!ok) {
+            // If refresh failed and token is already expired, raise expired flow
+            if (msUntilExpiry <= 0) {
+              window.dispatchEvent(
+                new CustomEvent(EVENTS.SESSION_EXPIRED, {
+                  detail: { message: "Session expired, please sign in again" },
+                })
+              );
+            }
+          }
+        }
+      } catch (error) {
+        log.error("Activity-based refresh check failed:", error);
+      }
+    };
+
+    const events: (keyof DocumentEventMap | keyof WindowEventMap)[] = [
+      "click",
+      "keydown",
+      "mousemove",
+      "touchstart",
+      "focus",
+      "visibilitychange",
+    ];
+
+    const handler = () => {
+      // Wrap to avoid passing the event into async function
+      void maybeRefreshOnActivity();
+    };
+
+    events.forEach((evt) => {
+      // Use window for focus/visibility, document for input/mouse
+      if (evt === "focus" || evt === "visibilitychange") {
+        window.addEventListener(evt as any, handler, { passive: true });
+      } else {
+        document.addEventListener(evt as any, handler, { passive: true });
+      }
+    });
+
+    return () => {
+      events.forEach((evt) => {
+        if (evt === "focus" || evt === "visibilitychange") {
+          window.removeEventListener(evt as any, handler as any);
+        } else {
+          document.removeEventListener(evt as any, handler as any);
+        }
+      });
+    };
+  }, [isSpeedMode]);
 
   // This component doesn't render UI elements
   return null;
