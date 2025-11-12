@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import json
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 import pytest
@@ -15,7 +16,30 @@ boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
 # Mock external dependencies before importing backend modules that might initialize them
-with patch('backend.database.client.MinioClient') as minio_mock, \
+# Mock create_engine to prevent database connection attempts
+mock_engine = MagicMock()
+mock_session_maker = MagicMock()
+mock_db_session = MagicMock()
+mock_session_maker.return_value = mock_db_session
+
+# Mock PostgresClient to prevent database connection attempts
+# Create a mock class that returns the same instance (singleton pattern)
+mock_postgres_client = MagicMock()
+mock_postgres_client.session_maker = mock_session_maker
+mock_postgres_client_class = MagicMock(return_value=mock_postgres_client)
+
+# Mock get_db_session context manager - create a proper context manager mock
+def mock_get_db_session(db_session=None):
+    session = mock_db_session if db_session is None else db_session
+    @contextmanager
+    def _mock_context():
+        yield session
+    return _mock_context()
+
+with patch('sqlalchemy.create_engine', return_value=mock_engine), \
+     patch('backend.database.client.PostgresClient', new=mock_postgres_client_class), \
+     patch('backend.database.client.get_db_session', side_effect=mock_get_db_session), \
+     patch('backend.database.client.MinioClient') as minio_mock, \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
     minio_mock.return_value = MagicMock()
     
@@ -44,6 +68,10 @@ with patch('backend.database.client.MinioClient') as minio_mock, \
         _resolve_user_tenant_language,
     )
     from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
+    
+    # Ensure db_client is set to our mock after import
+    import backend.database.client as db_client_module
+    db_client_module.db_client = mock_postgres_client
 
 # Mock Elasticsearch (already done in the import section above, but keeping for reference)
 elasticsearch_client_mock = MagicMock()
