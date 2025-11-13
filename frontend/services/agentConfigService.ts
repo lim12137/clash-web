@@ -309,7 +309,7 @@ export const loadLastToolConfig = async (toolId: number) => {
  * @returns update result
  */
 export const updateAgent = async (
-  agentId: number,
+  agentId?: number,
   name?: string,
   description?: string,
   modelName?: string,
@@ -323,7 +323,9 @@ export const updateAgent = async (
   displayName?: string,
   modelId?: number,
   businessLogicModelName?: string,
-  businessLogicModelId?: number
+  businessLogicModelId?: number,
+  enabledToolIds?: number[],
+  relatedAgentIds?: number[]
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -345,6 +347,8 @@ export const updateAgent = async (
         few_shots_prompt: fewShotsPrompt,
         business_logic_model_name: businessLogicModelName,
         business_logic_model_id: businessLogicModelId,
+        enabled_tool_ids: enabledToolIds,
+        related_agent_ids: relatedAgentIds,
       }),
     });
 
@@ -591,97 +595,6 @@ export const fetchAllAgents = async () => {
       success: false,
       data: [],
       message: "agentConfig.agents.listFetchFailed",
-    };
-  }
-};
-
-/**
- * add related agent relationship
- * @param parentAgentId parent agent id
- * @param childAgentId child agent id
- * @returns success status
- */
-export const addRelatedAgent = async (
-  parentAgentId: number,
-  childAgentId: number
-) => {
-  try {
-    const response = await fetch(API_ENDPOINTS.agent.relatedAgent, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        parent_agent_id: parentAgentId,
-        child_agent_id: childAgentId,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return {
-        success: true,
-        data: data,
-        message: data[0] || "Successfully added related Agent",
-        status: response.status,
-      };
-    } else {
-      const errorMessage =
-        data.detail || data[0] || `Failed to add related Agent: ${response.statusText}`;
-      return {
-        success: false,
-        data: null,
-        message: errorMessage,
-        status: response.status,
-      };
-    }
-  } catch (error) {
-    log.error("Failed to add related Agent:", error);
-    return {
-      success: false,
-      data: null,
-      message: "Failed to add related Agent, please try again later",
-      status: 500, // or a custom error code
-    };
-  }
-};
-
-/**
- * delete related agent relationship
- * @param parentAgentId parent agent id
- * @param childAgentId child agent id
- * @returns success status
- */
-export const deleteRelatedAgent = async (
-  parentAgentId: number,
-  childAgentId: number
-) => {
-  try {
-    const response = await fetch(API_ENDPOINTS.agent.deleteRelatedAgent, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        parent_agent_id: parentAgentId,
-        child_agent_id: childAgentId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    return {
-      success: true,
-      data: data,
-      message: "",
-    };
-  } catch (error) {
-    log.error("Failed to delete related Agent:", error);
-    return {
-      success: false,
-      data: null,
-      message: "Failed to delete related Agent, please try again later",
     };
   }
 };
