@@ -19,9 +19,15 @@
 # 停止并删除现有容器
 docker compose down
 
-# 查看并删除 Nexent 镜像
-docker images | grep nexent
-docker images | grep nexent | awk '{print $3}' | xargs docker rmi -f
+# 查看 Nexent 镜像
+docker images --filter "reference=nexent/*"
+
+# 删除 Nexent 镜像
+# Windows PowerShell:
+docker images -q --filter "reference=nexent/*" | ForEach-Object { docker rmi -f $_ }
+
+# Linux/WSL:
+docker images -q --filter "reference=nexent/*" | xargs -r docker rmi -f
 
 # （可选）清理未使用的镜像与缓存
 docker system prune -af
@@ -92,8 +98,8 @@ bash deploy.sh
 3. 通过容器执行 SQL 脚本（示例）：
 
    ```bash
-   docker exec -i nexent-postgresql psql -U $POSTGRES_USER -d $POSTGRES_DB < ./sql/2025-10-30-update.sql
-   docker exec -i nexent-postgresql psql -U $POSTGRES_USER -d $POSTGRES_DB < ./sql/2025-11-05-update.sql
+   docker exec -i nexent-postgresql psql -U {POSTGRES_USER} -d {POSTGRES_DB} < ./sql/2025-10-30-update.sql
+   docker exec -i nexent-postgresql psql -U {POSTGRES_USER} -d {POSTGRES_DB} < ./sql/2025-11-05-update.sql
    ```
 
    请根据自己的部署时间，按时间顺序执行对应脚本。
@@ -101,14 +107,22 @@ bash deploy.sh
 > 💡 提示
 > - 若 `.env` 中定义了数据库变量，可先导入：
 >
+>   **Windows PowerShell:**
+>   ```powershell
+>   Get-Content .env | Where-Object { $_ -notmatch '^#' -and $_ -match '=' } | ForEach-Object { $key, $value = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($key.Trim(), $value.Trim(), 'Process') }
+>   ```
+>
+>   **Linux/WSL:**
 >   ```bash
 >   export $(grep -v '^#' .env | xargs)
+>   # 或使用 set -a 自动导出所有变量
+>   set -a; source .env; set +a
 >   ```
 >
 > - 执行前建议先备份：
 >
 >   ```bash
->   docker exec -i nexent-postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup_$(date +%F).sql
+>   docker exec -i nexent-postgres pg_dump -U {POSTGRES_USER} {POSTGRES_DB} > backup_$(date +%F).sql
 >   ```
 
 ---
