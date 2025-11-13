@@ -6,11 +6,6 @@ import { Tag, App } from "antd";
 import { PlusOutlined, CloseOutlined } from "@ant-design/icons";
 
 import { CollaborativeAgentDisplayProps } from "@/types/agentConfig";
-import {
-  addRelatedAgent,
-  deleteRelatedAgent,
-} from "@/services/agentConfigService";
-import log from "@/lib/logger";
 
 export default function CollaborativeAgentDisplay({
   availableAgents,
@@ -63,7 +58,7 @@ export default function CollaborativeAgentDisplay({
   );
 
   // Handle adding collaborative agent
-  const handleAddCollaborativeAgent = async (agentIdToAdd?: string) => {
+  const handleAddCollaborativeAgent = (agentIdToAdd?: string) => {
     const targetAgentId = agentIdToAdd || selectedAgentToAdd;
 
     if (!targetAgentId) {
@@ -71,66 +66,18 @@ export default function CollaborativeAgentDisplay({
       return;
     }
 
-    if (!parentAgentId) {
-      message.warning(t("collaborativeAgent.message.noParentAgent"));
-      return;
-    }
-
-    try {
-      const result = await addRelatedAgent(
-        parentAgentId,
-        Number(targetAgentId)
-      );
-      if (result.success) {
-        // Update local state after successful addition
-        const newSelectedAgentIds = [
-          ...selectedAgentIds,
-          Number(targetAgentId),
-        ];
-        onAgentIdsChange(newSelectedAgentIds);
-        message.success(t("collaborativeAgent.message.addSuccess"));
-        setIsDropdownVisible(false);
-        setSelectedAgentToAdd(null);
-      } else {
-        if (result.status === 500) {
-          message.error(t("collaborativeAgent.message.circularDependency"));
-        } else {
-          message.error(
-            result.message || t("collaborativeAgent.message.addFailed")
-          );
-        }
-      }
-    } catch (error) {
-      log.error("Failed to add collaborative agent:", error);
-      message.error(t("collaborativeAgent.message.addFailed"));
-    }
+    // Update local state only - will be saved when agent is saved
+    const newSelectedAgentIds = [...selectedAgentIds, Number(targetAgentId)];
+    onAgentIdsChange(newSelectedAgentIds);
+    setIsDropdownVisible(false);
+    setSelectedAgentToAdd(null);
   };
 
   // Handle removing collaborative agent
-  const handleRemoveCollaborativeAgent = async (agentId: number) => {
-    if (!parentAgentId) {
-      message.error(t("collaborativeAgent.message.noParentAgent"));
-      return;
-    }
-
-    try {
-      const result = await deleteRelatedAgent(parentAgentId, agentId);
-      if (result.success) {
-        // Update local state after successful deletion
-        const newSelectedAgentIds = selectedAgentIds.filter(
-          (id) => id !== agentId
-        );
-        onAgentIdsChange(newSelectedAgentIds);
-        message.success(t("collaborativeAgent.message.removeSuccess"));
-      } else {
-        message.error(
-          result.message || t("collaborativeAgent.message.removeFailed")
-        );
-      }
-    } catch (error) {
-      log.error("Failed to delete collaborative agent:", error);
-      message.error(t("collaborativeAgent.message.removeFailed"));
-    }
+  const handleRemoveCollaborativeAgent = (agentId: number) => {
+    // Update local state only - will be saved when agent is saved
+    const newSelectedAgentIds = selectedAgentIds.filter((id) => id !== agentId);
+    onAgentIdsChange(newSelectedAgentIds);
   };
 
   // Handle add button click
@@ -240,16 +187,16 @@ export default function CollaborativeAgentDisplay({
               closable={isEditingMode && !isGeneratingAgent}
               onClose={() => handleRemoveCollaborativeAgent(Number(agent.id))}
               closeIcon={<CloseOutlined className="text-xs" />}
-              style={{ 
-                fontSize: '9px',
-                padding: '1px 2px',
-                lineHeight: '1.2',
-                height: 'auto',
-                minHeight: '16px',
-                borderRadius: '4px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+              style={{
+                fontSize: "9px",
+                padding: "1px 2px",
+                lineHeight: "1.2",
+                height: "auto",
+                minHeight: "16px",
+                borderRadius: "4px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <span className="text-[9px] leading-none text-center">
