@@ -136,6 +136,10 @@
   display: none;
 }
 
+.markdown-li > br:first-child {
+  display: none;
+}
+
 /* Remove extra spacing from paragraphs inside list items */
 .markdown-ol li > p,
 .markdown-ul li > p,

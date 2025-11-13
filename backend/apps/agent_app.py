@@ -3,7 +3,6 @@ from http import HTTPStatus
 from typing import Optional
 
 from fastapi import APIRouter, Body, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
 from services.agent_service import (
@@ -14,11 +13,9 @@ from services.agent_service import (
     export_agent_impl,
     import_agent_impl,
     list_all_agent_info_impl,
-    insert_related_agent_impl,
     run_agent_stream,
     stop_agent_tasks,
-    get_agent_call_relationship_impl,
-    delete_related_agent_impl
+    get_agent_call_relationship_impl
 )
 from utils.auth_utils import get_current_user_info, get_current_user_id
 
@@ -94,8 +91,8 @@ async def update_agent_info_api(request: AgentInfoRequest, authorization: Option
     Update an existing agent
     """
     try:
-        await update_agent_info_impl(request, authorization)
-        return {}
+        result = await update_agent_info_impl(request, authorization)
+        return result or {}
     except Exception as e:
         logger.error(f"Agent update error: {str(e)}")
         raise HTTPException(
@@ -156,42 +153,6 @@ async def list_all_agent_info_api(authorization: Optional[str] = Header(None), r
         logger.error(f"Agent list error: {str(e)}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Agent list error.")
-
-
-@router.post("/related_agent")
-async def related_agent_api(parent_agent_id: int = Body(...),
-                            child_agent_id: int = Body(...),
-                            authorization: Optional[str] = Header(None)):
-    """
-    get related agent info
-    """
-    try:
-        _, tenant_id = get_current_user_id(authorization)
-        return insert_related_agent_impl(parent_agent_id=parent_agent_id,
-                                         child_agent_id=child_agent_id,
-                                         tenant_id=tenant_id)
-    except Exception as e:
-        logger.error(f"Agent related info error: {str(e)}")
-        return JSONResponse(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            content={"message": "Failed to insert relation", "status": "error"}
-        )
-
-
-@router.post("/delete_related_agent")
-async def delete_related_agent_api(parent_agent_id: int = Body(...),
-                                   child_agent_id: int = Body(...),
-                                   authorization: Optional[str] = Header(None)):
-    """
-    delete related agent info
-    """
-    try:
-        _, tenant_id = get_current_user_id(authorization)
-        return delete_related_agent_impl(parent_agent_id, child_agent_id, tenant_id)
-    except Exception as e:
-        logger.error(f"Agent related info error: {str(e)}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Agent related info error.")
 
 
 @router.get("/call_relationship/{agent_id}")
