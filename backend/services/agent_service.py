@@ -4,6 +4,7 @@ import logging
 import os
 import uuid
 from collections import deque
+from typing import Optional
 
 from fastapi import Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -35,7 +36,8 @@ from database.agent_db import (
     search_agent_id_by_agent_name,
     search_agent_info_by_agent_id,
     search_blank_sub_agent_by_main_agent_id,
-    update_agent
+    update_agent,
+    update_related_agents
 )
 from database.model_management_db import get_model_by_model_id, get_model_id_by_display_name
 from database.remote_mcp_db import check_mcp_name_exists, get_mcp_server_by_name_and_tenant
@@ -45,6 +47,7 @@ from database.tool_db import (
     delete_tools_by_agent_id,
     query_all_enabled_tool_instances,
     query_all_tools,
+    query_tool_instances_by_id,
     search_tools_for_sub_agent
 )
 from services.conversation_management_service import save_conversation_assistant, save_conversation_user
@@ -340,11 +343,99 @@ async def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
 async def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id, _ = get_current_user_info(authorization)
 
+    # If agent_id is None, create a new agent; otherwise, update existing
+    agent_id: Optional[int] = request.agent_id
     try:
-        update_agent(request.agent_id, request, tenant_id, user_id)
+        if agent_id is None:
+            # Create agent
+            created = create_agent(agent_info={
+                "name": request.name,
+                "display_name": request.display_name,
+                "description": request.description,
+                "business_description": request.business_description,
+                "model_id": request.model_id,
+                "model_name": request.model_name,
+                "business_logic_model_id": request.business_logic_model_id,
+                "business_logic_model_name": request.business_logic_model_name,
+                "max_steps": request.max_steps,
+                "provide_run_summary": request.provide_run_summary,
+                "duty_prompt": request.duty_prompt,
+                "constraint_prompt": request.constraint_prompt,
+                "few_shots_prompt": request.few_shots_prompt,
+                "enabled": request.enabled if request.enabled is not None else True
+            }, tenant_id=tenant_id, user_id=user_id)
+            agent_id = created["agent_id"]
+        else:
+            # Update agent
+            update_agent(agent_id, request, tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to update agent info: {str(e)}")
         raise ValueError(f"Failed to update agent info: {str(e)}")
+
+    # Handle enabled tools saving when provided
+    try:
+        if request.enabled_tool_ids is not None and agent_id is not None:
+            enabled_set = set(request.enabled_tool_ids)
+            # Get all tools for current tenant
+            all_tools = query_all_tools(tenant_id=tenant_id)
+            for tool in all_tools:
+                tool_id = tool.get("tool_id")
+                if tool_id is None:
+                    continue
+                # Keep existing params if any
+                existing_instance = query_tool_instances_by_id(
+                    agent_id, tool_id, tenant_id)
+                params = (existing_instance or {}).get(
+                    "params", {}) if existing_instance else {}
+                create_or_update_tool_by_tool_info(
+                    tool_info=ToolInstanceInfoRequest(
+                        tool_id=tool_id,
+                        agent_id=agent_id,
+                        params=params,
+                        enabled=(tool_id in enabled_set)
+                    ),
+                    tenant_id=tenant_id,
+                    user_id=user_id
+                )
+    except Exception as e:
+        logger.error(f"Failed to update agent tools: {str(e)}")
+        raise ValueError(f"Failed to update agent tools: {str(e)}")
+
+    # Handle related agents saving when provided
+    try:
+        if request.related_agent_ids is not None and agent_id is not None:
+            related_agent_ids = request.related_agent_ids
+            # Check for circular dependencies using BFS
+            search_list = deque(related_agent_ids)
+            agent_id_set = set()
+
+            while len(search_list):
+                left_ele = search_list.popleft()
+                if left_ele == agent_id:
+                    raise ValueError("Circular dependency detected: Agent cannot be related to itself or create circular calls")
+                if left_ele in agent_id_set:
+                    continue
+                else:
+                    agent_id_set.add(left_ele)
+                sub_ids = query_sub_agents_id_list(
+                    main_agent_id=left_ele, tenant_id=tenant_id)
+                search_list.extend(sub_ids)
+
+            # Update related agents
+            update_related_agents(
+                parent_agent_id=agent_id,
+                related_agent_ids=related_agent_ids,
+                tenant_id=tenant_id,
+                user_id=user_id
+            )
+    except ValueError as e:
+        # Re-raise ValueError (circular dependency) as-is
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update related agents: {str(e)}")
+        raise ValueError(f"Failed to update related agents: {str(e)}")
+
+    return {"agent_id": agent_id}
 
 
 async def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
