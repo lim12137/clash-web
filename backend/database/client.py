@@ -1,8 +1,12 @@
 import logging
+import os
 from contextlib import contextmanager
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
+import boto3
 import psycopg2
+from botocore.client import Config
+from botocore.exceptions import ClientError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import class_mapper, sessionmaker
 
@@ -19,8 +23,6 @@ from consts.const import (
     POSTGRES_USER,
 )
 from database.db_models import TableBase
-from nexent.storage import create_storage_client_from_config, MinIOStorageConfig
-
 
 logger = logging.getLogger("database.client")
 
@@ -71,12 +73,6 @@ class PostgresClient:
 
 
 class MinioClient:
-    """
-    MinIO client wrapper using storage SDK
-    
-    This class maintains backward compatibility with the existing MinioClient interface
-    while using the new storage SDK under the hood.
-    """
     _instance: Optional['MinioClient'] = None
 
     def __new__(cls):
@@ -85,18 +81,39 @@ class MinioClient:
         return cls._instance
 
     def __init__(self):
-        # Determine if endpoint uses HTTPS
-        secure = MINIO_ENDPOINT.startswith('https://') if MINIO_ENDPOINT else True
-        # Initialize storage client using SDK factory
-        self.storage_config = MinIOStorageConfig(
-            endpoint=MINIO_ENDPOINT,
-            access_key=MINIO_ACCESS_KEY,
-            secret_key=MINIO_SECRET_KEY,
-            region=MINIO_REGION,
-            default_bucket=MINIO_DEFAULT_BUCKET,
-            secure=secure
+        self.endpoint = MINIO_ENDPOINT
+        self.access_key = MINIO_ACCESS_KEY
+        self.secret_key = MINIO_SECRET_KEY
+        self.region = MINIO_REGION
+        self.default_bucket = MINIO_DEFAULT_BUCKET
+
+        # Initialize S3 client with proxy settings
+        self.client = boto3.client(
+            's3',
+            endpoint_url=self.endpoint,
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            region_name=self.region,
+            config=Config(
+                signature_version='s3v4',
+                proxies={
+                    'http': None,
+                    'https': None
+                }
+            )
         )
-        self._storage_client = create_storage_client_from_config(self.storage_config)
+
+        # Ensure default bucket exists
+        self._ensure_bucket_exists(self.default_bucket)
+
+    def _ensure_bucket_exists(self, bucket_name: str) -> None:
+        """Ensure bucket exists, create if it doesn't"""
+        try:
+            self.client.head_bucket(Bucket=bucket_name)
+        except ClientError:
+            # Bucket doesn't exist, create it
+            self.client.create_bucket(Bucket=bucket_name)
+            logger.info(f"Created bucket: {bucket_name}")
 
     def upload_file(
             self,
@@ -115,7 +132,16 @@ class MinioClient:
         Returns:
             Tuple[bool, str]: (Success status, File URL or error message)
         """
-        return self._storage_client.upload_file(file_path, object_name, bucket)
+        bucket = bucket or self.default_bucket
+        if object_name is None:
+            object_name = os.path.basename(file_path)
+
+        try:
+            self.client.upload_file(file_path, bucket, object_name)
+            file_url = f"/{bucket}/{object_name}"
+            return True, file_url
+        except Exception as e:
+            return False, str(e)
 
     def upload_fileobj(self, file_obj: BinaryIO, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
@@ -129,7 +155,13 @@ class MinioClient:
         Returns:
             Tuple[bool, str]: (Success status, File URL or error message)
         """
-        return self._storage_client.upload_fileobj(file_obj, object_name, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            self.client.upload_fileobj(file_obj, bucket, object_name)
+            file_url = f"/{bucket}/{object_name}"
+            return True, file_url
+        except Exception as e:
+            return False, str(e)
 
     def download_file(self, object_name: str, file_path: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
@@ -143,7 +175,12 @@ class MinioClient:
         Returns:
             Tuple[bool, str]: (Success status, Success message or error message)
         """
-        return self._storage_client.download_file(object_name, file_path, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            self.client.download_file(bucket, object_name, file_path)
+            return True, f"File downloaded successfully to {file_path}"
+        except Exception as e:
+            return False, str(e)
 
     def get_file_url(self, object_name: str, bucket: Optional[str] = None, expires: int = 3600) -> Tuple[bool, str]:
         """
@@ -157,20 +194,23 @@ class MinioClient:
         Returns:
             Tuple[bool, str]: (Success status, Presigned URL or error message)
         """
-        return self._storage_client.get_file_url(object_name, bucket, expires)
+        bucket = bucket or self.default_bucket
+        try:
+            url = self.client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': object_name},
+                                                     ExpiresIn=expires)
+            return True, url
+        except Exception as e:
+            return False, str(e)
 
     def get_file_size(self, object_name: str, bucket: Optional[str] = None) -> int:
-        """
-        Get file size in bytes
-
-        Args:
-            object_name: Object name
-            bucket: Bucket name, if not specified use default bucket
-
-        Returns:
-            int: File size in bytes, 0 if file not found or error
-        """
-        return self._storage_client.get_file_size(object_name, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.head_object(Bucket=bucket, Key=object_name)
+            return int(response['ContentLength'])
+        except ClientError as e:
+            logger.error(
+                f"Get file size by objectname({object_name}) failed: {e}")
+            return 0
 
     def list_files(self, prefix: str = "", bucket: Optional[str] = None) -> List[dict]:
         """
@@ -183,7 +223,19 @@ class MinioClient:
         Returns:
             List[dict]: List of file information
         """
-        return self._storage_client.list_files(prefix, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.list_objects_v2(
+                Bucket=bucket, Prefix=prefix)
+            files = []
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    files.append(
+                        {'key': obj['Key'], 'size': obj['Size'], 'last_modified': obj['LastModified']})
+            return files
+        except Exception as e:
+            logger.error(f"Error listing files: {str(e)}")
+            return []
 
     def delete_file(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
@@ -196,7 +248,12 @@ class MinioClient:
         Returns:
             Tuple[bool, str]: (Success status, Success message or error message)
         """
-        return self._storage_client.delete_file(object_name, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            self.client.delete_object(Bucket=bucket, Key=object_name)
+            return True, f"File {object_name} deleted successfully"
+        except Exception as e:
+            return False, str(e)
 
     def get_file_stream(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, Any]:
         """
@@ -209,7 +266,12 @@ class MinioClient:
         Returns:
             Tuple[bool, Any]: (Success status, File stream object or error message)
         """
-        return self._storage_client.get_file_stream(object_name, bucket)
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.get_object(Bucket=bucket, Key=object_name)
+            return True, response['Body']
+        except Exception as e:
+            return False, str(e)
 
 
 # Create global database and MinIO client instances

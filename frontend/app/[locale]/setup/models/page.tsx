@@ -12,7 +12,6 @@ import modelEngineService from "@/services/modelEngineService";
 import {configStore} from "@/lib/config";
 import { configService } from "@/services/configService";
 import {
-  USER_ROLES,
   CONNECTION_STATUS,
   ConnectionStatus,
   MODEL_STATUS,
@@ -52,13 +51,7 @@ export default function ModelSetupPage() {
       openLoginModal();
       return;
     }
-
-    // Only admin users can access this page (full mode)
-    if (!isSpeedMode && user && user.role !== USER_ROLES.ADMIN) {
-      router.push("/setup/knowledges");
-      return;
-    }
-  }, [isSpeedMode, user, userLoading, openLoginModal, router]);
+  }, [isSpeedMode, user, userLoading, openLoginModal]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
@@ -212,11 +205,6 @@ export default function ModelSetupPage() {
     ease: "anticipate" as const,
     duration: 0.4,
   };
-
-  // Prevent rendering if user doesn't have permission (full mode)
-  if (!isSpeedMode && !userLoading && (!user || user.role !== USER_ROLES.ADMIN)) {
-    return null;
-  }
 
   return (
     <SetupLayout
