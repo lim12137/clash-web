@@ -19,9 +19,14 @@ Remove cached resources to avoid conflicts when redeploying:
 # Stop and remove existing containers
 docker compose down
 
-# Inspect and remove Nexent images
-docker images | grep nexent
-docker images | grep nexent | awk '{print $3}' | xargs docker rmi -f
+# Inspect Nexent images
+docker images --filter "reference=nexent/*"
+
+# Remove Nexent images
+# Windows PowerShell:
+docker images -q --filter "reference=nexent/*" | ForEach-Object { docker rmi -f $_ }
+# Linux/WSL:
+docker images -q --filter "reference=nexent/*" | xargs -r docker rmi -f
 
 # (Optional) prune unused images and caches
 docker system prune -af
@@ -92,23 +97,34 @@ Run the SQL scripts shipped with each release to keep your schema up to date.
 3. Execute SQL files sequentially (host machine example):
 
    ```bash
-   docker exec -i nexent-postgresql psql -U $POSTGRES_USER -d $POSTGRES_DB < ./sql/2025-10-30-update.sql
-   docker exec -i nexent-postgresql psql -U $POSTGRES_USER -d $POSTGRES_DB < ./sql/2025-11-05-update.sql
+   # Example: If today is November 6th and your last update was on October 20th, 
+   # and there are two new files 1030-update.sql and 1105-update.sql, 
+   # execute the following commands (please replace the placeholders with your actual values)
+   docker exec -i nexent-postgresql psql -U {YOUR_POSTGRES_USER} -d {YOUR_POSTGRES_DB} < ./sql/1030-update.sql
+   docker exec -i nexent-postgresql psql -U {YOUR_POSTGRES_USER} -d {YOUR_POSTGRES_DB} < ./sql/1105-update.sql
    ```
 
-   Replace the filenames with the migrations released after your last deployment.
+   Execute the scripts in chronological order based on your deployment date.
 
 > 💡 Tips
 > - Load environment variables first if they are defined in `.env`:
 >
+>   **Windows PowerShell:**
+>   ```powershell
+>   Get-Content .env | Where-Object { $_ -notmatch '^#' -and $_ -match '=' } | ForEach-Object { $key, $value = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($key.Trim(), $value.Trim(), 'Process') }
+>   ```
+>
+>   **Linux/WSL:**
 >   ```bash
 >   export $(grep -v '^#' .env | xargs)
+>   # Or use set -a to automatically export all variables
+>   set -a; source .env; set +a
 >   ```
 >
 > - Create a backup before running migrations:
 >
 >   ```bash
->   docker exec -i nexent-postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup_$(date +%F).sql
+>   docker exec -i nexent-postgres pg_dump -U {YOUR_POSTGRES_USER} {YOUR_POSTGRES_DB} > backup_$(date +%F).sql
 >   ```
 
 ---
