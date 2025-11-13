@@ -111,7 +111,7 @@ export interface AgentSetupOrchestratorProps {
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
   onEditingStateChange?: (isEditing: boolean, agent: any) => void;
-  onToolsRefresh: (showSuccessMessage?: boolean) => void | Promise<any>;
+  onToolsRefresh: () => void;
   dutyContent: string;
   setDutyContent: (value: string) => void;
   constraintContent: string;
@@ -158,7 +158,7 @@ export interface ToolPoolProps {
   loadingTools?: boolean;
   mainAgentId?: string | null;
   localIsGenerating?: boolean;
-  onToolsRefresh?: (showSuccessMessage?: boolean) => void | Promise<any>;
+  onToolsRefresh?: () => void;
   isEditingMode?: boolean;
   isGeneratingAgent?: boolean;
   isEmbeddingConfigured?: boolean;
