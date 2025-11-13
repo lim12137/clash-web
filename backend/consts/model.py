@@ -202,7 +202,7 @@ class GenerateTitleRequest(BaseModel):
 
 # used in agent/search agent/update for save agent info
 class AgentInfoRequest(BaseModel):
-    agent_id: int
+    agent_id: Optional[int] = None
     name: Optional[str] = None
     display_name: Optional[str] = None
     description: Optional[str] = None
@@ -217,6 +217,8 @@ class AgentInfoRequest(BaseModel):
     enabled: Optional[bool] = None
     business_logic_model_name: Optional[str] = None
     business_logic_model_id: Optional[int] = None
+    enabled_tool_ids: Optional[List[int]] = None
+    related_agent_ids: Optional[List[int]] = None
 
 
 class AgentIDRequest(BaseModel):
