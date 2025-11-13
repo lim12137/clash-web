@@ -150,6 +150,7 @@ export default defineConfig({
             items: [
               { text: "Docker Build", link: "/en/deployment/docker-build" },
               { text: "Dev Container", link: "/en/deployment/devcontainer" },
+              { text: "Upgrade Guide", link: "/en/deployment/upgrade-guide" },
             ],
           },
           {
@@ -309,6 +310,7 @@ export default defineConfig({
             items: [
               { text: "Docker 构建", link: "/zh/deployment/docker-build" },
               { text: "开发容器", link: "/zh/deployment/devcontainer" },
+              { text: "升级指导", link: "/zh/deployment/upgrade-guide" },
             ],
           },
           {
