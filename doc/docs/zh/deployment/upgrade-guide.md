@@ -91,15 +91,18 @@ bash deploy.sh
    POSTGRES_HOST=localhost
    POSTGRES_PORT=5432
    POSTGRES_DB=nexent
-   POSTGRES_USER=postgres
+   POSTGRES_USER=root
    POSTGRES_PASSWORD=your_password
    ```
 
 3. 通过容器执行 SQL 脚本（示例）：
 
    ```bash
-   docker exec -i nexent-postgresql psql -U {POSTGRES_USER} -d {POSTGRES_DB} < ./sql/2025-10-30-update.sql
-   docker exec -i nexent-postgresql psql -U {POSTGRES_USER} -d {POSTGRES_DB} < ./sql/2025-11-05-update.sql
+   # 假如现在是11月6日，上次更新版本的时间是10月20日
+   # 此时新增了1030-update.sql和1105-update.sql两个文件
+   # 我们需要执行以下命令（请注意替换占位符中的变量）
+   docker exec -i nexent-postgresql psql -U [YOUR_POSTGRES_USER] -d [YOUR_POSTGRES_DB] < ./sql/1030-update.sql
+   docker exec -i nexent-postgresql psql -U [YOUR_POSTGRES_USER] -d [YOUR_POSTGRES_DB] < ./sql/1105-update.sql
    ```
 
    请根据自己的部署时间，按时间顺序执行对应脚本。
@@ -122,7 +125,7 @@ bash deploy.sh
 > - 执行前建议先备份：
 >
 >   ```bash
->   docker exec -i nexent-postgres pg_dump -U {POSTGRES_USER} {POSTGRES_DB} > backup_$(date +%F).sql
+>   docker exec -i nexent-postgres pg_dump -U [YOUR_POSTGRES_USER] [YOUR_POSTGRES_DB] > backup_$(date +%F).sql
 >   ```
 
 ---
