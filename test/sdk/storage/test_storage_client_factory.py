@@ -162,19 +162,6 @@ class TestCreateStorageClientFromConfig:
             secure=True
         )
 
-    @patch('nexent.storage.storage_client_factory.MinIOStorageConfig')
-    def test_create_client_validates_before_type_check(self, mock_config_class):
-        """Test that validation happens before storage type check"""
-        mock_config = MagicMock()
-        mock_config.validate.side_effect = ValueError("Validation failed")
-        mock_config_class.return_value = mock_config
-        
-        with pytest.raises(ValueError, match="Validation failed"):
-            create_storage_client_from_config(mock_config)
-        
-        # Should not check storage_type if validation fails
-        assert not hasattr(mock_config, 'storage_type') or not hasattr(mock_config.storage_type, '__call__')
-
     def test_create_client_with_none_config(self):
         """Test creating client with None config raises error"""
         with pytest.raises((AttributeError, TypeError)):

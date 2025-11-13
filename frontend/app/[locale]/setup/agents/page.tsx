@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -17,13 +17,22 @@ import {
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
-import AgentConfig from "./config";
+import AgentConfig, { AgentConfigHandle } from "./config";
+import SaveConfirmModal from "./components/SaveConfirmModal";
 
 export default function AgentSetupPage() {
+  const agentConfigRef = useRef<AgentConfigHandle | null>(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const pendingNavRef = useRef<null | (() => void)>(null);
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
+  const {
+    user,
+    isLoading: userLoading,
+    isSpeedMode,
+    openLoginModal,
+  } = useAuth();
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -69,20 +78,23 @@ export default function AgentSetupPage() {
 
   // Handle complete button click
   const handleComplete = async () => {
-    try {
-      setIsSaving(true);
-      // Jump to chat page directly, no any check
-      router.push("/chat");
-    } catch (error) {
-      log.error("保存配置异常:", error);
-      message.error("系统异常，请稍后重试");
-    } finally {
-      setIsSaving(false);
+    const hasDirty = agentConfigRef.current?.hasUnsavedChanges?.() || false;
+    if (hasDirty) {
+      pendingNavRef.current = () => router.push("/chat");
+      setShowSaveConfirm(true);
+      return;
     }
+    router.push("/chat");
   };
 
   // Handle back button click
   const handleBack = () => {
+    const hasDirty = agentConfigRef.current?.hasUnsavedChanges?.() || false;
+    if (hasDirty) {
+      pendingNavRef.current = () => router.push("/setup/knowledges");
+      setShowSaveConfirm(true);
+      return;
+    }
     router.push("/setup/knowledges");
   };
 
@@ -114,29 +126,56 @@ export default function AgentSetupPage() {
   }
 
   return (
-    <SetupLayout
-      connectionStatus={connectionStatus}
-      isCheckingConnection={isCheckingConnection}
-      onCheckConnection={checkModelEngineConnection}
-      title={t("setup.header.title")}
-      description={t("setup.header.description")}
-      onBack={handleBack}
-      onComplete={handleComplete}
-      isSaving={isSaving}
-      showBack={true}
-      showComplete={true}
-      completeText={t("setup.navigation.button.complete")}
-    >
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        style={{ width: "100%", height: "100%" }}
+    <>
+      <SetupLayout
+        connectionStatus={connectionStatus}
+        isCheckingConnection={isCheckingConnection}
+        onCheckConnection={checkModelEngineConnection}
+        title={t("setup.header.title")}
+        description={t("setup.header.description")}
+        onBack={handleBack}
+        onComplete={handleComplete}
+        isSaving={isSaving}
+        showBack={true}
+        showComplete={true}
+        completeText={t("setup.navigation.button.complete")}
       >
-        <AgentConfig />
-      </motion.div>
-    </SetupLayout>
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <AgentConfig ref={agentConfigRef} />
+        </motion.div>
+      </SetupLayout>
+      <SaveConfirmModal
+        open={showSaveConfirm}
+        onCancel={async () => {
+          // Reload data from backend to discard changes
+          await agentConfigRef.current?.reloadCurrentAgentData?.();
+          setShowSaveConfirm(false);
+          const go = pendingNavRef.current;
+          pendingNavRef.current = null;
+          if (go) go();
+        }}
+        onSave={async () => {
+          try {
+            setIsSaving(true);
+            await agentConfigRef.current?.saveAllChanges?.();
+            setShowSaveConfirm(false);
+            const go = pendingNavRef.current;
+            pendingNavRef.current = null;
+            if (go) go();
+          } catch (e) {
+            // errors are surfaced by underlying save
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      />
+    </>
   );
 }

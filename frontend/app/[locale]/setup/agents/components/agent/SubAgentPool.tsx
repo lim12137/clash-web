@@ -4,10 +4,16 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { App, Button } from "antd";
-import { UploadOutlined, LinkOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
+import { FileOutput, Network, FileInput, Trash2, Plus, X } from "lucide-react";
 
 import { ScrollArea } from "@/components/ui/scrollArea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Agent, SubAgentPoolProps } from "@/types/agentConfig";
 
 import AgentCallRelationshipModal from "./AgentCallRelationshipModal";
@@ -15,6 +21,11 @@ import AgentCallRelationshipModal from "./AgentCallRelationshipModal";
 /**
  * Sub Agent Pool Component
  */
+type ExtendedSubAgentPoolProps = SubAgentPoolProps & {
+  /** Agent id that currently has unsaved changes to show blue indicator */
+  unsavedAgentId?: number | null;
+};
+
 export default function SubAgentPool({
   onEditAgent,
   onCreateNewAgent,
@@ -27,7 +38,10 @@ export default function SubAgentPool({
   editingAgent = null,
   isCreatingNewAgent = false,
   editingAgentName = null,
-}: SubAgentPoolProps) {
+  onExportAgent,
+  onDeleteAgent,
+  unsavedAgentId = null,
+}: ExtendedSubAgentPoolProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
 
@@ -54,14 +68,16 @@ export default function SubAgentPool({
   const duplicateAgentInfo = useMemo(() => {
     // Create a map to track agents by name
     const nameToAgents = new Map<string, Agent[]>();
-    
+
     subAgentList.forEach((agent) => {
       // Use the current editing name if this agent is being edited, otherwise use the original name
-      const agentName = 
-        editingAgent && String(editingAgent.id) === String(agent.id) && editingAgentName
+      const agentName =
+        editingAgent &&
+        String(editingAgent.id) === String(agent.id) &&
+        editingAgentName
           ? editingAgentName
           : agent.name;
-      
+
       if (!nameToAgents.has(agentName)) {
         nameToAgents.set(agentName, []);
       }
@@ -71,7 +87,7 @@ export default function SubAgentPool({
     // For each group of agents with the same name, sort by ID (smallest first)
     // Mark all except the first one as disabled
     const disabledAgentIds = new Set<string>();
-    
+
     nameToAgents.forEach((agents, name) => {
       if (agents.length > 1) {
         // Sort by ID (treating as number if possible, otherwise as string)
@@ -83,7 +99,7 @@ export default function SubAgentPool({
           }
           return String(a.id).localeCompare(String(b.id));
         });
-        
+
         // Mark all except the first one as disabled
         for (let i = 1; i < sortedAgents.length; i++) {
           disabledAgentIds.add(String(sortedAgents[i].id));
@@ -96,6 +112,65 @@ export default function SubAgentPool({
 
   return (
     <TooltipProvider>
+      <style jsx global>{`
+        /* Agent action button base styles */
+        .agent-action-button {
+          transition: all 0.2s ease-in-out !important;
+          border-radius: 6px !important;
+          padding: 4px 8px !important;
+        }
+
+        /* Blue action button */
+        .agent-action-button-blue {
+          color: #3b82f6 !important; /* blue-500 */
+        }
+
+        .agent-action-button-blue:hover:not(:disabled) {
+          color: #2563eb !important; /* blue-600 */
+          background-color: #eff6ff !important; /* blue-50 */
+          transform: scale(1.05);
+        }
+
+        .agent-action-button-blue:disabled {
+          color: #9ca3af !important; /* gray-400 */
+          opacity: 0.5;
+          cursor: not-allowed !important;
+        }
+
+        /* Green action button */
+        .agent-action-button-green {
+          color: #22c55e !important; /* green-500 */
+        }
+
+        .agent-action-button-green:hover:not(:disabled) {
+          color: #16a34a !important; /* green-600 */
+          background-color: #f0fdf4 !important; /* green-50 */
+          transform: scale(1.05);
+        }
+
+        .agent-action-button-green:disabled {
+          color: #9ca3af !important; /* gray-400 */
+          opacity: 0.5;
+          cursor: not-allowed !important;
+        }
+
+        /* Red action button */
+        .agent-action-button-red {
+          color: #ef4444 !important; /* red-500 */
+        }
+
+        .agent-action-button-red:hover:not(:disabled) {
+          color: #dc2626 !important; /* red-600 */
+          background-color: #fef2f2 !important; /* red-50 */
+          transform: scale(1.05);
+        }
+
+        .agent-action-button-red:disabled {
+          color: #9ca3af !important; /* gray-400 */
+          opacity: 0.5;
+          cursor: not-allowed !important;
+        }
+      `}</style>
       <div className="flex flex-col h-full min-h-[300px] lg:min-h-0 overflow-hidden">
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center">
@@ -142,8 +217,24 @@ export default function SubAgentPool({
                           isCreatingNewAgent ? "text-blue-700" : "text-blue-600"
                         }`}
                       >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 mr-3 flex-shrink-0">
-                          <span className="text-sm font-medium">+</span>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 mr-3 flex-shrink-0 relative overflow-hidden">
+                          {/* Smoothly cross-fade and scale between Plus and X */}
+                          <Plus
+                            className={`absolute transition-all duration-200 ease-in-out ${
+                              isCreatingNewAgent
+                                ? "opacity-0 scale-90"
+                                : "opacity-100 scale-100"
+                            } w-4 h-4`}
+                            aria-hidden="true"
+                          />
+                          <X
+                            className={`absolute transition-all duration-200 ease-in-out ${
+                              isCreatingNewAgent
+                                ? "opacity-100 scale-100"
+                                : "opacity-0 scale-90"
+                            } w-4 h-4`}
+                            aria-hidden="true"
+                          />
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-sm">
@@ -187,7 +278,11 @@ export default function SubAgentPool({
                             isImporting ? "bg-gray-100" : "bg-green-100"
                           }`}
                         >
-                          <UploadOutlined className="text-sm" />
+                          <FileOutput
+                            className={`w-4 h-4 ${
+                              isImporting ? "text-gray-400" : "text-green-600"
+                            }`}
+                          />
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-sm">
@@ -222,15 +317,19 @@ export default function SubAgentPool({
                 {subAgentList.map((agent) => {
                   const isAvailable = agent.is_available !== false; // Default is true, only unavailable when explicitly false
                   const isCurrentlyEditing =
-                    editingAgent && String(editingAgent.id) === String(agent.id); // Ensure type matching
-                  
+                    editingAgent &&
+                    String(editingAgent.id) === String(agent.id); // Ensure type matching
+
                   // Check if this agent is disabled due to duplicate name
-                  const isDuplicateDisabled = duplicateAgentInfo.disabledAgentIds.has(String(agent.id));
+                  const isDuplicateDisabled =
+                    duplicateAgentInfo.disabledAgentIds.has(String(agent.id));
                   // Combined availability: must be available AND not duplicate disabled
-                  const isEffectivelyAvailable = isAvailable && !isDuplicateDisabled;
+                  const isEffectivelyAvailable =
+                    isAvailable && !isDuplicateDisabled;
 
                   // Only show tooltip when agent is unavailable (duplicate name or has unavailable tools)
-                  const shouldShowTooltip = isDuplicateDisabled || !isEffectivelyAvailable;
+                  const shouldShowTooltip =
+                    isDuplicateDisabled || !isEffectivelyAvailable;
                   const tooltipContent = isDuplicateDisabled
                     ? t("subAgentPool.tooltip.duplicateNameDisabled")
                     : !isEffectivelyAvailable
@@ -288,19 +387,29 @@ export default function SubAgentPool({
                               >
                                 {agent.name}
                               </span>
+                              {unsavedAgentId !== null &&
+                                String(unsavedAgentId) === String(agent.id) && (
+                                  <span
+                                    aria-label="unsaved-indicator"
+                                    title="Unsaved changes"
+                                    className="ml-2 inline-block w-2.5 h-2.5 rounded-full bg-blue-500"
+                                  />
+                                )}
                             </div>
                           </div>
                           <div
                             className={`text-xs line-clamp-2 transition-colors duration-300 leading-[1.25] overflow-hidden ${
-                              !isEffectivelyAvailable ? "text-gray-400" : "text-gray-500"
+                              !isEffectivelyAvailable
+                                ? "text-gray-400"
+                                : "text-gray-500"
                             }`}
                             style={{
-                              display: '-webkit-box',
+                              display: "-webkit-box",
                               WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              maxHeight: '2.5rem'
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxHeight: "2.5rem",
                             }}
                           >
                             {agent.description}
@@ -315,7 +424,7 @@ export default function SubAgentPool({
                               <Button
                                 type="text"
                                 size="small"
-                                icon={<LinkOutlined />}
+                                icon={<Network className="w-4 h-4" />}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -324,13 +433,61 @@ export default function SubAgentPool({
                                   }
                                 }}
                                 disabled={!isEffectivelyAvailable}
-                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                className="agent-action-button agent-action-button-blue"
                               />
                             </TooltipTrigger>
                             <TooltipContent>
                               {t("agent.action.viewCallRelationship")}
                             </TooltipContent>
                           </Tooltip>
+                          {/* Export button */}
+                          {onExportAgent && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<FileInput className="w-4 h-4" />}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (isEffectivelyAvailable) {
+                                      onExportAgent(agent);
+                                    }
+                                  }}
+                                  disabled={!isEffectivelyAvailable}
+                                  className="agent-action-button agent-action-button-green"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t("agent.contextMenu.export")}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Delete button */}
+                          {onDeleteAgent && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<Trash2 className="w-4 h-4" />}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (isEffectivelyAvailable) {
+                                      onDeleteAgent(agent);
+                                    }
+                                  }}
+                                  disabled={!isEffectivelyAvailable}
+                                  className="agent-action-button agent-action-button-red"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t("agent.contextMenu.delete")}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -340,12 +497,8 @@ export default function SubAgentPool({
                     <div key={agent.id}>
                       {shouldShowTooltip ? (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            {agentItem}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {tooltipContent}
-                          </TooltipContent>
+                          <TooltipTrigger asChild>{agentItem}</TooltipTrigger>
+                          <TooltipContent>{tooltipContent}</TooltipContent>
                         </Tooltip>
                       ) : (
                         agentItem

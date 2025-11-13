@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import json
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 import pytest
@@ -32,7 +33,30 @@ patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: No
 patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
 # Mock external dependencies before importing backend modules that might initialize them
-with patch('backend.database.client.MinioClient', return_value=minio_client_mock) as minio_mock, \
+# Mock create_engine to prevent database connection attempts
+mock_engine = MagicMock()
+mock_session_maker = MagicMock()
+mock_db_session = MagicMock()
+mock_session_maker.return_value = mock_db_session
+
+# Mock PostgresClient to prevent database connection attempts
+# Create a mock class that returns the same instance (singleton pattern)
+mock_postgres_client = MagicMock()
+mock_postgres_client.session_maker = mock_session_maker
+mock_postgres_client_class = MagicMock(return_value=mock_postgres_client)
+
+# Mock get_db_session context manager - create a proper context manager mock
+def mock_get_db_session(db_session=None):
+    session = mock_db_session if db_session is None else db_session
+    @contextmanager
+    def _mock_context():
+        yield session
+    return _mock_context()
+
+with patch('sqlalchemy.create_engine', return_value=mock_engine), \
+     patch('backend.database.client.PostgresClient', new=mock_postgres_client_class), \
+     patch('backend.database.client.get_db_session', side_effect=mock_get_db_session), \
+     patch('backend.database.client.MinioClient', return_value=minio_client_mock) as minio_mock, \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
     
     import backend.services.agent_service as agent_service
@@ -57,8 +81,13 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         prepare_agent_run,
         run_agent_stream,
         stop_agent_tasks,
+        _resolve_user_tenant_language,
     )
     from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
+
+    # Ensure db_client is set to our mock after import
+    import backend.database.client as db_client_module
+    db_client_module.db_client = mock_postgres_client
 
 # Mock Elasticsearch (already done in the import section above, but keeping for reference)
 elasticsearch_client_mock = MagicMock()
@@ -351,10 +380,15 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
     assert result == expected_result
 
 
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.query_tool_instances_by_id')
+@patch('backend.services.agent_service.query_all_tools')
 @patch('backend.services.agent_service.update_agent')
 @patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_update_agent_info_impl_success(mock_get_current_user_info, mock_update_agent):
+async def test_update_agent_info_impl_success(mock_get_current_user_info, mock_update_agent,
+                                                mock_query_all_tools, mock_query_tool_instances_by_id,
+                                                mock_create_or_update_tool):
     """
     Test successful update of agent information.
 
@@ -372,6 +406,7 @@ async def test_update_agent_info_impl_success(mock_get_current_user_info, mock_u
     request.model_id = None
     request.business_description = "Updated agent"
     request.display_name = "Updated Display Name"
+    request.enabled_tool_ids = None  # Explicitly set to None to avoid tool handling path
 
     # Execute
     await update_agent_info_impl(request, authorization="Bearer token")
@@ -451,12 +486,357 @@ async def test_update_agent_info_impl_exception_handling(mock_get_current_user_i
     request.agent_id = 123
     request.model_id = None
     request.display_name = "Test Display Name"
+    request.enabled_tool_ids = None
+    request.related_agent_ids = None
 
     # Execute & Assert
     with pytest.raises(ValueError) as context:
         await update_agent_info_impl(request, authorization="Bearer token")
 
     assert "Failed to update agent info" in str(context.value)
+
+
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.query_tool_instances_by_id')
+@patch('backend.services.agent_service.query_all_tools')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_with_enabled_tool_ids(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_all_tools,
+    mock_query_tool_instances_by_id,
+    mock_create_or_update_tool
+):
+    """
+    Test update_agent_info_impl with enabled_tool_ids parameter.
+
+    This test verifies that:
+    1. When enabled_tool_ids is provided, tools are updated correctly
+    2. Existing tool params are preserved
+    3. Tools are enabled/disabled based on the provided list
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+
+    # Mock all tools in tenant
+    mock_query_all_tools.return_value = [
+        {"tool_id": 1, "name": "Tool 1"},
+        {"tool_id": 2, "name": "Tool 2"},
+        {"tool_id": 3, "name": "Tool 3"},
+    ]
+
+    # Mock existing tool instance with params
+    mock_query_tool_instances_by_id.side_effect = [
+        {"tool_id": 1, "params": {"key1": "value1"}},  # Existing tool with params
+        None,  # Tool 2 doesn't exist yet
+        None,  # Tool 3 doesn't exist yet
+    ]
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = [1, 2]  # Enable tools 1 and 2, disable 3
+    request.related_agent_ids = None
+
+    # Execute
+    result = await update_agent_info_impl(request, authorization="Bearer token")
+
+    # Assert
+    assert result["agent_id"] == 123
+    mock_update_agent.assert_called_once()
+
+    # Verify tools were updated: tool 1 and 2 enabled, tool 3 disabled
+    assert mock_create_or_update_tool.call_count == 3
+
+    # Check tool 1: enabled with existing params
+    call_args = mock_create_or_update_tool.call_args_list[0]
+    tool_info = call_args.kwargs['tool_info']
+    assert tool_info.tool_id == 1
+    assert tool_info.enabled is True
+    assert tool_info.params == {"key1": "value1"}
+
+    # Check tool 2: enabled with empty params
+    call_args = mock_create_or_update_tool.call_args_list[1]
+    tool_info = call_args.kwargs['tool_info']
+    assert tool_info.tool_id == 2
+    assert tool_info.enabled is True
+    assert tool_info.params == {}
+
+    # Check tool 3: disabled
+    call_args = mock_create_or_update_tool.call_args_list[2]
+    tool_info = call_args.kwargs['tool_info']
+    assert tool_info.tool_id == 3
+    assert tool_info.enabled is False
+
+
+@patch('backend.services.agent_service.update_related_agents')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_with_related_agent_ids(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_sub_agents_id_list,
+    mock_update_related_agents
+):
+    """
+    Test update_agent_info_impl with related_agent_ids parameter.
+
+    This test verifies that:
+    1. When related_agent_ids is provided, relationships are updated
+    2. Circular dependency detection works correctly
+    3. update_related_agents is called with correct parameters
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_query_sub_agents_id_list.return_value = []  # No sub-agents, no circular dependency
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = None
+    request.related_agent_ids = [456, 789]
+
+    # Execute
+    result = await update_agent_info_impl(request, authorization="Bearer token")
+
+    # Assert
+    assert result["agent_id"] == 123
+    mock_update_agent.assert_called_once()
+    mock_update_related_agents.assert_called_once_with(
+        parent_agent_id=123,
+        related_agent_ids=[456, 789],
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_circular_dependency_detection(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_sub_agents_id_list
+):
+    """
+    Test update_agent_info_impl circular dependency detection.
+
+    This test verifies that:
+    1. When agent tries to relate to itself, ValueError is raised
+    2. When circular dependency is detected through sub-agents, ValueError is raised
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = None
+    request.related_agent_ids = [123]  # Agent tries to relate to itself
+
+    # Execute & Assert - self-reference should raise ValueError
+    with pytest.raises(ValueError, match="Circular dependency detected"):
+        await update_agent_info_impl(request, authorization="Bearer token")
+
+    # Test circular dependency through sub-agents
+    request.related_agent_ids = [456]
+    # Agent 456 has sub-agent 123 (circular)
+    mock_query_sub_agents_id_list.return_value = [123]
+
+    with pytest.raises(ValueError, match="Circular dependency detected"):
+        await update_agent_info_impl(request, authorization="Bearer token")
+
+
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.query_tool_instances_by_id')
+@patch('backend.services.agent_service.query_all_tools')
+@patch('backend.services.agent_service.update_related_agents')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_with_both_tool_and_related_agents(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_sub_agents_id_list,
+    mock_update_related_agents,
+    mock_query_all_tools,
+    mock_query_tool_instances_by_id,
+    mock_create_or_update_tool
+):
+    """
+    Test update_agent_info_impl with both enabled_tool_ids and related_agent_ids.
+
+    This test verifies that:
+    1. Both tools and related agents can be updated in the same call
+    2. Operations are performed in correct order
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_query_all_tools.return_value = [{"tool_id": 1}]
+    mock_query_tool_instances_by_id.return_value = None
+    mock_query_sub_agents_id_list.return_value = []
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = [1]
+    request.related_agent_ids = [456]
+
+    # Execute
+    result = await update_agent_info_impl(request, authorization="Bearer token")
+
+    # Assert
+    assert result["agent_id"] == 123
+    mock_update_agent.assert_called_once()
+    mock_create_or_update_tool.assert_called_once()
+    mock_update_related_agents.assert_called_once_with(
+        parent_agent_id=123,
+        related_agent_ids=[456],
+        tenant_id="test_tenant",
+        user_id="test_user"
+    )
+
+
+@patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
+@patch('backend.services.agent_service.query_tool_instances_by_id')
+@patch('backend.services.agent_service.query_all_tools')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_tool_update_exception(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_all_tools,
+    mock_query_tool_instances_by_id,
+    mock_create_or_update_tool
+):
+    """
+    Test update_agent_info_impl exception handling for tool updates.
+
+    This test verifies that:
+    1. When tool update fails, ValueError is raised with appropriate message
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_query_all_tools.return_value = [{"tool_id": 1}]
+    mock_query_tool_instances_by_id.return_value = None
+    mock_create_or_update_tool.side_effect = Exception("Tool update failed")
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = [1]
+    request.related_agent_ids = None
+
+    # Execute & Assert
+    with pytest.raises(ValueError, match="Failed to update agent tools"):
+        await update_agent_info_impl(request, authorization="Bearer token")
+
+
+@patch('backend.services.agent_service.update_related_agents')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+@patch('backend.services.agent_service.update_agent')
+@patch('backend.services.agent_service.get_current_user_info')
+@pytest.mark.asyncio
+async def test_update_agent_info_impl_related_agent_update_exception(
+    mock_get_current_user_info,
+    mock_update_agent,
+    mock_query_sub_agents_id_list,
+    mock_update_related_agents
+):
+    """
+    Test update_agent_info_impl exception handling for related agent updates.
+
+    This test verifies that:
+    1. When related agent update fails, ValueError is raised with appropriate message
+    """
+    # Setup
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_query_sub_agents_id_list.return_value = []
+    mock_update_related_agents.side_effect = Exception("Related agent update failed")
+
+    request = MagicMock()
+    request.agent_id = 123
+    request.enabled_tool_ids = None
+    request.related_agent_ids = [456]
+
+    # Execute & Assert
+    with pytest.raises(ValueError, match="Failed to update related agents"):
+        await update_agent_info_impl(request, authorization="Bearer token")
+
+
+@patch('backend.services.agent_service.get_user_language')
+@patch('backend.services.agent_service.get_current_user_info')
+def test_resolve_user_tenant_language_with_overrides(mock_get_current_user_info, mock_get_user_language):
+    """
+    Test _resolve_user_tenant_language with user_id and tenant_id overrides.
+
+    This test verifies that:
+    1. When user_id and tenant_id are provided, authorization is not parsed again
+    2. Language is still retrieved from http_request
+    """
+    mock_get_user_language.return_value = "zh"
+    mock_request = MagicMock()
+
+    result = _resolve_user_tenant_language(
+        authorization="Bearer token",
+        http_request=mock_request,
+        user_id="override_user",
+        tenant_id="override_tenant"
+    )
+
+    assert result == ("override_user", "override_tenant", "zh")
+    mock_get_current_user_info.assert_not_called()
+    mock_get_user_language.assert_called_once_with(mock_request)
+
+
+@patch('backend.services.agent_service.get_current_user_info')
+def test_resolve_user_tenant_language_without_overrides(mock_get_current_user_info):
+    """
+    Test _resolve_user_tenant_language without user_id and tenant_id overrides.
+
+    This test verifies that:
+    1. When user_id or tenant_id is None, authorization is parsed
+    2. get_current_user_info is called with authorization and http_request
+    """
+    mock_get_current_user_info.return_value = ("parsed_user", "parsed_tenant", "en")
+    mock_request = MagicMock()
+
+    result = _resolve_user_tenant_language(
+        authorization="Bearer token",
+        http_request=mock_request,
+        user_id=None,
+        tenant_id=None
+    )
+
+    assert result == ("parsed_user", "parsed_tenant", "en")
+    mock_get_current_user_info.assert_called_once_with("Bearer token", mock_request)
+
+
+@patch('backend.services.agent_service.get_user_language')
+@patch('backend.services.agent_service.get_current_user_info')
+def test_resolve_user_tenant_language_partial_override(mock_get_current_user_info, mock_get_user_language):
+    """
+    Test _resolve_user_tenant_language with partial override (only user_id).
+
+    This test verifies that:
+    1. When only user_id is provided, authorization is still parsed
+    2. Both user_id and tenant_id must be provided to skip parsing
+    """
+    mock_get_current_user_info.return_value = ("parsed_user", "parsed_tenant", "en")
+    mock_get_user_language.return_value = "fr"
+    mock_request = MagicMock()
+
+    result = _resolve_user_tenant_language(
+        authorization="Bearer token",
+        http_request=mock_request,
+        user_id="override_user",
+        tenant_id=None  # tenant_id is None, so parsing is needed
+    )
+
+    assert result == ("parsed_user", "parsed_tenant", "en")
+    mock_get_current_user_info.assert_called_once_with("Bearer token", mock_request)
 
 
 @patch('backend.services.agent_service.delete_agent_by_id')

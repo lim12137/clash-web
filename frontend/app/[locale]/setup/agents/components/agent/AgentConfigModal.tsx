@@ -4,13 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Modal, Spin, Input, Select, InputNumber } from "antd";
 import {
-  ExpandAltOutlined,
-  SaveOutlined,
   LoadingOutlined,
-  BugOutlined,
-  UploadOutlined,
-  DeleteOutlined,
 } from "@ant-design/icons";
+import { Bug, Save, Maximize2 } from "lucide-react";
 
 import log from "@/lib/logger";
 import { ModelOption } from "@/types/modelConfig";
@@ -56,6 +52,7 @@ export interface AgentConfigModalProps {
   editingAgent?: any;
   canSaveAgent?: boolean;
   getButtonTitle?: () => string;
+  onViewCallRelationship?: () => void; // New prop for viewing call relationship
 }
 
 export default function AgentConfigModal({
@@ -476,9 +473,11 @@ export default function AgentConfigModal({
     <div className="p-4 agent-info-content">
       {/* Agent Display Name */}
       <div className="mb-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t("agent.displayName")}:
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">
+            {t("agent.displayName")}:
+          </label>
+        </div>
         <Input
           value={agentDisplayName}
           onChange={(e) => {
@@ -767,7 +766,7 @@ export default function AgentConfigModal({
               boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
             }}
             title={t("systemPrompt.button.expand")}
-            icon={<ExpandAltOutlined />}
+            icon={<Maximize2 size={12} />}
             size="small"
             type="text"
           />
@@ -851,6 +850,25 @@ export default function AgentConfigModal({
           /* Green button: hover background green-600, border should also be green-600 */
           .bg-green-500.hover\\:bg-green-600.border-green-500.hover\\:border-green-600.ant-btn:hover {
             border-color: #16a34a !important; /* green-600 */
+            background-color: #16a34a !important; /* green-600 */
+          }
+          
+          /* Ensure green buttons stay green on hover */
+          .responsive-button.bg-green-500.ant-btn-primary:hover:not(:disabled) {
+            background-color: #16a34a !important; /* green-600 */
+            border-color: #16a34a !important; /* green-600 */
+          }
+          
+          /* Gray disabled button styles */
+          .responsive-button.bg-gray-400.ant-btn-primary:disabled {
+            background-color: #9ca3af !important; /* gray-400 */
+            border-color: #9ca3af !important; /* gray-400 */
+            opacity: 0.5 !important;
+          }
+          
+          .responsive-button.bg-gray-400.ant-btn-primary:hover:disabled {
+            background-color: #9ca3af !important; /* gray-400 */
+            border-color: #9ca3af !important; /* gray-400 */
           }
 
           /* Red button: hover background red-600, border should also be red-600 */
@@ -889,53 +907,27 @@ export default function AgentConfigModal({
             <Button
               type="primary"
               size="middle"
-              icon={<BugOutlined />}
+              icon={<Bug size={16} />}
               onClick={onDebug}
               className="bg-blue-500 hover:bg-blue-600 responsive-button"
-              title={t("systemPrompt.button.debug")}
             >
               {t("systemPrompt.button.debug")}
             </Button>
 
-            {/* Export and Delete Buttons - Only show when editing existing agent */}
-            {editingAgent &&
-              editingAgent.id &&
-              onExportAgent &&
-              !isCreatingNewAgent && (
-                <>
-                  <Button
-                    type="primary"
-                    size="middle"
-                    icon={<UploadOutlined />}
-                    onClick={onExportAgent}
-                    className="bg-green-500 hover:bg-green-600 responsive-button"
-                    title={t("agent.contextMenu.export")}
-                  >
-                    {t("agent.contextMenu.export")}
-                  </Button>
-
-                  <Button
-                    type="primary"
-                    size="middle"
-                    icon={<DeleteOutlined />}
-                    onClick={handleDeleteClick}
-                    className="bg-red-500 hover:bg-red-600 responsive-button"
-                    title={t("agent.contextMenu.delete")}
-                  >
-                    {t("agent.contextMenu.delete")}
-                  </Button>
-                </>
-              )}
 
             {/* Save Button - Different logic for new agent vs existing agent */}
             {isCreatingNewAgent ? (
               <Button
                 type="primary"
                 size="middle"
-                icon={<SaveOutlined />}
+                icon={<Save size={16} />}
                 onClick={onSaveAgent}
                 disabled={!canActuallySave}
-                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+                className={`responsive-button ${
+                  canActuallySave
+                    ? "bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600"
+                    : "bg-gray-400 hover:bg-gray-400 border-gray-400 hover:border-gray-400 cursor-not-allowed opacity-50"
+                }`}
                 title={(() => {
                   if (agentNameError) {
                     return agentNameError;
@@ -970,10 +962,14 @@ export default function AgentConfigModal({
               <Button
                 type="primary"
                 size="middle"
-                icon={<SaveOutlined />}
+                icon={<Save size={16} />}
                 onClick={onSaveAgent}
                 disabled={!canActuallySave}
-                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+                className={`responsive-button ${
+                  canActuallySave
+                    ? "bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600"
+                    : "bg-gray-400 hover:bg-gray-400 border-gray-400 hover:border-gray-400 cursor-not-allowed opacity-50"
+                }`}
                 title={(() => {
                   if (agentNameError) {
                     return agentNameError;
@@ -994,9 +990,9 @@ export default function AgentConfigModal({
                   }
                   if (!canSaveAgent && getButtonTitle) {
                     const tooltipText = getButtonTitle();
-                    return tooltipText || t("systemPrompt.button.save");
+                    return tooltipText;
                   }
-                  return t("systemPrompt.button.save");
+                  return "";
                 })()}
               >
                 {t("systemPrompt.button.save")}
