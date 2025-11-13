@@ -4,23 +4,37 @@ import sys
 import os
 
 # Add path for correct imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(current_dir, "../../../backend"))
 
-# Mock external dependencies
-sys.modules['boto3'] = MagicMock()
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
 
-# Import the modules we need with MinioClient mocked  
-with patch('database.client.MinioClient', MagicMock()):
-    from fastapi.testclient import TestClient
-    from http import HTTPStatus
-    from fastapi import FastAPI, HTTPException
-    
-    # Create a test client with a fresh FastAPI app
-    from apps.mock_user_management_app import router
-    
-    app = FastAPI()
-    app.include_router(router)
-    client = TestClient(app)
+boto3_mock = MagicMock()
+minio_client_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+
+from fastapi.testclient import TestClient
+from http import HTTPStatus
+from fastapi import FastAPI, HTTPException
+
+# Create a test client with a fresh FastAPI app
+from apps.mock_user_management_app import router
+
+app = FastAPI()
+app.include_router(router)
+client = TestClient(app)
 
 
 class TestServiceHealth:

@@ -19,7 +19,7 @@ from consts.const import (
     POSTGRES_USER,
 )
 from database.db_models import TableBase
-from nexent.storage import create_storage_client_from_config, MinIOStorageConfig
+from nexent.storage.storage_client_factory import create_storage_client_from_config, MinIOStorageConfig
 
 
 logger = logging.getLogger("database.client")

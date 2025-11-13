@@ -6,27 +6,42 @@ import os
 # Add path for correct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
+# Mock external dependencies
+sys.modules['boto3'] = MagicMock()
+
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_mock = MagicMock()
+minio_mock._ensure_bucket_exists = MagicMock()
+minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_mock).start()
+patch('database.client.MinioClient', return_value=minio_mock).start()
+patch('backend.database.client.minio_client', minio_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
 # Import exception classes
 from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException, UnauthorizedError
 from supabase_auth.errors import AuthApiError, AuthWeakPasswordError
 
-# Mock external dependencies
-sys.modules['boto3'] = MagicMock()
+# Import the modules we need
+from fastapi.testclient import TestClient
+from http import HTTPStatus
+from fastapi import FastAPI
+from fastapi import HTTPException
 
+# Create a test client with a fresh FastAPI app
+from apps.user_management_app import router
 
-# Import the modules we need with MinioClient mocked  
-with patch('database.client.MinioClient', MagicMock()):
-    from fastapi.testclient import TestClient
-    from http import HTTPStatus
-    from fastapi import FastAPI
-    from fastapi import HTTPException
-    
-    # Create a test client with a fresh FastAPI app
-    from apps.user_management_app import router
-    
-    app = FastAPI()
-    app.include_router(router)
-    client = TestClient(app)
+app = FastAPI()
+app.include_router(router)
+client = TestClient(app)
 
 
 class MockUser:

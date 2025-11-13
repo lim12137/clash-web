@@ -1,15 +1,31 @@
 from backend.consts.exceptions import UnauthorizedError, SignatureValidationError, LimitExceededError
 import time
 import sys
-from unittest.mock import MagicMock
+import os
+from unittest.mock import MagicMock, patch
 import types
 import pytest
+
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
 
 # ---------------------------------------------------------------------------
 # Pre-mock heavy dependencies BEFORE importing the module under test.
 # This avoids side-effects such as Minio/S3 network calls that are triggered
 # during import time of database.client when auth_utils is imported.
 # ---------------------------------------------------------------------------
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
 # Stub out the database package hierarchy expected by auth_utils
 sys.modules['database'] = MagicMock()

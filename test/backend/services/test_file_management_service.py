@@ -18,16 +18,26 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 # Apply critical patches before importing any modules
 # This prevents real AWS/MinIO/Elasticsearch calls during import
 patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 
-# Create a full mock for MinioClient to avoid initialization issues
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
 minio_mock = MagicMock()
 minio_mock._ensure_bucket_exists = MagicMock()
 minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
 patch('backend.database.client.MinioClient', return_value=minio_mock).start()
-patch('backend.database.client.boto3.client', return_value=MagicMock()).start()
 patch('backend.database.client.minio_client', minio_mock).start()
 
 # Stub Elasticsearch service module to avoid initializing real client during import
