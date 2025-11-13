@@ -408,25 +408,18 @@ export default function AgentConfig() {
   };
 
   // Refresh tool list
-  const handleToolsRefresh = async (showSuccessMessage = true) => {
+  const handleToolsRefresh = async () => {
     try {
       const result = await fetchTools();
       if (result.success) {
         setTools(result.data);
-        // Only show success message if explicitly requested (e.g., manual refresh)
-        // Don't show message when auto-refreshing after MCP tool add/delete
-        if (showSuccessMessage) {
-          message.success(t("agentConfig.tools.refreshSuccess"));
-        }
-        return result.data; // Return the updated tools list
+        message.success(t("agentConfig.tools.refreshSuccess"));
       } else {
         message.error(t("agentConfig.tools.refreshFailed"));
-        return null;
       }
     } catch (error) {
       log.error(t("agentConfig.tools.refreshFailedDebug"), error);
       message.error(t("agentConfig.tools.refreshFailed"));
-      return null;
     }
   };
 

@@ -169,8 +169,6 @@ export interface ChatStreamMainProps {
   shouldScrollToBottom?: boolean;
   selectedAgentId?: number | null;
   onAgentSelect?: (agentId: number | null) => void;
-  onCitationHover?: () => void;
-  onScroll?: () => void;
 }
 
 // Card item type for task window
