@@ -38,8 +38,6 @@ export const API_ENDPOINTS = {
     export: `${API_BASE_URL}/agent/export`,
     import: `${API_BASE_URL}/agent/import`,
     searchInfo: `${API_BASE_URL}/agent/search_info`,
-    relatedAgent: `${API_BASE_URL}/agent/related_agent`,
-    deleteRelatedAgent: `${API_BASE_URL}/agent/delete_related_agent`,
     callRelationship: `${API_BASE_URL}/agent/call_relationship`,
   },
   tool: {
@@ -48,7 +46,8 @@ export const API_ENDPOINTS = {
     search: `${API_BASE_URL}/tool/search`,
     updateTool: `${API_BASE_URL}/tool/scan_tool`,
     validate: `${API_BASE_URL}/tool/validate`,
-    loadConfig: (toolId: number) => `${API_BASE_URL}/tool/load_config/${toolId}`,
+    loadConfig: (toolId: number) =>
+      `${API_BASE_URL}/tool/load_config/${toolId}`,
   },
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
