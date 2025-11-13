@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Badge, Input, App, Button, Select } from "antd";
+import { Modal, Badge, Input, App, Select } from "antd";
 import {
-  ThunderboltOutlined,
   LoadingOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
+import { Zap } from "lucide-react";
 
 import {
   SimplePromptEditorProps,
@@ -29,31 +29,44 @@ export function SimplePromptEditor({
 }: SimplePromptEditorProps) {
   const [internalValue, setInternalValue] = useState(value);
   const isInternalChange = useRef(false);
+  const onChangeRef = useRef(onChange);
 
+  // Keep onChange ref updated
   useEffect(() => {
-    if (value !== internalValue && !isInternalChange.current) {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Sync external value changes to internal state (only when not from internal change)
+  useEffect(() => {
+    // Only update if the change is from external source (not from user input)
+    if (!isInternalChange.current) {
       setInternalValue(value);
     }
-    if (isInternalChange.current) {
+  }, [value]); // Only depend on value prop - internalValue comparison handled via ref flag
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    isInternalChange.current = true;
+    setInternalValue(newValue);
+    // Use ref to avoid stale closure issues
+    onChangeRef.current(newValue);
+    // Reset flag after a microtask to allow state update
+    Promise.resolve().then(() => {
       isInternalChange.current = false;
-    }
-  }, [value, internalValue]);
+    });
+  };
 
   return (
     <Input.TextArea
       value={internalValue}
-      onChange={(e) => {
-        isInternalChange.current = true;
-        setInternalValue(e.target.value);
-        onChange(e.target.value);
-      }}
+      onChange={handleChange}
       style={
         height
-          ? { height, resize: "none", overflow: "auto" }
-          : { resize: "none", overflow: "hidden" }
+          ? { height, resize: "none", overflowX: "hidden", overflowY: "auto" }
+          : { resize: "none", overflowX: "hidden", overflowY: "hidden" }
       }
       autoSize={height ? false : { minRows: 8 }}
-      bordered={bordered}
+      variant={bordered ? "outlined" : "borderless"}
     />
   );
 }
@@ -218,6 +231,7 @@ export interface PromptManagerProps {
   onDeleteAgent?: () => void;
   onDeleteSuccess?: () => void;
   getButtonTitle?: () => string;
+  onViewCallRelationship?: () => void;
 
   // Agent being edited
   editingAgent?: any;
@@ -263,12 +277,31 @@ export default function PromptManager({
   onDeleteAgent,
   onDeleteSuccess,
   getButtonTitle,
+  onViewCallRelationship,
   editingAgent,
   onModelSelect,
   selectedGenerateModel,
 }: PromptManagerProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
+  
+  // Local state for business logic input to enable debouncing
+  const [localBusinessLogic, setLocalBusinessLogic] = useState(businessLogic);
+  const businessLogicDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+  
+  // Sync local state when prop changes (from external updates)
+  useEffect(() => {
+    setLocalBusinessLogic(businessLogic);
+  }, [businessLogic]);
+  
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (businessLogicDebounceTimer.current) {
+        clearTimeout(businessLogicDebounceTimer.current);
+      }
+    };
+  }, []);
 
   // Modal states
   const [expandModalOpen, setExpandModalOpen] = useState(false);
@@ -450,7 +483,8 @@ export default function PromptManager({
 
   // Handle manual save
   const handleSavePrompt = async () => {
-    if (!agentId) return;
+    // Don't call update API if no agent ID or in create mode (agent not saved yet)
+    if (!agentId || isCreatingNewAgent) return;
 
     try {
       const result = await updateAgent(
@@ -544,19 +578,30 @@ export default function PromptManager({
             </h3>
           </div>
           
-          {/* 重新设计的容器：分为文本区域和控件区域 */}
           <div 
             className={`border rounded-lg overflow-hidden bg-white shadow-sm transition-all duration-300 ${
               businessLogicError ? "border-red-500 border-2" : "border-gray-200"
             }`}
             style={{ minHeight: "120px", maxHeight: "200px" }}
           >
-            {/* 文本内容区域 */}
+            {/* Textarea content area */}
             <div className="px-2 pt-2 pb-1 overflow-hidden" style={{ minHeight: "80px", maxHeight: "160px" }}>
               <Input.TextArea
                 data-business-logic-input
-                value={businessLogic}
-                onChange={(e) => onBusinessLogicChange?.(e.target.value)}
+                value={localBusinessLogic}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  // Update local state immediately for responsive UI
+                  setLocalBusinessLogic(newValue);
+                  // Clear existing timer
+                  if (businessLogicDebounceTimer.current) {
+                    clearTimeout(businessLogicDebounceTimer.current);
+                  }
+                  // Debounce the parent update to reduce re-renders
+                  businessLogicDebounceTimer.current = setTimeout(() => {
+                    onBusinessLogicChange?.(newValue);
+                  }, 150); // 150ms debounce delay
+                }}
                 placeholder={t("businessLogic.placeholder")}
                 className="w-full resize-none text-sm transition-all duration-300"
                 style={{
@@ -566,14 +611,15 @@ export default function PromptManager({
                   boxShadow: "none",
                   padding: 0,
                   background: "transparent",
-                  overflow: "auto",
+                  overflowX: "hidden",
+                  overflowY: "auto",
                 }}
                 autoSize={false}
                 disabled={!isEditingMode}
               />
             </div>
             
-            {/* 控件区域 - 固定40px高度，无背景无边框，控件靠右 */}
+            {/* Control area */}
             <div className="h-10 flex items-center justify-end px-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-600">{t("businessLogic.config.model")}：</span>
@@ -606,7 +652,7 @@ export default function PromptManager({
                     {loadingModels ? (
                       <LoadingOutlined className="mr-1" />
                     ) : (
-                      <ThunderboltOutlined className="mr-1" />
+                      <Zap size={16} className="mr-1" />
                     )}
                     {t("businessLogic.config.button.generatePrompt")}
                   </button>
@@ -650,6 +696,7 @@ export default function PromptManager({
             editingAgent={editingAgent}
             canSaveAgent={canSaveAgent}
             getButtonTitle={getButtonTitle}
+            onViewCallRelationship={onViewCallRelationship}
           />
         </div>
       </div>
