@@ -60,24 +60,13 @@ function ToolPool({
     new Set()
   );
 
-  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
-  const selectedToolIds = useMemo(() => {
-    return new Set(selectedTools.map((tool) => tool.id));
-  }, [selectedTools]);
-
   // Use useMemo to cache tool grouping
   const toolGroups = useMemo(() => {
     const groups: ToolGroup[] = [];
     const groupMap = new Map<string, Tool[]>();
 
-    // Filter out unavailable tools (hide tools when MCP server is deleted)
-    const availableTools = tools.filter((tool) => {
-      // Keep tools that are available or selected (to show selected unavailable tools)
-      return tool.is_available !== false || selectedToolIds.has(tool.id);
-    });
-
     // Group by source and usage
-    availableTools.forEach((tool) => {
+    tools.forEach((tool) => {
       let groupKey: string;
       let groupLabel: string;
 
@@ -169,7 +158,7 @@ function ToolPool({
       };
       return getPriority(a.key) - getPriority(b.key);
     });
-  }, [tools, t, selectedToolIds]);
+  }, [tools, t]);
 
   // Set default active tab
   useEffect(() => {
@@ -177,6 +166,11 @@ function ToolPool({
       setActiveTabKey(toolGroups[0].key);
     }
   }, [toolGroups, activeTabKey]);
+
+  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
+  const selectedToolIds = useMemo(() => {
+    return new Set(selectedTools.map((tool) => tool.id));
+  }, [selectedTools]);
 
   // Use useCallback to cache the tool selection processing function
   const handleToolSelect = useCallback(
@@ -397,9 +391,8 @@ function ToolPool({
         const fetchResult = await fetchTools();
         if (fetchResult.success) {
           // Call parent component's refresh callback to update tool list state
-          // Pass false to prevent showing success message (MCP modal will show its own message)
           if (onToolsRefresh) {
-            onToolsRefresh(false);
+            onToolsRefresh();
           }
         } else {
           log.error(
@@ -454,17 +447,7 @@ function ToolPool({
             }
             return;
           }
-          // Prevent selecting unavailable tools
           if (!isEffectivelyAvailable && !isSelected) {
-            message.warning(
-              isEmbeddingBlocked
-                ? t("embedding.agentToolDisableTooltip.content")
-                : t("toolPool.message.unavailable")
-            );
-            return;
-          }
-          // Prevent deselecting unavailable tools that are already selected
-          if (!isEffectivelyAvailable && isSelected) {
             message.warning(
               isEmbeddingBlocked
                 ? t("embedding.agentToolDisableTooltip.content")

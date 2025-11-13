@@ -37,8 +37,6 @@ export function ChatStreamMain({
   shouldScrollToBottom,
   selectedAgentId,
   onAgentSelect,
-  onCitationHover,
-  onScroll,
 }: ChatStreamMainProps) {
   const { t } = useTranslation();
   // Animation variants for ChatInput
@@ -327,11 +325,6 @@ export function ChatStreamMain({
           setAutoScroll(false);
         }
       }
-
-      // Clear completed conversation indicator when scrolling
-      if (onScroll) {
-        onScroll();
-      }
     };
 
     // Add scroll event listener
@@ -343,7 +336,7 @@ export function ChatStreamMain({
     return () => {
       scrollAreaElement.removeEventListener("scroll", handleScroll);
     };
-  }, [shouldScrollToBottom, onScroll]);
+  }, [shouldScrollToBottom]);
 
   // Scroll to bottom function
   const scrollToBottom = (smooth = false) => {
@@ -551,7 +544,6 @@ export function ChatStreamMain({
                     onOpinionChange={onOpinionChange}
                     index={index}
                     currentConversationId={currentConversationId}
-                    onCitationHover={onCitationHover}
                   />
                   {message.role === "user" &&
                     processedMessages.conversationGroups.has(message.id!) && (
