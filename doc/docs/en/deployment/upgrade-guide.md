@@ -90,7 +90,7 @@ Run the SQL scripts shipped with each release to keep your schema up to date.
    POSTGRES_HOST=localhost
    POSTGRES_PORT=5432
    POSTGRES_DB=nexent
-   POSTGRES_USER=postgres
+   POSTGRES_USER=root
    POSTGRES_PASSWORD=your_password
    ```
 
@@ -100,8 +100,8 @@ Run the SQL scripts shipped with each release to keep your schema up to date.
    # Example: If today is November 6th and your last update was on October 20th, 
    # and there are two new files 1030-update.sql and 1105-update.sql, 
    # execute the following commands (please replace the placeholders with your actual values)
-   docker exec -i nexent-postgresql psql -U {YOUR_POSTGRES_USER} -d {YOUR_POSTGRES_DB} < ./sql/1030-update.sql
-   docker exec -i nexent-postgresql psql -U {YOUR_POSTGRES_USER} -d {YOUR_POSTGRES_DB} < ./sql/1105-update.sql
+   docker exec -i nexent-postgresql psql -U [YOUR_POSTGRES_USER] -d [YOUR_POSTGRES_DB] < ./sql/1030-update.sql
+   docker exec -i nexent-postgresql psql -U [YOUR_POSTGRES_USER] -d [YOUR_POSTGRES_DB] < ./sql/1105-update.sql
    ```
 
    Execute the scripts in chronological order based on your deployment date.
@@ -124,7 +124,7 @@ Run the SQL scripts shipped with each release to keep your schema up to date.
 > - Create a backup before running migrations:
 >
 >   ```bash
->   docker exec -i nexent-postgres pg_dump -U {YOUR_POSTGRES_USER} {YOUR_POSTGRES_DB} > backup_$(date +%F).sql
+>   docker exec -i nexent-postgres pg_dump -U [YOUR_POSTGRES_USER] [YOUR_POSTGRES_DB] > backup_$(date +%F).sql
 >   ```
 
 ---
