@@ -71,7 +71,8 @@ from backend.database.agent_db import (
     query_all_agent_info_by_tenant_id,
     insert_related_agent,
     delete_related_agent,
-    delete_agent_relationship
+    delete_agent_relationship,
+    update_related_agents
 )
 
 class MockAgent:
@@ -446,4 +447,192 @@ def test_delete_agent_relationship_failure(monkeypatch, mock_session):
     
     # 函数应该抛出异常，因为数据库操作失败
     with pytest.raises(Exception, match="Database error"):
-        delete_agent_relationship(1, "tenant1", "user1") 
+        delete_agent_relationship(1, "tenant1", "user1")
+
+
+def test_update_related_agents_add_new(monkeypatch, mock_session):
+    """测试更新相关agent - 添加新关系"""
+    session, query = mock_session
+    
+    # Mock current relations (empty initially)
+    mock_all = MagicMock()
+    mock_all.return_value = []  # No existing relations
+    
+    # Mock for querying current relations
+    mock_filter1 = MagicMock()
+    mock_filter1.all = mock_all
+    
+    # Mock for update (soft delete) - should not be called since no deletions
+    mock_update = MagicMock()
+    mock_filter2 = MagicMock()
+    mock_filter2.update = mock_update
+    
+    # Setup filter chain: first call returns filter1 (for query)
+    # If update is called, it would return filter2, but it shouldn't be called
+    query.filter.return_value = mock_filter1
+    
+    # Mock for adding new relations
+    session.add = MagicMock()
+    session.commit = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.agent_db.filter_property", lambda data, model: data)
+    
+    # Create a Mock class for AgentRelation that supports both class attribute access and instantiation
+    # The class attributes need to support comparison operations (==, !=, .in_()) for SQLAlchemy queries
+    class MockAgentRelationClass:
+        parent_agent_id = MagicMock()
+        tenant_id = MagicMock()
+        delete_flag = MagicMock()
+        selected_agent_id = MagicMock()
+        
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    monkeypatch.setattr("backend.database.agent_db.AgentRelation", MockAgentRelationClass)
+    
+    # Execute - add new relations [2, 3]
+    update_related_agents(1, [2, 3], "tenant1", "user1")
+    
+    # Verify: should add 2 new relations, no deletions
+    assert session.add.call_count == 2
+    session.commit.assert_called_once()
+    # Verify update was not called since there are no deletions
+    mock_update.assert_not_called()
+
+
+def test_update_related_agents_delete_existing(monkeypatch, mock_session):
+    """测试更新相关agent - 删除现有关系"""
+    session, query = mock_session
+    
+    # Mock existing relations
+    mock_relation1 = MockAgentRelation()
+    mock_relation1.selected_agent_id = 2
+    mock_relation2 = MockAgentRelation()
+    mock_relation2.selected_agent_id = 3
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [mock_relation1, mock_relation2]
+    
+    # Mock for querying current relations
+    mock_filter1 = MagicMock()
+    mock_filter1.all = mock_all
+    
+    # Mock for update (soft delete)
+    mock_update = MagicMock()
+    mock_filter2 = MagicMock()
+    mock_filter2.update = mock_update
+    
+    # Setup filter chain: first call returns filter1 (for query), subsequent calls return filter2 (for update)
+    query.filter.side_effect = [mock_filter1, mock_filter2]
+    
+    session.add = MagicMock()
+    session.commit = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
+    
+    # Execute - remove all relations (empty list)
+    update_related_agents(1, [], "tenant1", "user1")
+    
+    # Verify: should soft delete 2 relations, add none
+    mock_update.assert_called_once()
+    session.add.assert_not_called()
+    session.commit.assert_called_once()
+
+
+def test_update_related_agents_replace_mixed(monkeypatch, mock_session):
+    """测试更新相关agent - 混合添加和删除"""
+    session, query = mock_session
+    
+    # Mock existing relations [2, 3]
+    mock_relation1 = MockAgentRelation()
+    mock_relation1.selected_agent_id = 2
+    mock_relation2 = MockAgentRelation()
+    mock_relation2.selected_agent_id = 3
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [mock_relation1, mock_relation2]
+    
+    # Mock for querying current relations
+    mock_filter1 = MagicMock()
+    mock_filter1.all = mock_all
+    
+    # Mock for update (soft delete) - will be called to delete 2
+    mock_update = MagicMock()
+    mock_filter2 = MagicMock()
+    mock_filter2.update = mock_update
+    
+    # Setup filter chain: first call returns filter1 (for query), subsequent calls return filter2 (for update)
+    query.filter.side_effect = [mock_filter1, mock_filter2]
+    
+    session.add = MagicMock()
+    session.commit = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.agent_db.filter_property", lambda data, model: data)
+    
+    # Create a Mock class for AgentRelation that supports both class attribute access and instantiation
+    # The class attributes need to support comparison operations (==, !=, .in_()) for SQLAlchemy queries
+    class MockAgentRelationClass:
+        parent_agent_id = MagicMock()
+        tenant_id = MagicMock()
+        delete_flag = MagicMock()
+        selected_agent_id = MagicMock()
+        
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    monkeypatch.setattr("backend.database.agent_db.AgentRelation", MockAgentRelationClass)
+    
+    # Execute - replace [2, 3] with [3, 4] (delete 2, add 4)
+    update_related_agents(1, [3, 4], "tenant1", "user1")
+    
+    # Verify: should delete 2 (relation with selected_agent_id=2), add 4
+    mock_update.assert_called_once()
+    assert session.add.call_count == 1
+    session.commit.assert_called_once()
+
+
+def test_update_related_agents_no_changes(monkeypatch, mock_session):
+    """测试更新相关agent - 无变化"""
+    session, query = mock_session
+    
+    # Mock existing relations [2, 3]
+    mock_relation1 = MockAgentRelation()
+    mock_relation1.selected_agent_id = 2
+    mock_relation2 = MockAgentRelation()
+    mock_relation2.selected_agent_id = 3
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [mock_relation1, mock_relation2]
+    
+    # Mock for querying current relations
+    mock_filter1 = MagicMock()
+    mock_filter1.all = mock_all
+    query.filter.return_value = mock_filter1
+    
+    session.add = MagicMock()
+    session.commit = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
+    
+    # Execute - same relations [2, 3]
+    update_related_agents(1, [2, 3], "tenant1", "user1")
+    
+    # Verify: no deletions, no additions
+    session.add.assert_not_called()
+    session.commit.assert_called_once() 
