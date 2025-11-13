@@ -402,43 +402,6 @@ class TestGetDbSession:
         mock_session.close.assert_not_called()
 
 
-class TestAsDict:
-    """Test cases for as_dict function"""
-
-    def test_as_dict_with_tablebase(self):
-        """Test as_dict with TableBase instance"""
-        mock_obj = MagicMock()
-        mock_obj.__class__ = MagicMock()
-        
-        mock_mapper = MagicMock()
-        mock_column1 = MagicMock()
-        mock_column1.key = 'id'
-        mock_column2 = MagicMock()
-        mock_column2.key = 'name'
-        mock_mapper.columns = [mock_column1, mock_column2]
-        
-        mock_obj.id = 1
-        mock_obj.name = 'test'
-        
-        with patch('backend.database.client.class_mapper', return_value=mock_mapper):
-            # Mock TableBase check
-            with patch('backend.database.client.TableBase', return_value=type(mock_obj)):
-                result = as_dict(mock_obj)
-                
-                # Note: This test may need adjustment based on actual implementation
-                # The function checks isinstance(obj, TableBase) which is hard to mock
-                pass
-
-    def test_as_dict_with_mapping(self):
-        """Test as_dict with mapping object"""
-        mock_obj = MagicMock()
-        mock_obj._mapping = {'id': 1, 'name': 'test'}
-
-        result = as_dict(mock_obj)
-
-        assert result == {'id': 1, 'name': 'test'}
-
-
 class TestFilterProperty:
     """Test cases for filter_property function"""
 

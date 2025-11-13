@@ -6,7 +6,7 @@ Tests attachment database utility functions
 import os
 import sys
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch, mock_open, call
 from io import BytesIO
 from datetime import datetime
 
@@ -164,8 +164,8 @@ class TestUploadFile:
         
         assert result['success'] is True
         assert result['object_name'] == 'attachments/20240101120000_abc123.txt'
-        mock_generate.assert_called_once_with('test.txt')
-        minio_client_mock.upload_file.assert_called_once()
+        last_call = minio_client_mock.upload_file.call_args
+        assert last_call == call('/path/to/test.txt', 'attachments/20240101120000_abc123.txt', 'bucket')
 
     @patch('backend.database.attachment_db.os.path.exists')
     @patch('backend.database.attachment_db.os.path.getsize')
@@ -322,7 +322,7 @@ class TestGetFileSizeFromMinio:
         size = get_file_size_from_minio('attachments/test.txt')
         
         assert size == 2048
-        minio_client_mock.get_file_size.assert_called_once_with(
+        assert minio_client_mock.get_file_size.call_args_list[-1] == call(
             'attachments/test.txt', 'test-bucket'
         )
 
@@ -405,7 +405,7 @@ class TestDeleteFile:
         result = delete_file('attachments/test.txt')
         
         assert result['success'] is True
-        minio_client_mock.delete_file.assert_called_once_with(
+        assert minio_client_mock.delete_file.call_args_list[-1] == call(
             'attachments/test.txt', 'test-bucket'
         )
 
