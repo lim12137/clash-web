@@ -10,14 +10,30 @@ from fastapi import Request
 # Import the actual ToolConfig model for testing before any mocking
 from nexent.core.agents.agent_model import ToolConfig
 
+import os
+
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+
 # Mock external dependencies before importing backend modules that might initialize them
-with patch('backend.database.client.MinioClient') as minio_mock, \
+with patch('backend.database.client.MinioClient', return_value=minio_client_mock) as minio_mock, \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
-    minio_mock.return_value = MagicMock()
     
     import backend.services.agent_service as agent_service
     from backend.services.agent_service import update_agent_info_impl

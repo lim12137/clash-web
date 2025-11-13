@@ -7,6 +7,13 @@ from unittest.mock import patch, MagicMock, AsyncMock
 # Add path for correct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 # Mock external dependencies
 sys.modules['boto3'] = MagicMock()
 sys.modules['botocore'] = MagicMock()
@@ -56,9 +63,16 @@ sys.modules['nexent.core.models.tts_model'].TTSConfig = MockTTSConfig
 sys.modules['nexent.core.models.tts_model'].TTSModel = MockTTSModel
 sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
 
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+
 # Import the modules we need with all dependencies mocked
 with patch('botocore.client.BaseClient._make_api_call'), \
-     patch('database.client.MinioClient', MagicMock()), \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()), \
      patch('database.client.db_client', MagicMock()), \
      patch('database.client.get_db_session', MagicMock()), \
