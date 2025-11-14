@@ -19,6 +19,7 @@ const { Title } = Typography
 // Add interface definition
 interface AppModelConfigProps {
   skipModelVerification?: boolean;
+  canAccessProtectedData?: boolean;
   onSelectedModelsChange?: (
     selected: Record<string, Record<string, string>>
   ) => void;
@@ -32,6 +33,7 @@ interface AppModelConfigProps {
 
 export default function AppModelConfig({
   skipModelVerification = false,
+  canAccessProtectedData = false,
   onSelectedModelsChange,
   onEmbeddingConnectivityChange,
   forwardedRef,
@@ -159,6 +161,7 @@ export default function AppModelConfig({
                   <ModelConfigSection
                     ref={modelConfigRef as any}
                     skipVerification={skipModelVerification}
+                    canAccessProtectedData={canAccessProtectedData}
                   />
                 </div>
               </div>
