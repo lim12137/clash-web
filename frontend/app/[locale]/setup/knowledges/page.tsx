@@ -16,6 +16,7 @@ import {
   CONNECTION_STATUS,
   ConnectionStatus,
 } from "@/const/modelConfig";
+import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
@@ -25,7 +26,7 @@ export default function KnowledgeSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode } = useAuth();
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -34,12 +35,17 @@ export default function KnowledgeSetupPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Check login status and permission
+  // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
     if (!isSpeedMode && !userLoading && !user) {
-      openLoginModal();
+      window.dispatchEvent(
+        new CustomEvent(EVENTS.SESSION_EXPIRED, {
+          detail: { message: "Session expired, please sign in again" },
+        })
+      );
       return;
     }
-  }, [isSpeedMode, user, userLoading, openLoginModal]);
+  }, [isSpeedMode, user, userLoading]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
