@@ -106,11 +106,14 @@ RAY_ACTOR_NUM_CPUS = int(os.getenv("RAY_ACTOR_NUM_CPUS", "2"))
 RAY_DASHBOARD_PORT = int(os.getenv("RAY_DASHBOARD_PORT", "8265"))
 RAY_DASHBOARD_HOST = os.getenv("RAY_DASHBOARD_HOST", "0.0.0.0")
 RAY_NUM_CPUS = os.getenv("RAY_NUM_CPUS")
-RAY_PLASMA_DIRECTORY = os.getenv("RAY_PLASMA_DIRECTORY", "/tmp")
 RAY_OBJECT_STORE_MEMORY_GB = float(
-    os.getenv("RAY_OBJECT_STORE_MEMORY_GB", "2.0"))
+    os.getenv("RAY_OBJECT_STORE_MEMORY_GB", "0.25"))
 RAY_TEMP_DIR = os.getenv("RAY_TEMP_DIR", "/tmp/ray")
 RAY_LOG_LEVEL = os.getenv("RAY_LOG_LEVEL", "INFO").upper()
+# Disable plasma preallocation to reduce idle memory usage
+# When set to false, Ray will allocate object store memory on-demand instead of preallocating
+RAY_preallocate_plasma = os.getenv(
+    "RAY_preallocate_plasma", "false").lower() == "true"
 
 
 # Service Control Flags
