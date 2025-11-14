@@ -12,7 +12,7 @@ import { configService } from "@/services/configService"
 import { API_ENDPOINTS } from "@/services/api"
 import { User, AuthContextType } from "@/types/auth"
 import { EVENTS, STATUS_CODES } from "@/const/auth"
-import { getSessionFromStorage } from "@/lib/auth"
+import { getSessionFromStorage, removeSessionFromStorage } from "@/lib/auth"
 import log from "@/lib/logger"
 
 // Create auth context
@@ -300,6 +300,16 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
+  // Clear local session state without calling backend API
+  // Used when session is already expired on the backend
+  const clearLocalSession = () => {
+    removeSessionFromStorage()
+    setUser(null)
+    setShouldCheckSession(false)
+    // Manually trigger storage event
+    window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
+  }
+
   const logout = async (options?: { silent?: boolean }) => {
     try {
       setIsLoading(true)
@@ -357,6 +367,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     login,
     register,
     logout,
+    clearLocalSession,
     revoke,
   };
 
