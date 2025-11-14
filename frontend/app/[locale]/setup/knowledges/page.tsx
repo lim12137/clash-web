@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -16,6 +16,7 @@ import {
   CONNECTION_STATUS,
   ConnectionStatus,
 } from "@/const/modelConfig";
+import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
@@ -25,7 +26,9 @@ export default function KnowledgeSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode } = useAuth();
+  const canAccessProtectedData = isSpeedMode || (!userLoading && !!user);
+  const sessionExpiredTriggeredRef = useRef(false);
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -34,16 +37,31 @@ export default function KnowledgeSetupPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Check login status and permission
+  // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
-    if (!isSpeedMode && !userLoading && !user) {
-      openLoginModal();
+    if (isSpeedMode) {
+      sessionExpiredTriggeredRef.current = false;
       return;
     }
-  }, [isSpeedMode, user, userLoading, openLoginModal]);
+
+    if (user) {
+      sessionExpiredTriggeredRef.current = false;
+      return;
+    }
+
+    if (!userLoading && !sessionExpiredTriggeredRef.current) {
+      sessionExpiredTriggeredRef.current = true;
+      window.dispatchEvent(
+        new CustomEvent(EVENTS.SESSION_EXPIRED, {
+          detail: { message: "Session expired, please sign in again" },
+        })
+      );
+    }
+  }, [isSpeedMode, user, userLoading]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    if (!(isSpeedMode || user)) return;
+    if (!canAccessProtectedData) return;
     checkModelEngineConnection();
 
     // Trigger knowledge base data acquisition when the page is initialized
@@ -66,7 +84,7 @@ export default function KnowledgeSetupPage() {
     };
 
     loadConfigForNormalUser();
-  }, [isSpeedMode, user]);
+  }, [canAccessProtectedData]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -123,7 +141,7 @@ export default function KnowledgeSetupPage() {
 
   // Handle back button click
   const handleBack = () => {
-    if (user?.role === USER_ROLES.ADMIN) {
+    if (isSpeedMode || user?.role === USER_ROLES.ADMIN) {
       router.push("/setup/models");
     } else {
       message.error(t("setup.page.error.adminOnly"));
@@ -152,8 +170,8 @@ export default function KnowledgeSetupPage() {
     duration: 0.4,
   };
 
-  // Determine which button to show based on user role
-  const isAdmin = user?.role === USER_ROLES.ADMIN;
+  // Determine which button to show based on user role (speed mode is treated as admin)
+  const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
   return (
     <SetupLayout
@@ -172,16 +190,18 @@ export default function KnowledgeSetupPage() {
       nextText={t("setup.navigation.button.next")}
       completeText={t("setup.navigation.button.complete")}
     >
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        style={{ width: "100%", height: "100%" }}
-      >
-        <DataConfig isActive={true} />
-      </motion.div>
+      {canAccessProtectedData ? (
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <DataConfig isActive={true} />
+        </motion.div>
+      ) : null}
     </SetupLayout>
   );
 }

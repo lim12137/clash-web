@@ -111,7 +111,7 @@ export interface AgentSetupOrchestratorProps {
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
   onEditingStateChange?: (isEditing: boolean, agent: any) => void;
-  onToolsRefresh: () => void;
+  onToolsRefresh: (showSuccessMessage?: boolean) => void | Promise<any>;
   dutyContent: string;
   setDutyContent: (value: string) => void;
   constraintContent: string;
@@ -133,6 +133,12 @@ export interface AgentSetupOrchestratorProps {
   editingAgent?: any;
   onExitCreation?: () => void;
   isEmbeddingConfigured?: boolean;
+  /** notify parent about unsaved state changes */
+  onUnsavedChange?: (dirty: boolean) => void;
+  /** register a save-all handler for parent to invoke */
+  registerSaveHandler?: (handler: () => Promise<void>) => void;
+  /** register a reload handler for parent to invoke */
+  registerReloadHandler?: (handler: () => Promise<void>) => void;
 }
 
 // SubAgentPool component props interface
@@ -148,6 +154,8 @@ export interface SubAgentPoolProps {
   editingAgent?: Agent | null;
   isCreatingNewAgent?: boolean;
   editingAgentName?: string | null;
+  onExportAgent?: (agent: Agent) => void;
+  onDeleteAgent?: (agent: Agent) => void;
 }
 
 // ToolPool component props interface
@@ -158,7 +166,7 @@ export interface ToolPoolProps {
   loadingTools?: boolean;
   mainAgentId?: string | null;
   localIsGenerating?: boolean;
-  onToolsRefresh?: () => void;
+  onToolsRefresh?: (showSuccessMessage?: boolean) => void | Promise<any>;
   isEditingMode?: boolean;
   isGeneratingAgent?: boolean;
   isEmbeddingConfigured?: boolean;

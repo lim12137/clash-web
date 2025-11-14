@@ -33,6 +33,70 @@ def import_tasks_with_fake_ray(monkeypatch, initialized=False):
     fake_ray = FakeRay(initialized=initialized)
     sys.modules["ray"] = fake_ray
     import importlib
+    # Stub celery module (required by app.py and tasks.py imported via __init__.py)
+    if "celery.backends.base" not in sys.modules:
+        backends_base_mod = types.ModuleType("celery.backends.base")
+        backends_base_mod.DisabledBackend = type("DisabledBackend", (), {})
+        sys.modules["celery.backends.base"] = backends_base_mod
+    
+    if "celery.exceptions" not in sys.modules:
+        exceptions_mod = types.ModuleType("celery.exceptions")
+        exceptions_mod.Retry = type("Retry", (Exception,), {})
+        sys.modules["celery.exceptions"] = exceptions_mod
+    
+    if "celery.result" not in sys.modules:
+        result_mod = types.ModuleType("celery.result")
+        result_mod.AsyncResult = type("AsyncResult", (), {})
+        sys.modules["celery.result"] = result_mod
+    
+    if "celery.signals" not in sys.modules:
+        signals_mod = types.ModuleType("celery.signals")
+        # Create fake signal objects with connect method
+        class FakeSignal:
+            def connect(self, func):
+                return func
+        signals_mod.worker_init = FakeSignal()
+        signals_mod.worker_process_init = FakeSignal()
+        signals_mod.worker_ready = FakeSignal()
+        signals_mod.worker_shutting_down = FakeSignal()
+        signals_mod.task_prerun = FakeSignal()
+        signals_mod.task_postrun = FakeSignal()
+        signals_mod.task_failure = FakeSignal()
+        sys.modules["celery.signals"] = signals_mod
+    
+    if "celery" not in sys.modules:
+        celery_mod = types.ModuleType("celery")
+        # Create a Celery class that accepts any arguments and has required attributes
+        class FakeBackend:
+            pass
+        
+        class FakeCelery:
+            def __init__(self, *args, **kwargs):
+                # Set backend to a non-DisabledBackend instance
+                self.backend = FakeBackend()
+                # Create a conf object with update method
+                self.conf = types.SimpleNamespace(update=lambda **kwargs: None)
+            
+            def task(self, *args, **kwargs):
+                # Return a decorator that returns the function unchanged
+                def decorator(func):
+                    return func
+                return decorator
+        
+        # Stub classes and functions needed by tasks.py
+        celery_mod.Celery = FakeCelery
+        celery_mod.Task = type("Task", (), {})
+        celery_mod.chain = lambda *args: None
+        celery_mod.states = types.SimpleNamespace(
+            PENDING="PENDING",
+            STARTED="STARTED",
+            SUCCESS="SUCCESS",
+            FAILURE="FAILURE",
+            RETRY="RETRY",
+            REVOKED="REVOKED"
+        )
+        sys.modules["celery"] = celery_mod
+    
     # Stub modules that ray_actors depends on to avoid importing real MinIO
     # Also stub consts package and consts.const module to provide required constants at import time
     if "consts" not in sys.modules:
@@ -47,6 +111,7 @@ def import_tasks_with_fake_ray(monkeypatch, initialized=False):
         const_mod.RAY_ACTOR_NUM_CPUS = 1
         const_mod.FORWARD_REDIS_RETRY_DELAY_S = 0
         const_mod.FORWARD_REDIS_RETRY_MAX = 1
+        const_mod.DISABLE_RAY_DASHBOARD = False
         # New defaults required by ray_actors import
         const_mod.DEFAULT_EXPECTED_CHUNK_SIZE = 1024
         const_mod.DEFAULT_MAXIMUM_CHUNK_SIZE = 1536
@@ -99,6 +164,37 @@ def import_tasks_with_fake_ray(monkeypatch, initialized=False):
         sys.modules["nexent.data_process"] = types.SimpleNamespace(
             DataProcessCore=type("_Core", (), {"__init__": lambda self: None, "file_process": lambda *a, **k: []})
         )
+    
+    # Stub external dependencies (required by utils.file_management_utils)
+    if "aiofiles" not in sys.modules:
+        sys.modules["aiofiles"] = types.SimpleNamespace(
+            open=lambda *args, **kwargs: types.SimpleNamespace(
+                __aenter__=lambda: types.SimpleNamespace(
+                    write=lambda content: None,
+                    __aexit__=lambda *args: None
+                ),
+                __aexit__=lambda *args: None
+            )
+        )
+    if "httpx" not in sys.modules:
+        sys.modules["httpx"] = types.SimpleNamespace()
+    if "requests" not in sys.modules:
+        sys.modules["requests"] = types.SimpleNamespace()
+    if "fastapi" not in sys.modules:
+        fastapi_mod = types.ModuleType("fastapi")
+        fastapi_mod.UploadFile = type("UploadFile", (), {})
+        sys.modules["fastapi"] = fastapi_mod
+    
+    # Stub utils.file_management_utils (required by tasks.py)
+    if "utils.file_management_utils" not in sys.modules:
+        file_utils_mod = types.ModuleType("utils.file_management_utils")
+        file_utils_mod.get_file_size = lambda *args, **kwargs: 0
+        sys.modules["utils.file_management_utils"] = file_utils_mod
+    
+    # Stub aiohttp (required by tasks.py)
+    if "aiohttp" not in sys.modules:
+        sys.modules["aiohttp"] = types.SimpleNamespace()
+    
     import backend.data_process.tasks as tasks
     importlib.reload(tasks)
     # Provide a Celery task shim that allows direct calls and supports .s for chaining
@@ -121,9 +217,18 @@ def import_tasks_with_fake_ray(monkeypatch, initialized=False):
 
     # Helper to get unbound run
     def _unbound_run(task_obj):
+        """
+        Return the underlying callable for a Celery task or plain function.
+
+        In production, Celery tasks are Task objects with a .run attribute.
+        In tests (with our FakeCelery), tasks are often plain functions.
+        """
+        if task_obj is None:
+            return None
         run_attr = getattr(task_obj, "run", None)
         if run_attr is None:
-            return None
+            # Plain function (already directly callable)
+            return task_obj
         return getattr(run_attr, "__func__", run_attr)
 
     # Inject a default Ray actor so get_ray_actor works even when not monkeypatched in tests
@@ -157,11 +262,25 @@ def import_tasks_with_fake_ray(monkeypatch, initialized=False):
     maybe = _unbound_run(getattr(tasks, "process", None))
     if maybe is not None:
         tasks.process = _CeleryTaskShim(maybe)
+        # Ensure process is also available in the module namespace for process_and_forward
+        import backend.data_process.tasks as tasks_module
+        tasks_module.process = tasks.process
     maybe = _unbound_run(getattr(tasks, "forward", None))
     if maybe is not None:
         tasks.forward = _CeleryTaskShim(maybe, preprocess=_forward_preprocess)
+        # Ensure forward is also available in the module namespace for process_and_forward
+        import backend.data_process.tasks as tasks_module
+        tasks_module.forward = tasks.forward
     maybe = _unbound_run(getattr(tasks, "process_and_forward", None))
     if maybe is not None:
+        # For process_and_forward, we need to patch the function's globals to use shimmed process and forward
+        # Since process_and_forward uses process.s() and forward.s(), we need to ensure
+        # those are available. Update the function's __globals__ to use shimmed versions.
+        import backend.data_process.tasks as tasks_module
+        # Update the function's globals to reference the shimmed process and forward
+        if hasattr(maybe, '__globals__'):
+            maybe.__globals__['process'] = tasks.process
+            maybe.__globals__['forward'] = tasks.forward
         tasks.process_and_forward = _CeleryTaskShim(maybe)
     maybe = _unbound_run(getattr(tasks, "process_sync", None))
     if maybe is not None:
@@ -174,9 +293,42 @@ def test_init_ray_in_worker_initializes_once(monkeypatch):
     # First call initializes
     tasks.init_ray_in_worker()
     assert fake_ray.inits and fake_ray.inits[-1]["configure_logging"] is False
+    assert fake_ray.inits[-1]["faulthandler"] is False
+    # When DISABLE_RAY_DASHBOARD is False (default), include_dashboard should be True
+    assert fake_ray.inits[-1]["include_dashboard"] is True
     # Second call does nothing
     tasks.init_ray_in_worker()
     assert len(fake_ray.inits) == 1
+
+
+def test_init_ray_in_worker_respects_disable_dashboard_setting(monkeypatch):
+    """Test that init_ray_in_worker respects DISABLE_RAY_DASHBOARD setting"""
+    tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=False)
+    # Patch DISABLE_RAY_DASHBOARD in tasks module to True
+    monkeypatch.setattr(tasks, "DISABLE_RAY_DASHBOARD", True)
+    
+    # First call initializes with include_dashboard=False
+    tasks.init_ray_in_worker()
+    assert fake_ray.inits and fake_ray.inits[-1]["configure_logging"] is False
+    assert fake_ray.inits[-1]["faulthandler"] is False
+    # When DISABLE_RAY_DASHBOARD is True, include_dashboard should be False
+    assert fake_ray.inits[-1]["include_dashboard"] is False
+
+
+def test_init_ray_in_worker_raises_on_init_failure(monkeypatch):
+    """Test that init_ray_in_worker logs error and re-raises exception when ray.init() fails"""
+    tasks, fake_ray = import_tasks_with_fake_ray(monkeypatch, initialized=False)
+    
+    # Make ray.init() raise an exception
+    init_exception = RuntimeError("Ray initialization failed")
+    def failing_init(**kwargs):
+        raise init_exception
+    fake_ray.init = failing_init
+    
+    # Verify that the exception is re-raised
+    with pytest.raises(RuntimeError) as exc_info:
+        tasks.init_ray_in_worker()
+    assert exc_info.value == init_exception
 
 
 def test_run_async_no_running_loop(monkeypatch):
@@ -474,13 +626,21 @@ def test_forward_index_documents_client_connector_error(monkeypatch):
         def post(self, *a, **k):
             raise ClientConnectorError("down")
 
+    # Provide both error types because tasks.forward references both in except
+    class DummyClientResponseError(Exception):
+        def __init__(self, status=None):
+            self.status = status
+
     fake_aiohttp = types.SimpleNamespace(
         ClientConnectorError=ClientConnectorError,
+        ClientResponseError=DummyClientResponseError,
         TCPConnector=TCPConnector,
         ClientTimeout=ClientTimeout,
         ClientSession=Session,
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+    # Ensure tasks module uses the stubbed aiohttp with ClientConnectorError
+    monkeypatch.setattr(tasks, "aiohttp", fake_aiohttp, raising=False)
 
     self = FakeSelf("e_conn")
     with pytest.raises(Exception) as ei:
@@ -527,13 +687,20 @@ def test_forward_index_documents_client_response_503(monkeypatch):
             # Raise before context manager is created to trigger except block
             raise ClientResponseError(503)
 
+    # Provide both error types because tasks.forward references both in except
+    class DummyClientConnectorError(Exception):
+        pass
+
     fake_aiohttp = types.SimpleNamespace(
         ClientResponseError=ClientResponseError,
+        ClientConnectorError=DummyClientConnectorError,
         TCPConnector=TCPConnector,
         ClientTimeout=ClientTimeout,
         ClientSession=Session,
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+    # Ensure tasks module uses the stubbed aiohttp with ClientResponseError
+    monkeypatch.setattr(tasks, "aiohttp", fake_aiohttp, raising=False)
 
     self = FakeSelf("e_503")
     with pytest.raises(Exception) as ei:
@@ -595,12 +762,23 @@ def test_forward_index_documents_timeout_error(monkeypatch):
             raise TimeoutError("timeout")
 
     # Inject stub aiohttp with TimeoutError type mapped to asyncio.TimeoutError in code path
+    class DummyClientResponseError(Exception):
+        def __init__(self, status=None):
+            self.status = status
+
+    class DummyClientConnectorError(Exception):
+        pass
+
     fake_aiohttp = types.SimpleNamespace(
+        ClientResponseError=DummyClientResponseError,
+        ClientConnectorError=DummyClientConnectorError,
         TCPConnector=TCPConnector,
         ClientTimeout=ClientTimeout,
         ClientSession=Session,
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+    # Ensure tasks module uses the stubbed aiohttp for timeout path
+    monkeypatch.setattr(tasks, "aiohttp", fake_aiohttp, raising=False)
     # Ensure our TimeoutError is seen as asyncio.TimeoutError in except
     monkeypatch.setattr(tasks.asyncio, "TimeoutError", TimeoutError)
 
@@ -638,12 +816,23 @@ def test_forward_index_documents_unexpected_error(monkeypatch):
             # Simulate a generic unexpected error
             raise RuntimeError("boom")
 
+    class DummyClientResponseError(Exception):
+        def __init__(self, status=None):
+            self.status = status
+
+    class DummyClientConnectorError(Exception):
+        pass
+
     fake_aiohttp = types.SimpleNamespace(
+        ClientResponseError=DummyClientResponseError,
+        ClientConnectorError=DummyClientConnectorError,
         TCPConnector=TCPConnector,
         ClientTimeout=ClientTimeout,
         ClientSession=Session,
     )
     monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+    # Ensure tasks module uses the stubbed aiohttp for unexpected error path
+    monkeypatch.setattr(tasks, "aiohttp", fake_aiohttp, raising=False)
 
     self = FakeSelf("e_unexpected")
     with pytest.raises(Exception) as ei:
@@ -660,6 +849,13 @@ def test_process_and_forward_returns_empty_when_apply_async_none(monkeypatch):
             return None
 
     monkeypatch.setattr(tasks, "chain", lambda *a, **k: FakeChain())
+    # Ensure process and forward are accessible from the tasks module for process_and_forward
+    # The function looks up process and forward from the module at runtime
+    import backend.data_process.tasks as tasks_module
+    # Process and forward should already be shimmed in import_tasks_with_fake_ray
+    # But we need to ensure they're accessible in the module namespace
+    tasks_module.process = tasks.process
+    tasks_module.forward = tasks.forward
     self = FakeSelf("chain_none")
     out = tasks.process_and_forward(
         self, source="/a.txt", source_type="local", chunking_strategy="basic", index_name="idx")

@@ -19,11 +19,7 @@ import {
   ToolGroup,
   ToolSubGroup,
 } from "@/types/agentConfig";
-import {
-  fetchTools,
-  searchToolConfig,
-  updateToolConfig,
-} from "@/services/agentConfigService";
+import { fetchTools } from "@/services/agentConfigService";
 import { updateToolList } from "@/services/mcpService";
 
 import ToolConfigModal from "./ToolConfigModal";
@@ -60,13 +56,24 @@ function ToolPool({
     new Set()
   );
 
+  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
+  const selectedToolIds = useMemo(() => {
+    return new Set(selectedTools.map((tool) => tool.id));
+  }, [selectedTools]);
+
   // Use useMemo to cache tool grouping
   const toolGroups = useMemo(() => {
     const groups: ToolGroup[] = [];
     const groupMap = new Map<string, Tool[]>();
 
+    // Filter out unavailable tools (hide tools when MCP server is deleted)
+    const availableTools = tools.filter((tool) => {
+      // Keep tools that are available or selected (to show selected unavailable tools)
+      return tool.is_available !== false || selectedToolIds.has(tool.id);
+    });
+
     // Group by source and usage
-    tools.forEach((tool) => {
+    availableTools.forEach((tool) => {
       let groupKey: string;
       let groupLabel: string;
 
@@ -158,7 +165,7 @@ function ToolPool({
       };
       return getPriority(a.key) - getPriority(b.key);
     });
-  }, [tools, t]);
+  }, [tools, t, selectedToolIds]);
 
   // Set default active tab
   useEffect(() => {
@@ -166,11 +173,6 @@ function ToolPool({
       setActiveTabKey(toolGroups[0].key);
     }
   }, [toolGroups, activeTabKey]);
-
-  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
-  const selectedToolIds = useMemo(() => {
-    return new Set(selectedTools.map((tool) => tool.id));
-  }, [selectedTools]);
 
   // Use useCallback to cache the tool selection processing function
   const handleToolSelect = useCallback(
@@ -196,38 +198,18 @@ function ToolPool({
         return;
       }
 
-      if (!mainAgentId) {
-        message.error(t("tool.error.noMainAgentId"));
-        return;
-      }
-
       try {
-        // step 1: get tool config from database
-        const searchResult = await searchToolConfig(
-          parseInt(tool.id),
-          parseInt(mainAgentId)
-        );
-        if (!searchResult.success) {
-          message.error(t("tool.error.configFetchFailed"));
-          return;
-        }
-
-        let params: Record<string, any> = {};
-
-        // use config from database or default config
-        if (searchResult.data?.params) {
-          params = searchResult.data.params || {};
-        } else {
-          // if there is no saved config, use default value
-          params = (tool.initParams || []).reduce((acc, param) => {
+        // step 1: if enabling the tool, check required fields using current or default values
+        let params: Record<string, any> = (tool.initParams || []).reduce(
+          (acc, param) => {
             if (param && param.name) {
               acc[param.name] = param.value;
             }
             return acc;
-          }, {} as Record<string, any>);
-        }
+          },
+          {} as Record<string, any>
+        );
 
-        // step 2: if the tool is enabled, check required fields
         if (isSelected && tool.initParams && tool.initParams.length > 0) {
           const missingRequiredFields = tool.initParams
             .filter(
@@ -254,31 +236,13 @@ function ToolPool({
           }
         }
 
-        // step 3: if all checks pass, update tool config
-        const updateResult = await updateToolConfig(
-          parseInt(tool.id),
-          parseInt(mainAgentId),
-          params,
-          isSelected
-        );
-
-        if (updateResult.success) {
-          onSelectTool(tool, isSelected);
-          message.success(
-            t("tool.message.statusUpdated", {
-              name: tool.name,
-              status: isSelected ? t("common.enabled") : t("common.disabled"),
-            })
-          );
-        } else {
-          message.error(updateResult.message || t("tool.error.updateFailed"));
-        }
+        // step 2: if all checks pass, update local selection only; persistence happens on Save
+        onSelectTool(tool, isSelected);
       } catch (error) {
         message.error(t("tool.error.updateRetry"));
       }
     },
     [
-      mainAgentId,
       onSelectTool,
       t,
       isGeneratingAgent,
@@ -327,22 +291,14 @@ function ToolPool({
           return;
         }
 
-        const mockEvent = {
-          stopPropagation: () => {},
-          preventDefault: () => {},
-          nativeEvent: new MouseEvent("click"),
-          isDefaultPrevented: () => false,
-          isPropagationStopped: () => false,
-          persist: () => {},
-        } as React.MouseEvent;
-
-        handleToolSelect(updatedTool, isSelected, mockEvent);
+        // Apply selection locally after saving config
+        onSelectTool(updatedTool, isSelected);
       }
 
       setIsToolModalOpen(false);
       setPendingToolSelection(null);
     },
-    [pendingToolSelection, handleToolSelect, t]
+    [pendingToolSelection, onSelectTool, t]
   );
 
   // Use useCallback to cache the modal close processing function
@@ -391,8 +347,9 @@ function ToolPool({
         const fetchResult = await fetchTools();
         if (fetchResult.success) {
           // Call parent component's refresh callback to update tool list state
+          // Pass false to prevent showing success message (MCP modal will show its own message)
           if (onToolsRefresh) {
-            onToolsRefresh();
+            onToolsRefresh(false);
           }
         } else {
           log.error(
@@ -447,7 +404,17 @@ function ToolPool({
             }
             return;
           }
+          // Prevent selecting unavailable tools
           if (!isEffectivelyAvailable && !isSelected) {
+            message.warning(
+              isEmbeddingBlocked
+                ? t("embedding.agentToolDisableTooltip.content")
+                : t("toolPool.message.unavailable")
+            );
+            return;
+          }
+          // Prevent deselecting unavailable tools that are already selected
+          if (!isEffectivelyAvailable && isSelected) {
             message.warning(
               isEmbeddingBlocked
                 ? t("embedding.agentToolDisableTooltip.content")

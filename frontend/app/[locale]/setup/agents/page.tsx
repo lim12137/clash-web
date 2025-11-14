@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -14,16 +14,23 @@ import {
   CONNECTION_STATUS,
   ConnectionStatus,
 } from "@/const/modelConfig";
+import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
-import AgentConfig from "./config";
+import AgentConfig, { AgentConfigHandle } from "./config";
+import SaveConfirmModal from "./components/SaveConfirmModal";
 
 export default function AgentSetupPage() {
+  const agentConfigRef = useRef<AgentConfigHandle | null>(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const pendingNavRef = useRef<null | (() => void)>(null);
+  const sessionExpiredTriggeredRef = useRef(false);
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode } = useAuth();
+  const canAccessProtectedData = isSpeedMode || (!isSpeedMode && !userLoading && !!user);
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -32,10 +39,19 @@ export default function AgentSetupPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Check login status and permission
+  // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
-    if (!isSpeedMode && !userLoading && !user) {
-      openLoginModal();
-      return;
+    if (isSpeedMode) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (user) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (!userLoading && !sessionExpiredTriggeredRef.current) {
+      sessionExpiredTriggeredRef.current = true;
+      window.dispatchEvent(
+        new CustomEvent(EVENTS.SESSION_EXPIRED, {
+          detail: { message: "Session expired, please sign in again" },
+        })
+      );
     }
 
     // Only admin users can access this page (full mode)
@@ -43,14 +59,14 @@ export default function AgentSetupPage() {
       router.push("/setup/knowledges");
       return;
     }
-  }, [isSpeedMode, user, userLoading, router, openLoginModal]);
+  }, [isSpeedMode, user, userLoading, router]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    if (isSpeedMode || (user && !userLoading)) {
+    if (canAccessProtectedData) {
       checkModelEngineConnection();
     }
-  }, [isSpeedMode, user, userLoading]);
+  }, [canAccessProtectedData]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -69,20 +85,23 @@ export default function AgentSetupPage() {
 
   // Handle complete button click
   const handleComplete = async () => {
-    try {
-      setIsSaving(true);
-      // Jump to chat page directly, no any check
-      router.push("/chat");
-    } catch (error) {
-      log.error("保存配置异常:", error);
-      message.error("系统异常，请稍后重试");
-    } finally {
-      setIsSaving(false);
+    const hasDirty = agentConfigRef.current?.hasUnsavedChanges?.() || false;
+    if (hasDirty) {
+      pendingNavRef.current = () => router.push("/chat");
+      setShowSaveConfirm(true);
+      return;
     }
+    router.push("/chat");
   };
 
   // Handle back button click
   const handleBack = () => {
+    const hasDirty = agentConfigRef.current?.hasUnsavedChanges?.() || false;
+    if (hasDirty) {
+      pendingNavRef.current = () => router.push("/setup/knowledges");
+      setShowSaveConfirm(true);
+      return;
+    }
     router.push("/setup/knowledges");
   };
 
@@ -108,30 +127,64 @@ export default function AgentSetupPage() {
     duration: 0.4,
   };
 
+  // Prevent rendering if user doesn't have permission (full mode)
+  if (!isSpeedMode && !userLoading && (!user || user.role !== USER_ROLES.ADMIN)) {
+    return null;
+  }
+
   return (
-    <SetupLayout
-      connectionStatus={connectionStatus}
-      isCheckingConnection={isCheckingConnection}
-      onCheckConnection={checkModelEngineConnection}
-      title={t("setup.header.title")}
-      description={t("setup.header.description")}
-      onBack={handleBack}
-      onComplete={handleComplete}
-      isSaving={isSaving}
-      showBack={true}
-      showComplete={true}
-      completeText={t("setup.navigation.button.complete")}
-    >
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        style={{ width: "100%", height: "100%" }}
+    <>
+      <SetupLayout
+        connectionStatus={connectionStatus}
+        isCheckingConnection={isCheckingConnection}
+        onCheckConnection={checkModelEngineConnection}
+        title={t("setup.header.title")}
+        description={t("setup.header.description")}
+        onBack={handleBack}
+        onComplete={handleComplete}
+        isSaving={isSaving}
+        showBack={true}
+        showComplete={true}
+        completeText={t("setup.navigation.button.complete")}
       >
-        <AgentConfig />
-      </motion.div>
-    </SetupLayout>
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: "100%", height: "100%" }}
+        >
+          {canAccessProtectedData ? (
+            <AgentConfig ref={agentConfigRef} canAccessProtectedData={canAccessProtectedData} />
+          ) : null}
+        </motion.div>
+      </SetupLayout>
+      <SaveConfirmModal
+        open={showSaveConfirm}
+        onCancel={async () => {
+          // Reload data from backend to discard changes
+          await agentConfigRef.current?.reloadCurrentAgentData?.();
+          setShowSaveConfirm(false);
+          const go = pendingNavRef.current;
+          pendingNavRef.current = null;
+          if (go) go();
+        }}
+        onSave={async () => {
+          try {
+            setIsSaving(true);
+            await agentConfigRef.current?.saveAllChanges?.();
+            setShowSaveConfirm(false);
+            const go = pendingNavRef.current;
+            pendingNavRef.current = null;
+            if (go) go();
+          } catch (e) {
+            // errors are surfaced by underlying save
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      />
+    </>
   );
 }

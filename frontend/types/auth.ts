@@ -53,6 +53,7 @@ export interface AuthContextType {
     inviteCode?: string
   ) => Promise<void>;
   logout: (options?: { silent?: boolean }) => Promise<void>;
+  clearLocalSession: () => void;
   revoke: () => Promise<void>;
 }
 

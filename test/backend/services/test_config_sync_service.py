@@ -7,16 +7,29 @@ import pytest
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 
-# Mock dependencies before importing
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
 minio_client_mock = MagicMock()
-with patch('backend.database.client.MinioClient', return_value=minio_client_mock):
-    from backend.services.config_sync_service import (
-        handle_model_config,
-        save_config_impl,
-        load_config_impl,
-        build_models_config
-    )
+minio_client_mock._ensure_bucket_exists = MagicMock()
+minio_client_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+patch('database.client.MinioClient', return_value=minio_client_mock).start()
+patch('backend.database.client.minio_client', minio_client_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
+from backend.services.config_sync_service import (
+    handle_model_config,
+    save_config_impl,
+    load_config_impl,
+    build_models_config
+)
 
 
 @pytest.fixture

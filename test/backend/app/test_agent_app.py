@@ -18,15 +18,24 @@ sys.path.insert(0, backend_dir)
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Import target endpoints with all external dependencies patched
-with patch('backend.database.client.MinioClient') as minio_mock, \
-     patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
-    minio_mock.return_value = MagicMock()
-    
-    from apps.agent_app import router
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_mock = MagicMock()
+minio_mock._ensure_bucket_exists = MagicMock()
+minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_mock).start()
+patch('database.client.MinioClient', return_value=minio_mock).start()
+patch('backend.database.client.minio_client', minio_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
 
 # Apply patches before importing any app modules (similar to test_base_app.py)
-
 patches = [
     # Mock database sessions
     patch('backend.database.client.get_db_session', return_value=Mock())
@@ -34,6 +43,9 @@ patches = [
 
 for p in patches:
     p.start()
+
+# Import target endpoints with all external dependencies patched
+from apps.agent_app import router
 
 # Mock external dependencies before importing the modules that use them
 # Stub nexent.core.agents.agent_model.ToolConfig to satisfy type imports in consts.model
@@ -554,111 +566,6 @@ def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
     mock_get_user_info.assert_called_once()
     mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant")
     assert "Agent list error" in response.json()["detail"]
-
-
-def test_related_agent_api_success(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_insert_related_agent = mocker.patch(
-        "apps.agent_app.insert_related_agent_impl")
-
-    mock_get_user_id.return_value = ("user_id", "tenant_id")
-    mock_insert_related_agent.return_value = {"status": "success"}
-
-    # Test the endpoint
-    response = client.post(
-        "/agent/related_agent",
-        json={
-            "parent_agent_id": 123,
-            "child_agent_id": 456
-        },
-        headers=mock_auth_header
-    )
-
-    # Assertions
-    assert response.status_code == 200
-    mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
-    mock_insert_related_agent.assert_called_once_with(
-        parent_agent_id=123,
-        child_agent_id=456,
-        tenant_id="tenant_id"
-    )
-    assert response.json()["status"] == "success"
-
-
-def test_related_agent_api_exception(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_insert_related_agent = mocker.patch(
-        "apps.agent_app.insert_related_agent_impl")
-
-    mock_get_user_id.return_value = ("user_id", "tenant_id")
-    mock_insert_related_agent.side_effect = Exception("Test error")
-
-    # Test the endpoint
-    response = client.post(
-        "/agent/related_agent",
-        json={
-            "parent_agent_id": 123,
-            "child_agent_id": 456
-        },
-        headers=mock_auth_header
-    )
-
-    # The exception handling returns a JSONResponse with status 400
-    assert response.status_code == 500
-    assert response.json()["message"] == "Failed to insert relation"
-    assert response.json()["status"] == "error"
-
-
-def test_delete_related_agent_api_success(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_delete_related_agent = mocker.patch(
-        "apps.agent_app.delete_related_agent_impl")
-
-    mock_get_user_id.return_value = ("user_id", "tenant_id")
-    mock_delete_related_agent.return_value = {"status": "success"}
-
-    # Test the endpoint
-    response = client.post(
-        "/agent/delete_related_agent",
-        json={
-            "parent_agent_id": 123,
-            "child_agent_id": 456
-        },
-        headers=mock_auth_header
-    )
-
-    # Assertions
-    assert response.status_code == 200
-    mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
-    mock_delete_related_agent.assert_called_once_with(123, 456, "tenant_id")
-    assert response.json()["status"] == "success"
-
-
-def test_delete_related_agent_api_exception(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_delete_related_agent = mocker.patch(
-        "apps.agent_app.delete_related_agent_impl")
-
-    mock_get_user_id.return_value = ("user_id", "tenant_id")
-    mock_delete_related_agent.side_effect = Exception("Test error")
-
-    # Test the endpoint
-    response = client.post(
-        "/agent/delete_related_agent",
-        json={
-            "parent_agent_id": 123,
-            "child_agent_id": 456
-        },
-        headers=mock_auth_header
-    )
-
-    # Assertions
-    assert response.status_code == 500
-    assert "Agent related info error" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

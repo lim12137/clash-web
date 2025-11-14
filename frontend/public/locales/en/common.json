@@ -413,7 +413,6 @@
   "tool.message.unavailable": "This tool is currently unavailable and cannot be selected",
   "tool.error.noMainAgentId": "Main agent ID is not set, cannot update tool status",
   "tool.error.configFetchFailed": "Failed to get tool configuration",
-  "tool.message.statusUpdated": "Tool {{name}} has been {{status}}",
   "tool.error.updateFailed": "Failed to update tool status",
   "tool.error.updateRetry": "Failed to update tool status, please try again later",
 
@@ -474,6 +473,7 @@
   "knowledgeBase.empty.description": "Please select a knowledge base from the list on the left, or create a new one",
   "knowledgeBase.error.createUpload": "Failed to create knowledge base or upload files:",
   "knowledgeBase.error.getSummary": "Failed to generate knowledge base summary:",
+  "knowledgeBase.summary.notGenerated": "Knowledge base summary was not generated, please change model configuration and retry",
   "knowledgeBase.name.new": "new_base",
   "knowledgeBase.message.getDocumentsFailed": "Failed to get documents",
 
@@ -694,6 +694,7 @@
   "businessLogic.config.error.agentDetailFailed": "Failed to get agent detail",
   "businessLogic.config.message.agentDeleteSuccess": "Agent delete success",
   "businessLogic.config.message.agentDeleteFailed": "Agent delete failed",
+  "businessLogic.config.message.agentSaveSuccess": "Agent save success",
 
   "login.expired.title": "Login Expired",
   "login.expired.content": "Your login session has expired. Please log in again to continue.",
@@ -862,6 +863,10 @@
   "agentConfig.agents.exportFailed": "Failed to export Agent:",
   "agentConfig.agents.deleteFailed": "Failed to delete Agent:",
   "agentConfig.agents.listFetchFailedDebug": "Failed to fetch Agent list:",
+  "agentConfig.modals.saveConfirm.title": "Unsaved changes",
+  "agentConfig.modals.saveConfirm.content": "You have unsaved changes. Would you like to save them now?",
+  "agentConfig.modals.saveConfirm.discard": "Discard",
+  "agentConfig.modals.saveConfirm.save": "Save",
 
   "embedding.emptyWarningModal.title": "No Embedding Model Selected",
   "embedding.emptyWarningModal.content": "You have not selected an Embedding model. The knowledge base configuration, memory functions and some agent tools will be unavailable.",
