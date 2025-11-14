@@ -40,7 +40,7 @@ from consts.const import (
     ELASTICSEARCH_SERVICE,
     QUEUES,
     RAY_ADDRESS,
-    RAY_PLASMA_DIRECTORY,
+    RAY_preallocate_plasma,
     REDIS_URL,
     WORKER_CONCURRENCY,
     WORKER_NAME,
@@ -94,13 +94,16 @@ def setup_worker_environment(**kwargs):
             ray_address = RAY_ADDRESS
 
             try:
+                os.environ["RAY_preallocate_plasma"] = str(
+                    RAY_preallocate_plasma).lower()
+
                 # Initialize Ray using the centralized RayConfig helper
                 if not RayConfig.init_ray_for_worker(ray_address):
+                    logger.warning("Warning: fallback to direct ray.init")
                     # Fallback to direct ray.init if helper fails
                     ray.init(
                         address=ray_address,
                         ignore_reinit_error=True,
-                        _plasma_directory=RAY_PLASMA_DIRECTORY
                     )
 
                 logger.info(
