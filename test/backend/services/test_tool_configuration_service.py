@@ -2,6 +2,7 @@ from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest, Tool
 from consts.exceptions import MCPConnectionError, NotFoundException, ToolExecutionException
 import asyncio
 import inspect
+import os
 import sys
 import unittest
 from typing import Any, List, Dict
@@ -9,20 +10,34 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 boto3_mock = MagicMock()
 minio_client_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
-with patch('backend.database.client.MinioClient', return_value=minio_client_mock), \
-        patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
-    from backend.services.tool_configuration_service import (
-        python_type_to_json_schema,
-        get_local_tools,
-        get_local_tools_classes,
-        search_tool_info_impl,
-        update_tool_info_impl,
-        list_all_tools,
-        load_last_tool_config_impl, validate_tool_impl
-    )
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
+from backend.services.tool_configuration_service import (
+    python_type_to_json_schema,
+    get_local_tools,
+    get_local_tools_classes,
+    search_tool_info_impl,
+    update_tool_info_impl,
+    list_all_tools,
+    load_last_tool_config_impl, validate_tool_impl
+)
 
 
 class TestPythonTypeToJsonSchema:

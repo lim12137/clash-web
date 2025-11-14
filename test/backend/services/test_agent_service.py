@@ -11,9 +11,26 @@ from fastapi import Request
 # Import the actual ToolConfig model for testing before any mocking
 from nexent.core.agents.agent_model import ToolConfig
 
+import os
+
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
 # Mock external dependencies before importing backend modules that might initialize them
 # Mock create_engine to prevent database connection attempts
@@ -39,9 +56,8 @@ def mock_get_db_session(db_session=None):
 with patch('sqlalchemy.create_engine', return_value=mock_engine), \
      patch('backend.database.client.PostgresClient', new=mock_postgres_client_class), \
      patch('backend.database.client.get_db_session', side_effect=mock_get_db_session), \
-     patch('backend.database.client.MinioClient') as minio_mock, \
+     patch('backend.database.client.MinioClient', return_value=minio_client_mock) as minio_mock, \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()) as es_mock:
-    minio_mock.return_value = MagicMock()
     
     import backend.services.agent_service as agent_service
     from backend.services.agent_service import update_agent_info_impl
@@ -68,7 +84,7 @@ with patch('sqlalchemy.create_engine', return_value=mock_engine), \
         _resolve_user_tenant_language,
     )
     from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
-    
+
     # Ensure db_client is set to our mock after import
     import backend.database.client as db_client_module
     db_client_module.db_client = mock_postgres_client
@@ -503,50 +519,50 @@ async def test_update_agent_info_impl_with_enabled_tool_ids(
     """
     # Setup
     mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
-    
+
     # Mock all tools in tenant
     mock_query_all_tools.return_value = [
         {"tool_id": 1, "name": "Tool 1"},
         {"tool_id": 2, "name": "Tool 2"},
         {"tool_id": 3, "name": "Tool 3"},
     ]
-    
+
     # Mock existing tool instance with params
     mock_query_tool_instances_by_id.side_effect = [
         {"tool_id": 1, "params": {"key1": "value1"}},  # Existing tool with params
         None,  # Tool 2 doesn't exist yet
         None,  # Tool 3 doesn't exist yet
     ]
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = [1, 2]  # Enable tools 1 and 2, disable 3
     request.related_agent_ids = None
-    
+
     # Execute
     result = await update_agent_info_impl(request, authorization="Bearer token")
-    
+
     # Assert
     assert result["agent_id"] == 123
     mock_update_agent.assert_called_once()
-    
+
     # Verify tools were updated: tool 1 and 2 enabled, tool 3 disabled
     assert mock_create_or_update_tool.call_count == 3
-    
+
     # Check tool 1: enabled with existing params
     call_args = mock_create_or_update_tool.call_args_list[0]
     tool_info = call_args.kwargs['tool_info']
     assert tool_info.tool_id == 1
     assert tool_info.enabled is True
     assert tool_info.params == {"key1": "value1"}
-    
+
     # Check tool 2: enabled with empty params
     call_args = mock_create_or_update_tool.call_args_list[1]
     tool_info = call_args.kwargs['tool_info']
     assert tool_info.tool_id == 2
     assert tool_info.enabled is True
     assert tool_info.params == {}
-    
+
     # Check tool 3: disabled
     call_args = mock_create_or_update_tool.call_args_list[2]
     tool_info = call_args.kwargs['tool_info']
@@ -576,15 +592,15 @@ async def test_update_agent_info_impl_with_related_agent_ids(
     # Setup
     mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_query_sub_agents_id_list.return_value = []  # No sub-agents, no circular dependency
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = None
     request.related_agent_ids = [456, 789]
-    
+
     # Execute
     result = await update_agent_info_impl(request, authorization="Bearer token")
-    
+
     # Assert
     assert result["agent_id"] == 123
     mock_update_agent.assert_called_once()
@@ -614,21 +630,21 @@ async def test_update_agent_info_impl_circular_dependency_detection(
     """
     # Setup
     mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = None
     request.related_agent_ids = [123]  # Agent tries to relate to itself
-    
+
     # Execute & Assert - self-reference should raise ValueError
     with pytest.raises(ValueError, match="Circular dependency detected"):
         await update_agent_info_impl(request, authorization="Bearer token")
-    
+
     # Test circular dependency through sub-agents
     request.related_agent_ids = [456]
     # Agent 456 has sub-agent 123 (circular)
     mock_query_sub_agents_id_list.return_value = [123]
-    
+
     with pytest.raises(ValueError, match="Circular dependency detected"):
         await update_agent_info_impl(request, authorization="Bearer token")
 
@@ -662,15 +678,15 @@ async def test_update_agent_info_impl_with_both_tool_and_related_agents(
     mock_query_all_tools.return_value = [{"tool_id": 1}]
     mock_query_tool_instances_by_id.return_value = None
     mock_query_sub_agents_id_list.return_value = []
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = [1]
     request.related_agent_ids = [456]
-    
+
     # Execute
     result = await update_agent_info_impl(request, authorization="Bearer token")
-    
+
     # Assert
     assert result["agent_id"] == 123
     mock_update_agent.assert_called_once()
@@ -707,12 +723,12 @@ async def test_update_agent_info_impl_tool_update_exception(
     mock_query_all_tools.return_value = [{"tool_id": 1}]
     mock_query_tool_instances_by_id.return_value = None
     mock_create_or_update_tool.side_effect = Exception("Tool update failed")
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = [1]
     request.related_agent_ids = None
-    
+
     # Execute & Assert
     with pytest.raises(ValueError, match="Failed to update agent tools"):
         await update_agent_info_impl(request, authorization="Bearer token")
@@ -739,12 +755,12 @@ async def test_update_agent_info_impl_related_agent_update_exception(
     mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_query_sub_agents_id_list.return_value = []
     mock_update_related_agents.side_effect = Exception("Related agent update failed")
-    
+
     request = MagicMock()
     request.agent_id = 123
     request.enabled_tool_ids = None
     request.related_agent_ids = [456]
-    
+
     # Execute & Assert
     with pytest.raises(ValueError, match="Failed to update related agents"):
         await update_agent_info_impl(request, authorization="Bearer token")
@@ -762,14 +778,14 @@ def test_resolve_user_tenant_language_with_overrides(mock_get_current_user_info,
     """
     mock_get_user_language.return_value = "zh"
     mock_request = MagicMock()
-    
+
     result = _resolve_user_tenant_language(
         authorization="Bearer token",
         http_request=mock_request,
         user_id="override_user",
         tenant_id="override_tenant"
     )
-    
+
     assert result == ("override_user", "override_tenant", "zh")
     mock_get_current_user_info.assert_not_called()
     mock_get_user_language.assert_called_once_with(mock_request)
@@ -786,14 +802,14 @@ def test_resolve_user_tenant_language_without_overrides(mock_get_current_user_in
     """
     mock_get_current_user_info.return_value = ("parsed_user", "parsed_tenant", "en")
     mock_request = MagicMock()
-    
+
     result = _resolve_user_tenant_language(
         authorization="Bearer token",
         http_request=mock_request,
         user_id=None,
         tenant_id=None
     )
-    
+
     assert result == ("parsed_user", "parsed_tenant", "en")
     mock_get_current_user_info.assert_called_once_with("Bearer token", mock_request)
 
@@ -811,14 +827,14 @@ def test_resolve_user_tenant_language_partial_override(mock_get_current_user_inf
     mock_get_current_user_info.return_value = ("parsed_user", "parsed_tenant", "en")
     mock_get_user_language.return_value = "fr"
     mock_request = MagicMock()
-    
+
     result = _resolve_user_tenant_language(
         authorization="Bearer token",
         http_request=mock_request,
         user_id="override_user",
         tenant_id=None  # tenant_id is None, so parsing is needed
     )
-    
+
     assert result == ("parsed_user", "parsed_tenant", "en")
     mock_get_current_user_info.assert_called_once_with("Bearer token", mock_request)
 

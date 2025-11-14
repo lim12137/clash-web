@@ -7,22 +7,38 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_mock = MagicMock()
+minio_mock._ensure_bucket_exists = MagicMock()
+minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_mock).start()
+patch('database.client.MinioClient', return_value=minio_mock).start()
+patch('backend.database.client.minio_client', minio_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
 # Import exception classes
 from backend.consts.exceptions import MCPConnectionError, MCPNameIllegal
 
 # Functions to test
-with patch('backend.database.client.MinioClient', MagicMock()):
-    from backend.services.remote_mcp_service import (
-        mcp_server_health,
-        add_remote_mcp_server_list,
-        delete_remote_mcp_server_list,
-        get_remote_mcp_server_list,
-        check_mcp_health_and_update_db
-    )
-    # Patch exception classes to ensure tests use correct exceptions
-    import backend.services.remote_mcp_service as remote_service
-    remote_service.MCPConnectionError = MCPConnectionError
-    remote_service.MCPNameIllegal = MCPNameIllegal
+from backend.services.remote_mcp_service import (
+    mcp_server_health,
+    add_remote_mcp_server_list,
+    delete_remote_mcp_server_list,
+    get_remote_mcp_server_list,
+    check_mcp_health_and_update_db
+)
+# Patch exception classes to ensure tests use correct exceptions
+import backend.services.remote_mcp_service as remote_service
+remote_service.MCPConnectionError = MCPConnectionError
+remote_service.MCPNameIllegal = MCPNameIllegal
 
 class TestMcpServerHealth(unittest.IsolatedAsyncioTestCase):
     """Test mcp_server_health"""
