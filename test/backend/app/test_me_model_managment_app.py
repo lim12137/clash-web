@@ -14,6 +14,24 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_mock = MagicMock()
+minio_mock._ensure_bucket_exists = MagicMock()
+minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_mock).start()
+patch('database.client.MinioClient', return_value=minio_mock).start()
+patch('backend.database.client.minio_client', minio_mock).start()
+patch('backend.database.client.db_client', MagicMock()).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+patch('aiohttp.ClientSession', MagicMock()).start()
 
 from consts.exceptions import MEConnectionException, NotFoundException, TimeoutException
 
@@ -31,25 +49,12 @@ class ModelResponse(BaseModel):
     message: str
     data: Any = None
 
+# Now import the module after mocking dependencies
+from fastapi.testclient import TestClient
+from fastapi import FastAPI
 
-# First mock botocore to prevent S3 connection attempts
-with patch('botocore.client.BaseClient._make_api_call', return_value={}):
-    # Mock MinioClient and database connections
-    with patch('backend.database.client.MinioClient', MagicMock()) as mock_minio:
-        # Ensure the mock doesn't try to connect when initialized
-        mock_minio_instance = MagicMock()
-        mock_minio_instance._ensure_bucket_exists = MagicMock()
-        mock_minio.return_value = mock_minio_instance
-
-        with patch('backend.database.client.db_client', MagicMock()):
-            # Now import the module after mocking dependencies
-            from fastapi.testclient import TestClient
-            from fastapi import FastAPI
-
-            # Import module with patched dependencies
-            with patch('aiohttp.ClientSession', MagicMock()):
-                # Import the router after all mocks are in place
-                from backend.apps.me_model_managment_app import router
+# Import the router after all mocks are in place
+from backend.apps.me_model_managment_app import router
 
 # Create a FastAPI app and include the router for testing
 app = FastAPI()

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { useTranslation } from "react-i18next";
@@ -61,7 +61,7 @@ const getI18nKeyByType = (type: string): string => {
 
 export function ChatInterface() {
   const router = useRouter();
-  const { user } = useAuth(); // Get user information
+  const { user, isSpeedMode } = useAuth(); // Get user information
   const [input, setInput] = useState("");
   // Replace the original messages state
   const [sessionMessages, setSessionMessages] = useState<{
@@ -207,6 +207,45 @@ export function ChatInterface() {
     setSelectedMessageId(undefined);
     setShowRightPanel(false);
   }, [conversationManagement.conversationId]);
+
+  // Helper function to clear completed conversation indicator
+  const clearCompletedIndicator = useCallback(() => {
+    if (
+      conversationManagement.conversationId &&
+      conversationManagement.conversationId !== -1
+    ) {
+      setCompletedConversations((prev) => {
+        // Use functional update to avoid dependency on completedConversations
+        if (prev.has(conversationManagement.conversationId)) {
+          const newSet = new Set(prev);
+          newSet.delete(conversationManagement.conversationId);
+          return newSet;
+        }
+        return prev;
+      });
+    }
+  }, [conversationManagement.conversationId]);
+
+  // Add useEffect to clear completed conversation indicator when user is viewing the current conversation
+  useEffect(() => {
+    // If current conversation is in completedConversations, clear it when user is viewing it
+    clearCompletedIndicator();
+  }, [conversationManagement.conversationId, clearCompletedIndicator]);
+
+  // Add click event listener to clear completed conversation indicator when user clicks anywhere on the page
+  useEffect(() => {
+    const handlePageClick = (e: MouseEvent) => {
+      // Clear completed indicator when user clicks anywhere on the page
+      clearCompletedIndicator();
+    };
+
+    // Add click event listener to the document
+    document.addEventListener('click', handlePageClick, true);
+
+    return () => {
+      document.removeEventListener('click', handlePageClick, true);
+    };
+  }, [clearCompletedIndicator]);
 
 
   // Clear all timers and requests when component unmounts
@@ -1539,8 +1578,8 @@ export function ChatInterface() {
     // Both admin and regular users now use dropdown menus
   };
 
-  // Settings menu items based on user role
-  const settingsMenuItems = user?.role === "admin" ? [
+  // Settings menu items based on user role (speed mode is treated as admin)
+  const settingsMenuItems = (isSpeedMode || user?.role === "admin") ? [
     // Admin has three options
     {
       key: "models",
@@ -1635,6 +1674,8 @@ export function ChatInterface() {
                 shouldScrollToBottom={shouldScrollToBottom}
                 selectedAgentId={selectedAgentId}
                 onAgentSelect={setSelectedAgentId}
+                onCitationHover={clearCompletedIndicator}
+                onScroll={clearCompletedIndicator}
               />
             </div>
 

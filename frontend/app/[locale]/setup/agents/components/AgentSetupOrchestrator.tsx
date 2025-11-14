@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 
@@ -9,22 +9,26 @@ import { WarningFilled } from "@ant-design/icons";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  getCreatingSubAgentId,
   fetchAgentList,
   updateAgent,
   importAgent,
   deleteAgent,
+  exportAgent,
   searchAgentInfo,
   searchToolConfig,
   updateToolConfig,
 } from "@/services/agentConfigService";
-import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
+import { Agent, AgentSetupOrchestratorProps, Tool } from "@/types/agentConfig";
 import log from "@/lib/logger";
 
 import SubAgentPool from "./agent/SubAgentPool";
 import CollaborativeAgentDisplay from "./agent/CollaborativeAgentDisplay";
 import { MemoizedToolPool } from "./tool/ToolPool";
 import PromptManager from "./PromptManager";
+import AgentCallRelationshipModal from "./agent/AgentCallRelationshipModal";
+import SaveConfirmModal from "./SaveConfirmModal";
+
+type PendingAction = () => void | Promise<void>;
 
 /**
  * Agent Setup Orchestrator - Main coordination component for agent setup workflow
@@ -79,6 +83,9 @@ export default function AgentSetupOrchestrator({
   editingAgent: editingAgentFromParent,
   onExitCreation,
   isEmbeddingConfigured,
+  onUnsavedChange,
+  registerSaveHandler,
+  registerReloadHandler,
 }: AgentSetupOrchestratorProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -94,22 +101,46 @@ export default function AgentSetupOrchestrator({
     useState(false);
   const lastProcessedAgentIdForEmbedding = useRef<number | null>(null);
 
+  // Flag to track if we need to refresh enabledToolIds after tools update
+  const shouldRefreshEnabledToolIds = useRef(false);
+  // Track previous tools prop to detect when it's updated
+  const previousToolsRef = useRef<Tool[] | undefined>(undefined);
+
+  // Call relationship modal state
+  const [callRelationshipModalVisible, setCallRelationshipModalVisible] =
+    useState(false);
+
   // Edit agent related status
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   // Add a flag to track if it has been initialized to avoid duplicate calls
   const hasInitialized = useRef(false);
+  // Baseline snapshot for change detection
+  const baselineRef = useRef<any | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+    null
+  );
+  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+  // When true, bypass unsaved-check to avoid reopening the confirm modal during a confirmed switch
+  const skipUnsavedCheckRef = useRef(false);
+  // Context for confirmation modal behavior
+  const [confirmContext, setConfirmContext] = useState<"switch" | "exitCreate">(
+    "switch"
+  );
 
   const { t } = useTranslation("common");
   const { message } = App.useApp();
 
   // Common refresh agent list function, moved to the front to avoid hoisting issues
-  const refreshAgentList = async (t: TFunction) => {
-    setIsLoadingTools(true);
-    // Clear the tool selection status when loading starts
-    setSelectedTools([]);
-    setEnabledToolIds([]);
+  const refreshAgentList = async (t: TFunction, clearTools: boolean = true) => {
+    if (clearTools) {
+      setIsLoadingTools(true);
+      // Clear the tool selection status when loading starts
+      setSelectedTools([]);
+      setEnabledToolIds([]);
+    }
 
     try {
       const result = await fetchAgentList();
@@ -126,90 +157,297 @@ export default function AgentSetupOrchestrator({
       log.error(t("agentConfig.agents.listFetchFailedDebug"), error);
       message.error(t("businessLogic.config.error.agentListFailed"));
     } finally {
-      setIsLoadingTools(false);
+      if (clearTools) {
+        setIsLoadingTools(false);
+      }
     }
   };
+  // Build current snapshot for dirty detection
+  const currentSnapshot = useMemo(
+    () => ({
+      agentId:
+        (isEditingAgent && editingAgent ? editingAgent.id : mainAgentId) ??
+        null,
+      agentName: agentName || "",
+      agentDescription: agentDescription || "",
+      agentDisplayName: agentDisplayName || "",
+      businessLogic: businessLogic || "",
+      dutyContent: dutyContent || "",
+      constraintContent: constraintContent || "",
+      fewShotsContent: fewShotsContent || "",
+      mainAgentModelId: mainAgentModelId ?? null,
+      businessLogicModelId: businessLogicModelId ?? null,
+      mainAgentMaxStep: Number(mainAgentMaxStep ?? 5),
+      enabledAgentIds: Array.from(
+        new Set(
+          (enabledAgentIds || []).map((n) => Number(n)).filter((n) => !isNaN(n))
+        )
+      ).sort((a, b) => a - b),
+      enabledToolIds: Array.from(
+        new Set(
+          (enabledToolIds || []).map((n) => Number(n)).filter((n) => !isNaN(n))
+        )
+      ).sort((a, b) => a - b),
+      selectedToolIds: Array.from(
+        new Set(
+          (selectedTools || [])
+            .map((t: any) => Number(t.id))
+            .filter((id: number) => !isNaN(id))
+        )
+      ).sort((a, b) => a - b),
+    }),
+    [
+      isEditingAgent,
+      editingAgent,
+      mainAgentId,
+      agentName,
+      agentDescription,
+      agentDisplayName,
+      businessLogic,
+      dutyContent,
+      constraintContent,
+      fewShotsContent,
+      mainAgentModelId,
+      businessLogicModelId,
+      mainAgentMaxStep,
+      enabledAgentIds,
+      enabledToolIds,
+      selectedTools,
+    ]
+  );
+
+  // Initialize baseline when entering edit mode or loading agent details
+  useEffect(() => {
+    if (isEditingAgent && editingAgent) {
+      baselineRef.current = { ...currentSnapshot };
+      setHasUnsavedChanges(false);
+    }
+  }, [isEditingAgent, editingAgent]);
+
+  // Initialize baseline when entering create mode so draft changes don't attach to previous agent
+  useEffect(() => {
+    if (isCreatingNewAgent && !isEditingAgent) {
+      // Ensure state clears have applied, then capture a clean baseline
+      setTimeout(() => {
+        baselineRef.current = { ...currentSnapshot };
+        setHasUnsavedChanges(false);
+        onUnsavedChange?.(false);
+      }, 0);
+    }
+  }, [isCreatingNewAgent, isEditingAgent, currentSnapshot, onUnsavedChange]);
+
+  // Track changes to mark dirty
+  useEffect(() => {
+    if (!baselineRef.current) return;
+    const b = baselineRef.current;
+    const c = currentSnapshot;
+    const shallowEqual =
+      String(b.agentId ?? "") === String(c.agentId ?? "") &&
+      b.agentName === c.agentName &&
+      b.agentDescription === c.agentDescription &&
+      b.agentDisplayName === c.agentDisplayName &&
+      b.businessLogic === c.businessLogic &&
+      b.dutyContent === c.dutyContent &&
+      b.constraintContent === c.constraintContent &&
+      b.fewShotsContent === c.fewShotsContent &&
+      String(b.mainAgentModelId ?? "") === String(c.mainAgentModelId ?? "") &&
+      String(b.businessLogicModelId ?? "") ===
+        String(c.businessLogicModelId ?? "") &&
+      Number(b.mainAgentMaxStep ?? 5) === Number(c.mainAgentMaxStep ?? 5) &&
+      JSON.stringify(b.enabledAgentIds || []) ===
+        JSON.stringify(c.enabledAgentIds || []) &&
+      JSON.stringify(b.enabledToolIds || []) ===
+        JSON.stringify(c.enabledToolIds || []) &&
+      JSON.stringify(b.selectedToolIds || []) ===
+        JSON.stringify(c.selectedToolIds || []);
+    setHasUnsavedChanges(!shallowEqual);
+    onUnsavedChange?.(!shallowEqual);
+  }, [currentSnapshot]);
+
+  // Reload current agent's complete data from backend
+  const reloadCurrentAgentData = useCallback(async () => {
+    const currentAgentId =
+      (isEditingAgent && editingAgent ? editingAgent.id : mainAgentId) ?? null;
+
+    if (!currentAgentId) {
+      // If no agent ID, just reset unsaved state
+      setHasUnsavedChanges(false);
+      onUnsavedChange?.(false);
+      return;
+    }
+
+    try {
+      // Call query interface to get complete Agent information
+      const result = await searchAgentInfo(Number(currentAgentId));
+
+      if (!result.success || !result.data) {
+        message.error(
+          result.message || t("businessLogic.config.error.agentDetailFailed")
+        );
+        return;
+      }
+
+      const agentDetail = result.data;
+
+      // Reload all agent data to match backend state
+      setAgentName?.(agentDetail.name || "");
+      setAgentDescription?.(agentDetail.description || "");
+      setAgentDisplayName?.(agentDetail.display_name || "");
+
+      // Load Agent data to interface
+      setMainAgentModel(agentDetail.model);
+      setMainAgentModelId(agentDetail.model_id);
+      setMainAgentMaxStep(agentDetail.max_step);
+      setBusinessLogic(agentDetail.business_description || "");
+      setBusinessLogicModel(agentDetail.business_logic_model_name || null);
+      setBusinessLogicModelId(agentDetail.business_logic_model_id || null);
+
+      // Use backend returned sub_agent_id_list to set enabled agent list
+      if (
+        agentDetail.sub_agent_id_list &&
+        agentDetail.sub_agent_id_list.length > 0
+      ) {
+        setEnabledAgentIds(
+          agentDetail.sub_agent_id_list.map((id: any) => Number(id))
+        );
+      } else {
+        setEnabledAgentIds([]);
+      }
+
+      // Load the segmented prompt content
+      setDutyContent?.(agentDetail.duty_prompt || "");
+      setConstraintContent?.(agentDetail.constraint_prompt || "");
+      setFewShotsContent?.(agentDetail.few_shots_prompt || "");
+
+      // Load Agent tools
+      // Only set enabledToolIds, let useEffect sync selectedTools from tools array
+      // This ensures tool objects in selectedTools match the structure in tools array
+      if (agentDetail.tools && agentDetail.tools.length > 0) {
+        // Set enabled tool IDs, ensure deduplication
+        const toolIds = Array.from<number>(
+          new Set(
+            agentDetail.tools
+              .map((tool: any) => Number(tool.id))
+              .filter((id: number) => !isNaN(id))
+          )
+        ).sort((a, b) => a - b);
+        setEnabledToolIds(toolIds);
+        // Don't set selectedTools directly - let useEffect handle it based on enabledToolIds
+        // This ensures tool objects match the structure from tools array
+      } else {
+        setEnabledToolIds([]);
+        // Don't set selectedTools directly - let useEffect handle it
+      }
+
+      // Refresh agent list to ensure consistency, but don't clear tools to avoid flash
+      await refreshAgentList(t, false);
+
+      // Update baseline and reset unsaved state after reload
+      // Use setTimeout to ensure state updates are processed before updating baseline
+      setTimeout(() => {
+        // Rebuild snapshot after state updates to get accurate baseline
+        const updatedSnapshot = {
+          agentId: Number(currentAgentId),
+          agentName: agentDetail.name || "",
+          agentDescription: agentDetail.description || "",
+          agentDisplayName: agentDetail.display_name || "",
+          businessLogic: agentDetail.business_description || "",
+          dutyContent: agentDetail.duty_prompt || "",
+          constraintContent: agentDetail.constraint_prompt || "",
+          fewShotsContent: agentDetail.few_shots_prompt || "",
+          mainAgentModelId: agentDetail.model_id ?? null,
+          businessLogicModelId: agentDetail.business_logic_model_id ?? null,
+          mainAgentMaxStep: Number(agentDetail.max_step ?? 5),
+          enabledAgentIds: (agentDetail.sub_agent_id_list || [])
+            .map((id: any) => Number(id))
+            .sort(),
+          enabledToolIds: Array.from<number>(
+            new Set(
+              (agentDetail.tools || [])
+                .map((tool: any) => Number(tool.id))
+                .filter((id: number) => !isNaN(id))
+            )
+          ).sort((a, b) => a - b),
+          selectedToolIds: Array.from<number>(
+            new Set(
+              (agentDetail.tools || [])
+                .map((tool: any) => Number(tool.id))
+                .filter((id: number) => !isNaN(id))
+            )
+          ).sort((a, b) => a - b),
+        };
+        baselineRef.current = updatedSnapshot;
+        setHasUnsavedChanges(false);
+        onUnsavedChange?.(false);
+      }, 200);
+    } catch (error) {
+      log.error(t("agentConfig.agents.detailsLoadFailed"), error);
+      message.error(t("businessLogic.config.error.agentDetailFailed"));
+      // Even on error, reset unsaved state
+      setHasUnsavedChanges(false);
+      onUnsavedChange?.(false);
+    }
+  }, [
+    isEditingAgent,
+    editingAgent,
+    mainAgentId,
+    currentSnapshot,
+    t,
+    refreshAgentList,
+    onUnsavedChange,
+  ]);
+
+  // Expose a save function to be reused by confirm modal flows
+  const saveAllChanges = useCallback(async () => {
+    await handleSaveNewAgent(
+      agentName || "",
+      agentDescription || "",
+      mainAgentModel,
+      mainAgentMaxStep,
+      businessLogic
+    );
+    // Reload data from backend after save to ensure consistency
+    await reloadCurrentAgentData();
+  }, [
+    agentName,
+    agentDescription,
+    mainAgentModel,
+    mainAgentMaxStep,
+    businessLogic,
+    reloadCurrentAgentData,
+  ]);
+
+  useEffect(() => {
+    if (registerSaveHandler) {
+      registerSaveHandler(saveAllChanges);
+    }
+  }, [registerSaveHandler, saveAllChanges]);
+
+  useEffect(() => {
+    if (registerReloadHandler) {
+      registerReloadHandler(reloadCurrentAgentData);
+    }
+  }, [registerReloadHandler, reloadCurrentAgentData]);
+
+  const confirmOrRun = useCallback(
+    (action: PendingAction) => {
+      if (hasUnsavedChanges) {
+        setPendingAction(() => action);
+        setConfirmContext("switch");
+        setIsSaveConfirmOpen(true);
+      } else {
+        void Promise.resolve(action());
+      }
+    },
+    [hasUnsavedChanges]
+  );
 
   // Function to directly update enabledAgentIds
   const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
     setEnabledAgentIds(newEnabledAgentIds);
   };
 
-  const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
-    setIsLoadingTools(false);
-
-    try {
-      const result = await getCreatingSubAgentId();
-      if (result.success && result.data) {
-        const {
-          agentId,
-          name,
-          displayName,
-          description,
-          enabledToolIds,
-          modelName,
-          maxSteps,
-          businessDescription,
-          dutyPrompt,
-          constraintPrompt,
-          fewShotsPrompt,
-          sub_agent_id_list,
-        } = result.data;
-
-        // Update the main agent ID
-        setMainAgentId(agentId);
-        // Update the main agent name
-        setAgentName?.(name);
-        // Update the main agent display name
-        setAgentDisplayName?.(displayName);
-        // Update the main agent description
-        setAgentDescription?.(description);
-        // Update the enabled tool ID list
-        setEnabledToolIds(enabledToolIds);
-        // Update the enabled agent ID list from sub_agent_id_list
-        if (sub_agent_id_list && sub_agent_id_list.length > 0) {
-          setEnabledAgentIds(sub_agent_id_list.map((id: any) => Number(id)));
-        } else {
-          setEnabledAgentIds([]);
-        }
-        // Update the model
-        setMainAgentModel(modelName);
-        // Update the model ID if available
-        if (result.data.model_id) {
-          setMainAgentModelId(result.data.model_id);
-        }
-        // Update the maximum number of steps
-        if (maxSteps) {
-          setMainAgentMaxStep(maxSteps);
-        }
-        // Update the business description
-        if (businessDescription) {
-          setBusinessLogic(businessDescription);
-        }
-        // Update the duty prompt
-        if (setDutyContent) {
-          setDutyContent(dutyPrompt || "");
-        }
-        // Update the constraint prompt
-        if (setConstraintContent) {
-          setConstraintContent(constraintPrompt || "");
-        }
-        // Update the few shots prompt
-        if (setFewShotsContent) {
-          setFewShotsContent(fewShotsPrompt || "");
-        }
-      } else {
-        message.error(
-          result.message || t("businessLogic.config.error.agentIdFailed")
-        );
-      }
-    } catch (error) {
-      log.error("Failed to create new Agent:", error);
-      message.error(t("businessLogic.config.error.agentIdFailed"));
-    } finally {
-      setIsLoadingTools(false);
-    }
-  };
+  // Removed creation-mode sub-agent fetch; creation is deferred until saving
 
   // Listen for changes in the creation of a new Agent
   useEffect(() => {
@@ -217,25 +455,6 @@ export default function AgentSetupOrchestrator({
       if (!isEditingAgent) {
         // Clear configuration in creating mode
         setBusinessLogic("");
-        // Create agent record immediately to get agent ID for generating prompts and using tools
-        // Only create if we don't already have a mainAgentId
-        if (!mainAgentId) {
-          const createAgentRecord = async () => {
-            try {
-              const createResult = await getCreatingSubAgentId();
-              if (createResult.success && createResult.data) {
-                const newAgentId = createResult.data.agentId;
-                setMainAgentId(newAgentId);
-                log.info("Created agent record with ID:", newAgentId);
-              } else {
-                log.error("Failed to create agent record:", createResult.message);
-              }
-            } catch (error) {
-              log.error("Error creating agent record:", error);
-            }
-          };
-          createAgentRecord();
-        }
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
       }
@@ -259,10 +478,15 @@ export default function AgentSetupOrchestrator({
 
   // Listen for changes in the tool status, update the selected tool
   useEffect(() => {
-    if (!tools || !enabledToolIds || isLoadingTools) return;
+    if (!tools || isLoadingTools) return;
+    // Allow empty enabledToolIds array (it's valid when no tools are selected)
+    if (enabledToolIds === undefined || enabledToolIds === null) return;
 
-    const enabledTools = tools.filter((tool) =>
-      enabledToolIds.includes(Number(tool.id))
+    // Filter out unavailable tools (is_available === false) to prevent deleted MCP tools from showing
+    const enabledTools = tools.filter(
+      (tool) =>
+        enabledToolIds.includes(Number(tool.id)) &&
+        tool.is_available !== false
     );
 
     setSelectedTools(enabledTools);
@@ -338,13 +562,212 @@ export default function AgentSetupOrchestrator({
     };
   }, [t]);
 
+  // Listen for tools updated events and refresh enabledToolIds if agent is selected
+  useEffect(() => {
+    const handleToolsUpdated = async () => {
+      // If there's a selected agent (mainAgentId or editingAgent), refresh enabledToolIds
+      const currentAgentId = (isEditingAgent && editingAgent
+        ? Number(editingAgent.id)
+        : mainAgentId
+        ? Number(mainAgentId)
+        : undefined) as number | undefined;
+
+      if (currentAgentId) {
+        try {
+          // First, refresh the tools list to ensure it's up to date
+          // Pass false to prevent showing success message (MCP modal will show its own message)
+          if (onToolsRefresh) {
+            // First, synchronize the selected tools once using search_info.
+            await refreshAgentToolSelectionsFromServer(currentAgentId);
+            // Then refresh the tool list
+            await onToolsRefresh(false);
+            // Wait for React state to update and tools prop to be updated
+            // Use setTimeout to ensure tools prop is updated before refreshing enabledToolIds
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            // Set flag to refresh enabledToolIds after tools prop updates
+            shouldRefreshEnabledToolIds.current = true;
+          }
+        } catch (error) {
+          log.error("Failed to refresh tools after tools update:", error);
+        }
+      }
+    };
+
+    window.addEventListener("toolsUpdated", handleToolsUpdated);
+
+    return () => {
+      window.removeEventListener("toolsUpdated", handleToolsUpdated);
+    };
+  }, [mainAgentId, isEditingAgent, editingAgent, onToolsRefresh, t]);
+
+  const refreshAgentToolSelectionsFromServer = useCallback(
+    async (agentId: number) => {
+      try {
+        const agentInfoResult = await searchAgentInfo(agentId);
+        if (agentInfoResult.success && agentInfoResult.data) {
+          const remoteTools = Array.isArray(agentInfoResult.data.tools)
+            ? agentInfoResult.data.tools
+            : [];
+          const enabledIdsFromServer = remoteTools
+            .filter(
+              (remoteTool: any) =>
+                remoteTool && remoteTool.is_available !== false
+            )
+            .map((remoteTool: any) => Number(remoteTool.id))
+            .filter((id) => !Number.isNaN(id));
+
+          const filteredIds = enabledIdsFromServer.filter((toolId) => {
+            const toolMeta = tools?.find(
+              (tool) => Number(tool.id) === Number(toolId)
+            );
+            return toolMeta && toolMeta.is_available !== false;
+          });
+
+          const dedupedIds = Array.from(new Set(filteredIds));
+          setEnabledToolIds(dedupedIds);
+          log.info("Refreshed agent tool selection from search_info", {
+            agentId,
+            toolIds: dedupedIds,
+          });
+        } else {
+          log.error(
+            "Failed to refresh agent tool selection via search_info",
+            agentInfoResult.message
+          );
+        }
+      } catch (error) {
+        log.error(
+          "Failed to refresh agent tool selection via search_info:",
+          error
+        );
+      }
+    },
+    [tools, setEnabledToolIds, setSelectedTools]
+  );
+
+  // Refresh enabledToolIds when tools prop updates after toolsUpdated event
+  useEffect(() => {
+    const prevTools = previousToolsRef.current;
+    const haveTools = tools && tools.length > 0;
+    const prevLen = prevTools?.length ?? 0;
+    const currLen = tools?.length ?? 0;
+    const idsChanged =
+      prevTools === undefined ||
+      JSON.stringify(prevTools?.map((t) => t.id).sort()) !==
+        JSON.stringify((tools || []).map((t) => t.id).sort());
+    const grew = currLen > prevLen;
+
+    // Always update the previous ref for future comparisons
+    previousToolsRef.current = tools;
+
+    // If there are no tools, nothing to do
+    if (!haveTools) {
+      return;
+    }
+
+    const currentAgentId = (isEditingAgent && editingAgent
+      ? Number(editingAgent.id)
+      : mainAgentId
+      ? Number(mainAgentId)
+      : undefined) as number | undefined;
+
+    if (!currentAgentId) {
+      shouldRefreshEnabledToolIds.current = false;
+      return;
+    }
+
+    const refreshEnabledToolIds = async () => {
+      try {
+        // Small delay to allow tools prop to stabilize after updates
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await refreshAgentToolSelectionsFromServer(currentAgentId);
+      } catch (error) {
+        log.error(
+          "Failed to refresh enabled tool IDs after tools update:",
+          error
+        );
+      }
+      shouldRefreshEnabledToolIds.current = false;
+    };
+
+    // Trigger when:
+    // 1) We explicitly flagged a refresh after a toolsUpdated event, OR
+    // 2) The tool list grew (e.g., an MCP tool was added) or IDs changed,
+    //    which indicates the available tool set has changed and we should re-sync
+    if (shouldRefreshEnabledToolIds.current || grew || idsChanged) {
+      // Optimistically update selected tools to reduce perceived delay/flicker
+      if (haveTools && Array.isArray(enabledToolIds) && enabledToolIds.length > 0) {
+        try {
+          const optimisticSelected = (tools || []).filter((tool) =>
+            enabledToolIds.includes(Number(tool.id))
+          );
+          setSelectedTools(optimisticSelected);
+        } catch (e) {
+          log.warn("Optimistic selection update failed; will rely on refresh", e);
+        }
+      }
+      refreshEnabledToolIds();
+    }
+  }, [
+    tools,
+    mainAgentId,
+    isEditingAgent,
+    editingAgent,
+    enabledToolIds,
+    refreshAgentToolSelectionsFromServer,
+  ]);
+
+  // Immediately reflect UI selection from enabledToolIds and latest tools (no server wait)
+  useEffect(() => {
+    const haveTools = Array.isArray(tools) && tools.length > 0;
+    if (!haveTools) {
+      setSelectedTools([]);
+      return;
+    }
+    if (!Array.isArray(enabledToolIds) || enabledToolIds.length === 0) {
+      setSelectedTools([]);
+      return;
+    }
+    try {
+      const nextSelected = (tools || []).filter((tool) =>
+        enabledToolIds.includes(Number(tool.id))
+      );
+      setSelectedTools(nextSelected);
+    } catch (e) {
+      log.warn("Failed to sync selectedTools from enabledToolIds", e);
+    }
+  }, [enabledToolIds, tools, setSelectedTools]);
+
+  // When tools change, sanitize enabledToolIds against availability to prevent transient flicker
+  useEffect(() => {
+    if (!Array.isArray(tools) || tools.length === 0) {
+      return;
+    }
+    if (!Array.isArray(enabledToolIds)) {
+      return;
+    }
+    const availableIdSet = new Set(
+      (tools || [])
+        .filter((t) => t && t.is_available !== false)
+        .map((t) => Number(t.id))
+        .filter((id) => !Number.isNaN(id))
+    );
+    const sanitized = enabledToolIds.filter((id) => availableIdSet.has(Number(id)));
+    if (
+      sanitized.length !== enabledToolIds.length ||
+      sanitized.some((id, idx) => Number(id) !== Number(enabledToolIds[idx]))
+    ) {
+      setEnabledToolIds(sanitized);
+    }
+  }, [tools, enabledToolIds, setEnabledToolIds]);
+
   // Handle the creation of a new Agent
   const handleCreateNewAgent = async () => {
     // Set to create mode
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
-    
+
     // Clear all content when creating new agent to avoid showing cached data
     setBusinessLogic("");
     setDutyContent?.("");
@@ -353,37 +776,27 @@ export default function AgentSetupOrchestrator({
     setAgentName?.("");
     setAgentDescription?.("");
     setAgentDisplayName?.("");
-    
+
     // Clear tool and agent selections
     setSelectedTools([]);
     setEnabledToolIds([]);
     setEnabledAgentIds([]);
-    
+
     // Clear business logic model to allow default from global settings
     // The useEffect in PromptManager will set it to the default from localStorage
     setBusinessLogicModel(null);
     setBusinessLogicModelId(null);
-    
+
     // Clear main agent model selection to trigger default model selection
     // The useEffect in AgentConfigModal will set it to the default from localStorage
     setMainAgentModel(null);
     setMainAgentModelId(null);
-    
+
     onEditingStateChange?.(false, null);
   };
 
   // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
-    // If we created an agent record during creation mode, delete it
-    if (mainAgentId && isCreatingNewAgent && !isEditingAgent) {
-      try {
-        await deleteAgent(Number(mainAgentId));
-        log.info("Deleted unsaved agent record with ID:", mainAgentId);
-      } catch (error) {
-        log.error("Error deleting unsaved agent record:", error);
-      }
-    }
-
     // First notify external editing state change to avoid UI jumping
     onEditingStateChange?.(false, null);
 
@@ -397,7 +810,7 @@ export default function AgentSetupOrchestrator({
       }
       setIsEditingAgent(false);
       setEditingAgent(null);
-      
+
       // Clear the mainAgentId
       setMainAgentId(null);
 
@@ -408,13 +821,23 @@ export default function AgentSetupOrchestrator({
         setEnabledToolIds([]);
         setEnabledAgentIds([]);
       }, 200);
+      // Reset unsaved state and baseline
+      baselineRef.current = null;
+      setHasUnsavedChanges(false);
+      onUnsavedChange?.(false);
     }, 100);
   };
 
   // Handle exit edit mode
   const handleExitEditMode = async () => {
     if (isCreatingNewAgent) {
-      // If in creation mode, call cancel creation logic
+      // If in creation mode, check unsaved changes first
+      if (hasUnsavedChanges) {
+        setConfirmContext("exitCreate");
+        setPendingAction(null);
+        setIsSaveConfirmOpen(true);
+        return;
+      }
       await handleCancelCreating();
     } else if (isEditingAgent) {
       // If in editing mode, clear related states first, then update editing state to avoid flickering
@@ -445,6 +868,11 @@ export default function AgentSetupOrchestrator({
 
       // Ensure tool pool won't show loading state
       setIsLoadingTools(false);
+
+      // Reset unsaved state and baseline when explicitly exiting edit mode
+      baselineRef.current = null;
+      setHasUnsavedChanges(false);
+      onUnsavedChange?.(false);
     }
   };
 
@@ -459,6 +887,24 @@ export default function AgentSetupOrchestrator({
     if (name.trim()) {
       try {
         let result;
+
+        // Generate deduplicated enabledToolIds from selectedTools to ensure consistency
+        const deduplicatedToolIds = Array.from(
+          new Set(
+            (selectedTools || [])
+              .map((tool) => Number(tool.id))
+              .filter((id) => !isNaN(id))
+          )
+        ).sort((a, b) => a - b);
+
+        // Generate deduplicated enabledAgentIds to ensure consistency
+        const deduplicatedAgentIds = Array.from(
+          new Set(
+            (enabledAgentIds || [])
+              .map((id) => Number(id))
+              .filter((id) => !isNaN(id))
+          )
+        ).sort((a, b) => a - b);
 
         if (isEditingAgent && editingAgent) {
           // Editing existing agent
@@ -477,18 +923,14 @@ export default function AgentSetupOrchestrator({
             agentDisplayName,
             mainAgentModelId ?? undefined,
             businessLogicModel ?? undefined,
-            businessLogicModelId ?? undefined
+            businessLogicModelId ?? undefined,
+            deduplicatedToolIds,
+            deduplicatedAgentIds
           );
         } else {
-          // Creating new agent - the agent record should already exist (created when entering create mode)
-          if (!mainAgentId) {
-            message.error(t("businessLogic.config.error.noAgentId"));
-            return;
-          }
-          
-          // Update the agent with all the details
+          // Creating new agent on save
           result = await updateAgent(
-            Number(mainAgentId),
+            undefined,
             name,
             description,
             model === null ? undefined : model,
@@ -502,39 +944,138 @@ export default function AgentSetupOrchestrator({
             agentDisplayName,
             mainAgentModelId ?? undefined,
             businessLogicModel ?? undefined,
-            businessLogicModelId ?? undefined
+            businessLogicModelId ?? undefined,
+            deduplicatedToolIds,
+            deduplicatedAgentIds
           );
         }
 
         if (result.success) {
-          const actionText = isEditingAgent
-            ? t("agent.action.modify")
-            : t("agent.action.create");
-          message.success(
-            t("businessLogic.config.message.agentCreated", {
-              name,
-              action: actionText,
-            })
-          );
+          // If created, set new mainAgentId for subsequent operations
+          if (!isEditingAgent && result.data?.agent_id) {
+            setMainAgentId(String(result.data.agent_id));
+          }
+          message.success(t("businessLogic.config.message.agentSaveSuccess"));
 
-          setIsCreatingNewAgent(false);
-          setIsEditingAgent(false);
-          setEditingAgent(null);
-          setMainAgentId(null); // Clear mainAgentId after successful save
-          onEditingStateChange?.(false, null);
+          // Reset unsaved changes state to remove blue indicator
+          setHasUnsavedChanges(false);
+          onUnsavedChange?.(false);
 
-          setBusinessLogic("");
-          setSelectedTools([]);
-          setEnabledToolIds([]);
-          // Clear right-side name description box
-          setAgentName?.("");
-          setAgentDescription?.("");
-          // Clear segmented prompt content
-          setDutyContent?.("");
-          setConstraintContent?.("");
-          setFewShotsContent?.("");
+          // If editing existing agent, reload data and maintain edit state
+          if (isEditingAgent && editingAgent) {
+            // Reload agent data to sync with backend
+            await reloadCurrentAgentData();
+          } else if (result.data?.agent_id) {
+            // On create success: auto-select and enter edit mode for the new agent
+            const newId = Number(result.data.agent_id);
+            try {
+              const detail = await searchAgentInfo(newId);
+              if (detail.success && detail.data) {
+                const agentDetail = detail.data;
+                setIsEditingAgent(true);
+                setEditingAgent(agentDetail);
+                setMainAgentId(agentDetail.id);
+                setIsCreatingNewAgent(false);
+                // Populate UI fields
+                setAgentName?.(agentDetail.name || "");
+                setAgentDescription?.(agentDetail.description || "");
+                setAgentDisplayName?.(agentDetail.display_name || "");
+                onEditingStateChange?.(true, agentDetail);
+                setMainAgentModel(agentDetail.model);
+                setMainAgentModelId(agentDetail.model_id);
+                setMainAgentMaxStep(agentDetail.max_step);
+                setBusinessLogic(agentDetail.business_description || "");
+                setBusinessLogicModel(
+                  agentDetail.business_logic_model_name || null
+                );
+                setBusinessLogicModelId(
+                  agentDetail.business_logic_model_id || null
+                );
+                if (
+                  agentDetail.sub_agent_id_list &&
+                  agentDetail.sub_agent_id_list.length > 0
+                ) {
+                  setEnabledAgentIds(
+                    agentDetail.sub_agent_id_list.map((id: any) => Number(id))
+                  );
+                } else {
+                  setEnabledAgentIds([]);
+                }
+                setDutyContent?.(agentDetail.duty_prompt || "");
+                setConstraintContent?.(agentDetail.constraint_prompt || "");
+                setFewShotsContent?.(agentDetail.few_shots_prompt || "");
+                if (agentDetail.tools && agentDetail.tools.length > 0) {
+                  setSelectedTools(agentDetail.tools);
+                  setEnabledToolIds(
+                    agentDetail.tools
+                      .map((tool: any) => Number(tool.id))
+                      .filter((id: number) => !isNaN(id)) as number[]
+                  );
+                } else {
+                  setSelectedTools([]);
+                  setEnabledToolIds([]);
+                }
+                // Establish clean baseline for the freshly created agent to avoid modal on switch
+                setTimeout(() => {
+                  baselineRef.current = {
+                    agentId: agentDetail.id,
+                    agentName: agentDetail.name || "",
+                    agentDescription: agentDetail.description || "",
+                    agentDisplayName: agentDetail.display_name || "",
+                    businessLogic: agentDetail.business_description || "",
+                    dutyContent: agentDetail.duty_prompt || "",
+                    constraintContent: agentDetail.constraint_prompt || "",
+                    fewShotsContent: agentDetail.few_shots_prompt || "",
+                    mainAgentModelId: agentDetail.model_id ?? null,
+                    businessLogicModelId:
+                      agentDetail.business_logic_model_id ?? null,
+                    mainAgentMaxStep: Number(agentDetail.max_step ?? 5),
+                    enabledAgentIds: Array.from(
+                      new Set(
+                        (agentDetail.sub_agent_id_list || [])
+                          .map((n: any) => Number(n))
+                          .filter((n: number) => !isNaN(n))
+                      )
+                    ) as number[],
+                    enabledToolIds: Array.from(
+                      new Set(
+                        (agentDetail.tools || [])
+                          .map((t: any) => Number(t.id))
+                          .filter((id: number) => !isNaN(id))
+                      )
+                    ) as number[],
+                    selectedToolIds: Array.from(
+                      new Set(
+                        (agentDetail.tools || [])
+                          .map((t: any) => Number(t.id))
+                          .filter((id: number) => !isNaN(id))
+                      )
+                    ) as number[],
+                  } as any;
+                  setHasUnsavedChanges(false);
+                  onUnsavedChange?.(false);
+                }, 0);
+              } else {
+                // Fallback: set minimal selection
+                setIsEditingAgent(true);
+                setEditingAgent({ id: newId } as any);
+                setMainAgentId(String(newId));
+                setIsCreatingNewAgent(false);
+                setHasUnsavedChanges(false);
+                onUnsavedChange?.(false);
+              }
+            } catch {
+              setIsEditingAgent(true);
+              setEditingAgent({ id: newId } as any);
+              setMainAgentId(String(newId));
+              setIsCreatingNewAgent(false);
+              setHasUnsavedChanges(false);
+              onUnsavedChange?.(false);
+            }
+          }
 
-          refreshAgentList(t);
+          // Refresh agent list and keep tools intact to avoid flashing
+          refreshAgentList(t, false);
         } else {
           message.error(
             result.message || t("businessLogic.config.error.saveFailed")
@@ -587,6 +1128,13 @@ export default function AgentSetupOrchestrator({
   };
 
   const handleEditAgent = async (agent: Agent, t: TFunction) => {
+    // Check for unsaved changes before switching agents (unless bypass flag set)
+    if (hasUnsavedChanges && !skipUnsavedCheckRef.current) {
+      setPendingAction(() => () => handleEditAgent(agent, t));
+      setIsSaveConfirmOpen(true);
+      return;
+    }
+
     try {
       // Call query interface to get complete Agent information
       const result = await searchAgentInfo(Number(agent.id));
@@ -646,10 +1194,19 @@ export default function AgentSetupOrchestrator({
       setFewShotsContent?.(agentDetail.few_shots_prompt || "");
 
       // Load Agent tools
+      // Filter out unavailable tools (is_available === false) to prevent deleted MCP tools from showing
       if (agentDetail.tools && agentDetail.tools.length > 0) {
-        setSelectedTools(agentDetail.tools);
-        // Set enabled tool IDs
-        const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
+        const availableTools = agentDetail.tools.filter(
+          (tool: any) => tool.is_available !== false
+        );
+        const toolIds = Array.from<number>(
+          new Set(
+            availableTools
+              .map((tool: any) => Number(tool.id))
+              .filter((id: number) => !isNaN(id))
+          )
+        ).sort((a, b) => a - b);
+        setSelectedTools(availableTools);
         setEnabledToolIds(toolIds);
       } else {
         setSelectedTools([]);
@@ -687,7 +1244,8 @@ export default function AgentSetupOrchestrator({
 
     // If no agent ID yet (e.g., during initial creation setup), just update local state
     // The model will be saved when the agent is fully created
-    if (!targetAgentId) {
+    // Also skip update API call if in create mode (agent not saved yet)
+    if (!targetAgentId || isCreatingNewAgent) {
       return;
     }
 
@@ -706,7 +1264,10 @@ export default function AgentSetupOrchestrator({
         undefined, // constraintPrompt
         undefined, // fewShotsPrompt
         undefined, // displayName
-        modelId // modelId
+        modelId, // modelId
+        undefined, // businessLogicModelName
+        undefined, // businessLogicModelId
+        undefined // enabledToolIds
       );
 
       if (!result.success) {
@@ -738,7 +1299,8 @@ export default function AgentSetupOrchestrator({
 
     // If no agent ID yet (e.g., during initial creation setup), just update local state
     // The max steps will be saved when the agent is fully created
-    if (!targetAgentId) {
+    // Also skip update API call if in create mode (agent not saved yet)
+    if (!targetAgentId || isCreatingNewAgent) {
       return;
     }
 
@@ -757,7 +1319,10 @@ export default function AgentSetupOrchestrator({
         undefined, // constraintPrompt
         undefined, // fewShotsPrompt
         undefined, // displayName
-        undefined // modelId
+        undefined, // modelId
+        undefined, // businessLogicModelName
+        undefined, // businessLogicModelId
+        undefined // enabledToolIds
       );
 
       if (!result.success) {
@@ -840,6 +1405,38 @@ export default function AgentSetupOrchestrator({
             name: agentToDelete.name,
           })
         );
+        // If currently editing the deleted agent, reset to initial clean state and avoid confirm modal on next switch
+        const deletedId = Number(agentToDelete.id);
+        const currentEditingId =
+          (isEditingAgent && editingAgent ? Number(editingAgent.id) : null) ??
+          null;
+        if (currentEditingId === deletedId) {
+          // Clear editing/creation states
+          setIsEditingAgent(false);
+          setEditingAgent(null);
+          setIsCreatingNewAgent(false);
+          setMainAgentId(null);
+          // Clear form/content states
+          setBusinessLogic("");
+          setDutyContent?.("");
+          setConstraintContent?.("");
+          setFewShotsContent?.("");
+          setAgentName?.("");
+          setAgentDescription?.("");
+          setAgentDisplayName?.("");
+          setSelectedTools([]);
+          setEnabledToolIds([]);
+          setEnabledAgentIds([]);
+          // Reset baseline/dirty and bypass next unsaved check
+          baselineRef.current = null;
+          setHasUnsavedChanges(false);
+          onUnsavedChange?.(false);
+          skipUnsavedCheckRef.current = true;
+          setTimeout(() => {
+            skipUnsavedCheckRef.current = false;
+          }, 0);
+          onEditingStateChange?.(false, null);
+        }
         // Refresh agent list
         refreshAgentList(t);
       } else {
@@ -854,6 +1451,41 @@ export default function AgentSetupOrchestrator({
       setIsDeleteConfirmOpen(false);
       setAgentToDelete(null);
     }
+  };
+
+  // Handle export agent from list
+  const handleExportAgentFromList = async (agent: Agent) => {
+    try {
+      const result = await exportAgent(Number(agent.id));
+      if (result.success && result.data) {
+        // Create a blob and download the file
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${agent.name || "agent"}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        message.success(t("businessLogic.config.message.agentExportSuccess"));
+      } else {
+        message.error(
+          result.message || t("businessLogic.config.error.agentExportFailed")
+        );
+      }
+    } catch (error) {
+      log.error("Failed to export agent:", error);
+      message.error(t("businessLogic.config.error.agentExportFailed"));
+    }
+  };
+
+  // Handle delete agent from list
+  const handleDeleteAgentFromList = (agent: Agent) => {
+    setAgentToDelete(agent);
+    setIsDeleteConfirmOpen(true);
   };
 
   // Handle exit edit mode
@@ -883,11 +1515,36 @@ export default function AgentSetupOrchestrator({
   };
 
   // Refresh tool list
-  const handleToolsRefresh = useCallback(async () => {
-    if (onToolsRefresh) {
-      onToolsRefresh();
+  const handleToolsRefresh = useCallback(
+    async (showSuccessMessage = true) => {
+      if (onToolsRefresh) {
+        // Before refreshing the tool list, synchronize the selected tools using search_info.
+        const currentAgentId = (isEditingAgent && editingAgent
+          ? Number(editingAgent.id)
+          : mainAgentId
+          ? Number(mainAgentId)
+          : undefined) as number | undefined;
+        if (currentAgentId) {
+          await refreshAgentToolSelectionsFromServer(currentAgentId);
+        }
+        const refreshedTools = await onToolsRefresh(showSuccessMessage);
+        if (refreshedTools) {
+          shouldRefreshEnabledToolIds.current = true;
+        }
+        return refreshedTools;
+      }
+      return undefined;
+    },
+    [onToolsRefresh, isEditingAgent, editingAgent, mainAgentId, refreshAgentToolSelectionsFromServer]
+  );
+
+  // Handle view call relationship
+  const handleViewCallRelationship = () => {
+    const currentAgentId = getCurrentAgentId?.() ?? undefined;
+    if (currentAgentId) {
+      setCallRelationshipModalVisible(true);
     }
-  }, [onToolsRefresh]);
+  };
 
   // Get button tooltip information
   const getLocalButtonTitle = () => {
@@ -929,7 +1586,7 @@ export default function AgentSetupOrchestrator({
           <div className="w-full lg:w-auto lg:flex-1 h-full overflow-hidden">
             <SubAgentPool
               onEditAgent={(agent) => handleEditAgent(agent, t)}
-              onCreateNewAgent={handleCreateNewAgent}
+              onCreateNewAgent={() => confirmOrRun(handleCreateNewAgent)}
               onExitEditMode={handleExitEditMode}
               onImportAgent={() => handleImportAgent(t)}
               subAgentList={subAgentList}
@@ -939,6 +1596,13 @@ export default function AgentSetupOrchestrator({
               editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
               editingAgentName={agentName || null}
+              onExportAgent={handleExportAgentFromList}
+              onDeleteAgent={handleDeleteAgentFromList}
+              unsavedAgentId={
+                hasUnsavedChanges && isEditingAgent && editingAgent
+                  ? Number(editingAgent.id)
+                  : null
+              }
             />
           </div>
 
@@ -958,7 +1622,7 @@ export default function AgentSetupOrchestrator({
 
             {/* Content: ScrollArea with two sections */}
             <div className="flex-1 overflow-hidden border-t pt-2">
-              <div className="flex flex-col h-full" style={{ gap: "16px" }}>
+              <div className="flex flex-col h-full gap-4">
                 {/* Upper section: Collaborative Agent Display - fixed area */}
                 <CollaborativeAgentDisplay
                   className="h-[128px] lg:h-[128px]"
@@ -983,11 +1647,26 @@ export default function AgentSetupOrchestrator({
                     selectedTools={isLoadingTools ? [] : selectedTools}
                     onSelectTool={(tool, isSelected) => {
                       if (isLoadingTools) return;
+                      const toolId = Number(tool.id);
                       if (isSelected) {
-                        setSelectedTools([...selectedTools, tool]);
+                        // Avoid duplicate tools
+                        if (!selectedTools.some((t) => t.id === tool.id)) {
+                          setSelectedTools([...selectedTools, tool]);
+                        }
+                        // Sync enabledToolIds, ensure no duplicates
+                        setEnabledToolIds((prev) => {
+                          if (prev.includes(toolId)) {
+                            return prev;
+                          }
+                          return [...prev, toolId].sort((a, b) => a - b);
+                        });
                       } else {
                         setSelectedTools(
                           selectedTools.filter((t) => t.id !== tool.id)
+                        );
+                        // Sync enabledToolIds
+                        setEnabledToolIds((prev) =>
+                          prev.filter((id) => id !== toolId)
                         );
                       }
                     }}
@@ -1012,7 +1691,7 @@ export default function AgentSetupOrchestrator({
           {/* Right column: System Prompt Display - Equal flex width */}
           <div className="w-full lg:w-auto lg:flex-1 h-full overflow-hidden">
             <PromptManager
-              onDebug={onDebug || (() => {})}
+              onDebug={onDebug ? () => confirmOrRun(() => onDebug()) : () => {}}
               agentId={
                 getCurrentAgentId
                   ? getCurrentAgentId()
@@ -1058,6 +1737,7 @@ export default function AgentSetupOrchestrator({
               onDeleteAgent={onDeleteAgent || (() => {})}
               onDeleteSuccess={handleExitEdit}
               editingAgent={editingAgentFromParent || editingAgent}
+              onViewCallRelationship={handleViewCallRelationship}
             />
           </div>
         </div>
@@ -1079,16 +1759,75 @@ export default function AgentSetupOrchestrator({
               </Button>
             </div>
           }
-          width={400}
+          width={520}
         >
-          <div className="py-4">
-            <Typography.Text>
-              {t("businessLogic.config.modal.deleteContent", {
-                name: agentToDelete?.name,
-              })}
-            </Typography.Text>
+          <div className="py-2">
+            <div className="flex items-center">
+              <WarningFilled
+                className="text-yellow-500 mt-1 mr-2"
+                style={{ fontSize: "48px" }}
+              />
+              <div className="ml-3 mt-2">
+                <div className="text-sm leading-6">
+                  {t("businessLogic.config.modal.deleteContent", {
+                    name: agentToDelete?.name,
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </Modal>
+        {/* Save confirmation modal for unsaved changes (debug/navigation hooks) */}
+        <SaveConfirmModal
+          open={isSaveConfirmOpen}
+          onCancel={async () => {
+            if (confirmContext === "exitCreate") {
+              // Discard draft and return to initial state
+              await handleCancelCreating();
+              setIsSaveConfirmOpen(false);
+            } else {
+              // Discard while switching/editing: reload backend state of current agent
+              await reloadCurrentAgentData();
+              setHasUnsavedChanges(false);
+              onUnsavedChange?.(false);
+              setIsSaveConfirmOpen(false);
+              const action = pendingAction;
+              setPendingAction(null);
+              if (action) {
+                skipUnsavedCheckRef.current = true;
+                setTimeout(async () => {
+                  try {
+                    await Promise.resolve(action());
+                  } finally {
+                    skipUnsavedCheckRef.current = false;
+                  }
+                }, 0);
+              }
+            }
+          }}
+          onSave={async () => {
+            // Save changes: for create mode or edit mode, reuse unified save path
+            await saveAllChanges();
+            setIsSaveConfirmOpen(false);
+            const action = pendingAction;
+            setPendingAction(null);
+            if (action) {
+              // Continue pending action after save (e.g., switch)
+              skipUnsavedCheckRef.current = true;
+              setTimeout(async () => {
+                try {
+                  await Promise.resolve(action());
+                } finally {
+                  skipUnsavedCheckRef.current = false;
+                }
+              }, 0);
+            }
+          }}
+          onClose={() => {
+            // Only close modal, don't execute discard logic
+            setIsSaveConfirmOpen(false);
+          }}
+        />
         {/* Auto unselect knowledge_base_search notice when embedding not configured */}
         <Modal
           title={t("embedding.agentToolAutoDeselectModal.title")}
@@ -1121,6 +1860,27 @@ export default function AgentSetupOrchestrator({
             </div>
           </div>
         </Modal>
+        {/* Agent call relationship modal */}
+        <AgentCallRelationshipModal
+          visible={callRelationshipModalVisible}
+          onClose={() => setCallRelationshipModalVisible(false)}
+          agentId={
+            (getCurrentAgentId
+              ? getCurrentAgentId()
+              : isEditingAgent && editingAgent
+              ? Number(editingAgent.id)
+              : isCreatingNewAgent && mainAgentId
+              ? Number(mainAgentId)
+              : undefined) ?? 0
+          }
+          agentName={
+            editingAgentFromParent || editingAgent
+              ? (editingAgentFromParent || editingAgent)?.display_name ||
+                (editingAgentFromParent || editingAgent)?.name ||
+                ""
+              : ""
+          }
+        />
       </div>
     </TooltipProvider>
   );

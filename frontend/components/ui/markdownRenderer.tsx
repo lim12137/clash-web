@@ -28,6 +28,7 @@ interface MarkdownRendererProps {
   className?: string;
   searchResults?: SearchResult[];
   showDiagramToggle?: boolean;
+  onCitationHover?: () => void;
 }
 
 // Get background color for different tool signs
@@ -87,9 +88,11 @@ const CitationBadge = ({
 const HoverableText = ({
   text,
   searchResults,
+  onCitationHover,
 }: {
   text: string;
   searchResults?: SearchResult[];
+  onCitationHover?: () => void;
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLSpanElement>(null);
@@ -139,6 +142,11 @@ const HoverableText = ({
 
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+
+      // Clear completed conversation indicator when hovering over citation
+      if (onCitationHover) {
+        onCitationHover();
       }
 
       // Delay before showing tooltip to avoid quick hover triggers
@@ -226,7 +234,7 @@ const HoverableText = ({
       container.removeEventListener("mouseenter", handleMouseEnter);
       container.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, [isOpen]);
+  }, [isOpen, onCitationHover]);
 
   return (
     <TooltipProvider>
@@ -355,6 +363,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   searchResults = [],
   showDiagramToggle = true,
+  onCitationHover,
 }) => {
   const { t } = useTranslation("common");
 
@@ -424,6 +433,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   key={index}
                   text={innerText}
                   searchResults={searchResults}
+                  onCitationHover={onCitationHover}
                 />
               );
             } else {

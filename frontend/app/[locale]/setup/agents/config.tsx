@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+  useCallback,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, App } from "antd";
 import {
@@ -39,7 +46,20 @@ const LAYOUT_CONFIG: LayoutConfig = AGENT_SETUP_LAYOUT_DEFAULT;
  * Provides a full-width interface for agent business logic configuration
  * Follows SETUP_PAGE_CONTAINER layout standards for consistent height and spacing
  */
-export default function AgentConfig() {
+export type AgentConfigHandle = {
+  hasUnsavedChanges: () => boolean;
+  saveAllChanges: () => Promise<void>;
+  reloadCurrentAgentData: () => Promise<void>;
+};
+
+interface AgentConfigProps {
+  canAccessProtectedData: boolean;
+}
+
+export default forwardRef<AgentConfigHandle, AgentConfigProps>(function AgentConfig(
+  { canAccessProtectedData },
+  ref
+) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
   const [businessLogic, setBusinessLogic] = useState("");
@@ -49,8 +69,12 @@ export default function AgentConfig() {
   const [mainAgentModel, setMainAgentModel] = useState<string | null>(null);
   const [mainAgentModelId, setMainAgentModelId] = useState<number | null>(null);
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5);
-  const [businessLogicModel, setBusinessLogicModel] = useState<string | null>(null);
-  const [businessLogicModelId, setBusinessLogicModelId] = useState<number | null>(null);
+  const [businessLogicModel, setBusinessLogicModel] = useState<string | null>(
+    null
+  );
+  const [businessLogicModelId, setBusinessLogicModelId] = useState<
+    number | null
+  >(null);
   const [tools, setTools] = useState<any[]>([]);
   const [mainAgentId, setMainAgentId] = useState<string | null>(null);
   const [subAgentList, setSubAgentList] = useState<any[]>([]);
@@ -80,6 +104,23 @@ export default function AgentConfig() {
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false);
+  const unsavedRef = useRef(false);
+  const saveHandlerRef = useRef<null | (() => Promise<void>)>(null);
+  const reloadHandlerRef = useRef<null | (() => Promise<void>)>(null);
+
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => unsavedRef.current,
+    saveAllChanges: async () => {
+      if (saveHandlerRef.current) {
+        await saveHandlerRef.current();
+      }
+    },
+    reloadCurrentAgentData: async () => {
+      if (reloadHandlerRef.current) {
+        await reloadHandlerRef.current();
+      }
+    },
+  }));
 
   // Handle generate agent
   const handleGenerateAgent = async (selectedModel?: ModelOption) => {
@@ -90,9 +131,14 @@ export default function AgentConfig() {
       );
       // Scroll to business logic input after a short delay to ensure it's visible
       setTimeout(() => {
-        const businessLogicInput = document.querySelector('[data-business-logic-input]');
+        const businessLogicInput = document.querySelector(
+          "[data-business-logic-input]"
+        );
         if (businessLogicInput) {
-          businessLogicInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          businessLogicInput.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
         }
       }, 100);
       return;
@@ -100,8 +146,12 @@ export default function AgentConfig() {
     // Clear error when validation passes
     setBusinessLogicError(false);
 
+    // In create mode, agent_id should be 0 (backend will handle this case)
+    // In edit mode, use the current agent id
     const currentAgentId = getCurrentAgentId();
-    if (!currentAgentId) {
+    const agentIdToUse = isCreatingNewAgent ? 0 : currentAgentId || 0;
+
+    if (!isCreatingNewAgent && !currentAgentId) {
       message.error(t("businessLogic.config.error.noAgentId"));
       return;
     }
@@ -114,7 +164,7 @@ export default function AgentConfig() {
       // Call backend API to generate agent prompt
       await generatePromptStream(
         {
-          agent_id: Number(currentAgentId),
+          agent_id: agentIdToUse,
           task_description: businessLogic,
           model_id: selectedModel?.id?.toString() || "",
         },
@@ -251,6 +301,9 @@ export default function AgentConfig() {
 
   // Load tools when page is loaded
   useEffect(() => {
+    if (!canAccessProtectedData) {
+      return;
+    }
     // Check embedding configuration once when entering the page
     try {
       const modelConfig = configStore.getModelConfig();
@@ -290,7 +343,7 @@ export default function AgentConfig() {
     };
 
     loadTools();
-  }, [t]);
+  }, [canAccessProtectedData, t]);
 
   // Get agent list
   const fetchAgents = async () => {
@@ -329,37 +382,67 @@ export default function AgentConfig() {
 
   // Get agent list when component is loaded
   useEffect(() => {
+    if (!canAccessProtectedData) {
+      return;
+    }
     fetchAgents();
-  }, []);
+  }, [canAccessProtectedData]);
+
+  // Use refs to store latest values to avoid recreating event listener
+  const businessLogicRef = useRef(businessLogic);
+  const dutyContentRef = useRef(dutyContent);
+  const constraintContentRef = useRef(constraintContent);
+  const fewShotsContentRef = useRef(fewShotsContent);
+
+  // Update refs when values change
+  useEffect(() => {
+    businessLogicRef.current = businessLogic;
+  }, [businessLogic]);
+  useEffect(() => {
+    dutyContentRef.current = dutyContent;
+  }, [dutyContent]);
+  useEffect(() => {
+    constraintContentRef.current = constraintContent;
+  }, [constraintContent]);
+  useEffect(() => {
+    fewShotsContentRef.current = fewShotsContent;
+  }, [fewShotsContent]);
+
+  // Memoize event handler to avoid recreating listener
+  const handleGetAgentConfigData = useCallback(() => {
+    // Check if there is system prompt content
+    let hasSystemPrompt = false;
+
+    // If any of the segmented prompts has content, consider it as having system prompt
+    if (dutyContentRef.current && dutyContentRef.current.trim() !== "") {
+      hasSystemPrompt = true;
+    } else if (
+      constraintContentRef.current &&
+      constraintContentRef.current.trim() !== ""
+    ) {
+      hasSystemPrompt = true;
+    } else if (
+      fewShotsContentRef.current &&
+      fewShotsContentRef.current.trim() !== ""
+    ) {
+      hasSystemPrompt = true;
+    }
+
+    // Send the current configuration data to the main page
+    const eventData: AgentConfigDataResponse = {
+      businessLogic: businessLogicRef.current,
+      systemPrompt: hasSystemPrompt ? "has_content" : "",
+    };
+
+    window.dispatchEvent(
+      new CustomEvent("agentConfigDataResponse", {
+        detail: eventData,
+      }) as AgentConfigCustomEvent
+    );
+  }, []); // Empty deps - handler uses refs for latest values
 
   // Add event listener to respond to the data request from the main page
   useEffect(() => {
-    const handleGetAgentConfigData = () => {
-      // Check if there is system prompt content
-      let hasSystemPrompt = false;
-
-      // If any of the segmented prompts has content, consider it as having system prompt
-      if (dutyContent && dutyContent.trim() !== "") {
-        hasSystemPrompt = true;
-      } else if (constraintContent && constraintContent.trim() !== "") {
-        hasSystemPrompt = true;
-      } else if (fewShotsContent && fewShotsContent.trim() !== "") {
-        hasSystemPrompt = true;
-      }
-
-      // Send the current configuration data to the main page
-      const eventData: AgentConfigDataResponse = {
-        businessLogic: businessLogic,
-        systemPrompt: hasSystemPrompt ? "has_content" : "",
-      };
-
-      window.dispatchEvent(
-        new CustomEvent("agentConfigDataResponse", {
-          detail: eventData,
-        }) as AgentConfigCustomEvent
-      );
-    };
-
     window.addEventListener("getAgentConfigData", handleGetAgentConfigData);
 
     return () => {
@@ -368,7 +451,7 @@ export default function AgentConfig() {
         handleGetAgentConfigData
       );
     };
-  }, [businessLogic, dutyContent, constraintContent, fewShotsContent]);
+  }, [handleGetAgentConfigData]);
 
   const handleEditingStateChange = (isEditing: boolean, agent: any) => {
     setIsEditingAgent(isEditing);
@@ -389,9 +472,15 @@ export default function AgentConfig() {
   };
 
   const getCurrentAgentId = () => {
+    // In edit mode, always use the currently editing agent's id
     if (isEditingAgent && editingAgent) {
       return parseInt(editingAgent.id);
     }
+    // In create mode, the agent has not been persisted yet, so there should be no agent_id
+    if (isCreatingNewAgent) {
+      return undefined;
+    }
+    // Fallback to mainAgentId when not creating and not explicitly editing
     return mainAgentId ? parseInt(mainAgentId) : undefined;
   };
 
@@ -408,18 +497,25 @@ export default function AgentConfig() {
   };
 
   // Refresh tool list
-  const handleToolsRefresh = async () => {
+  const handleToolsRefresh = async (showSuccessMessage = true) => {
     try {
       const result = await fetchTools();
       if (result.success) {
         setTools(result.data);
-        message.success(t("agentConfig.tools.refreshSuccess"));
+        // Only show success message if explicitly requested (e.g., manual refresh)
+        // Don't show message when auto-refreshing after MCP tool add/delete
+        if (showSuccessMessage) {
+          message.success(t("agentConfig.tools.refreshSuccess"));
+        }
+        return result.data; // Return the updated tools list
       } else {
         message.error(t("agentConfig.tools.refreshFailed"));
+        return null;
       }
     } catch (error) {
       log.error(t("agentConfig.tools.refreshFailedDebug"), error);
       message.error(t("agentConfig.tools.refreshFailed"));
+      return null;
     }
   };
 
@@ -448,9 +544,6 @@ export default function AgentConfig() {
                 if (businessLogicError && value.trim() !== "") {
                   setBusinessLogicError(false);
                 }
-                if (isCreatingNewAgent) {
-                  setBusinessLogic(value);
-                }
               }}
               businessLogicError={businessLogicError}
               selectedTools={selectedTools}
@@ -478,47 +571,17 @@ export default function AgentConfig() {
               onEditingStateChange={handleEditingStateChange}
               onToolsRefresh={handleToolsRefresh}
               dutyContent={dutyContent}
-              setDutyContent={(value) => {
-                setDutyContent(value);
-                if (isCreatingNewAgent) {
-                  setDutyContent(value);
-                }
-              }}
+              setDutyContent={setDutyContent}
               constraintContent={constraintContent}
-              setConstraintContent={(value) => {
-                setConstraintContent(value);
-                if (isCreatingNewAgent) {
-                  setConstraintContent(value);
-                }
-              }}
+              setConstraintContent={setConstraintContent}
               fewShotsContent={fewShotsContent}
-              setFewShotsContent={(value) => {
-                setFewShotsContent(value);
-                if (isCreatingNewAgent) {
-                  setFewShotsContent(value);
-                }
-              }}
+              setFewShotsContent={setFewShotsContent}
               agentName={agentName}
-              setAgentName={(value) => {
-                setAgentName(value);
-                if (isCreatingNewAgent) {
-                  setAgentName(value);
-                }
-              }}
+              setAgentName={setAgentName}
               agentDescription={agentDescription}
-              setAgentDescription={(value) => {
-                setAgentDescription(value);
-                if (isCreatingNewAgent) {
-                  setAgentDescription(value);
-                }
-              }}
+              setAgentDescription={setAgentDescription}
               agentDisplayName={agentDisplayName}
-              setAgentDisplayName={(value) => {
-                setAgentDisplayName(value);
-                if (isCreatingNewAgent) {
-                  setAgentDisplayName(value);
-                }
-              }}
+              setAgentDisplayName={setAgentDisplayName}
               isGeneratingAgent={isGeneratingAgent}
               // SystemPromptDisplay related props
               onDebug={() => {
@@ -531,6 +594,15 @@ export default function AgentConfig() {
               editingAgent={editingAgent}
               onExitCreation={handleExitCreation}
               isEmbeddingConfigured={isEmbeddingConfigured}
+              onUnsavedChange={(dirty) => {
+                unsavedRef.current = dirty;
+              }}
+              registerSaveHandler={(handler) => {
+                saveHandlerRef.current = handler;
+              }}
+              registerReloadHandler={(handler) => {
+                reloadHandlerRef.current = handler;
+              }}
             />
           </div>
         </div>
@@ -558,4 +630,4 @@ export default function AgentConfig() {
       </Drawer>
     </App>
   );
-}
+});

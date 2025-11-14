@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import AgentInfo, ToolInstance, AgentRelation
@@ -169,11 +170,66 @@ def delete_related_agent(parent_agent_id: int, child_agent_id: int, tenant_id: s
             session.query(AgentRelation).filter(AgentRelation.parent_agent_id == parent_agent_id,
                                                 AgentRelation.selected_agent_id == child_agent_id,
                                                 AgentRelation.tenant_id == tenant_id).update(
-                {ToolInstance.delete_flag: 'Y', 'updated_by': tenant_id})
+                {AgentRelation.delete_flag: 'Y', 'updated_by': tenant_id})
             return True
     except Exception as e:
         logger.error(f"Failed to delete related agent: {str(e)}")
         return False
+
+
+def update_related_agents(parent_agent_id: int, related_agent_ids: List[int], tenant_id: str, user_id: str):
+    """
+    Update related agents for a parent agent by replacing all existing relations.
+    This function handles both creation and deletion of relations in a single transaction.
+    :param parent_agent_id: ID of the parent agent
+    :param related_agent_ids: List of child agent IDs to be related
+    :param tenant_id: Tenant ID
+    :param user_id: User ID for audit trail
+    :return: None
+    """
+    with get_db_session() as session:
+        # Get current relations
+        current_relations = session.query(AgentRelation).filter(
+            AgentRelation.parent_agent_id == parent_agent_id,
+            AgentRelation.tenant_id == tenant_id,
+            AgentRelation.delete_flag != 'Y'
+        ).all()
+
+        current_related_ids = {
+            rel.selected_agent_id for rel in current_relations}
+        new_related_ids = set(
+            related_agent_ids) if related_agent_ids else set()
+
+        # Find IDs to delete (in current but not in new)
+        ids_to_delete = current_related_ids - new_related_ids
+        # Find IDs to add (in new but not in current)
+        ids_to_add = new_related_ids - current_related_ids
+
+        # Soft delete removed relations
+        if ids_to_delete:
+            session.query(AgentRelation).filter(
+                AgentRelation.parent_agent_id == parent_agent_id,
+                AgentRelation.selected_agent_id.in_(ids_to_delete),
+                AgentRelation.tenant_id == tenant_id
+            ).update(
+                {AgentRelation.delete_flag: 'Y', 'updated_by': user_id},
+                synchronize_session=False
+            )
+
+        # Add new relations
+        for child_agent_id in ids_to_add:
+            relation_info = {
+                "parent_agent_id": parent_agent_id,
+                "selected_agent_id": child_agent_id,
+                "tenant_id": tenant_id,
+                "created_by": user_id,
+                "updated_by": user_id
+            }
+            new_relation = AgentRelation(
+                **filter_property(relation_info, AgentRelation))
+            session.add(new_relation)
+
+        session.commit()
 
 
 def delete_agent_relationship(agent_id: int, tenant_id: str, user_id: str):
