@@ -118,10 +118,15 @@ def generate_and_save_system_prompt_impl(agent_id: int,
                                          tenant_id: str,
                                          language: str):
     # Get description of tool and agent
-    tool_info_list = get_enabled_tool_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id)
-    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id)
+    # In create mode (agent_id=0), return empty lists
+    if agent_id == 0:
+        tool_info_list = []
+        sub_agent_info_list = []
+    else:
+        tool_info_list = get_enabled_tool_description_for_generate_prompt(
+            tenant_id=tenant_id, agent_id=agent_id)
+        sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
+            tenant_id=tenant_id, agent_id=agent_id)
 
     # 1. Real-time streaming push
     final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
@@ -132,25 +137,29 @@ def generate_and_save_system_prompt_impl(agent_id: int,
         final_results[result_data["type"]] = result_data["content"]
         yield result_data
 
-    # 2. Update agent with the final result
-    logger.info("Updating agent with business_description and prompt segments")
-    agent_info = AgentInfoRequest(
-        agent_id=agent_id,
-        business_description=task_description,
-        duty_prompt=final_results["duty"],
-        constraint_prompt=final_results["constraint"],
-        few_shots_prompt=final_results["few_shots"],
-        name=final_results["agent_var_name"],
-        display_name=final_results["agent_display_name"],
-        description=final_results["agent_description"]
-    )
-    update_agent(
-        agent_id=agent_id,
-        agent_info=agent_info,
-        tenant_id=tenant_id,
-        user_id=user_id
-    )
-    logger.info("Prompt generation and agent update completed successfully")
+    # 2. Update agent with the final result (skip in create mode)
+    if agent_id == 0:
+        logger.info("Skipping agent update in create mode (agent_id=0)")
+    else:
+        logger.info(
+            "Updating agent with business_description and prompt segments")
+        agent_info = AgentInfoRequest(
+            agent_id=agent_id,
+            business_description=task_description,
+            duty_prompt=final_results["duty"],
+            constraint_prompt=final_results["constraint"],
+            few_shots_prompt=final_results["few_shots"],
+            name=final_results["agent_var_name"],
+            display_name=final_results["agent_display_name"],
+            description=final_results["agent_description"]
+        )
+        update_agent(
+            agent_id=agent_id,
+            agent_info=agent_info,
+            tenant_id=tenant_id,
+            user_id=user_id
+        )
+        logger.info("Prompt generation and agent update completed successfully")
 
 
 def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, model_id: int, language: str = LANGUAGE["ZH"]):
