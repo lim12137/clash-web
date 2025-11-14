@@ -25,10 +25,16 @@ export function SessionListeners() {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation("common");
-  const { openLoginModal, setIsFromSessionExpired, logout, isSpeedMode } =
+  const { openLoginModal, setIsFromSessionExpired, clearLocalSession, isSpeedMode } =
     useAuth();
   const { modal } = App.useApp();
   const modalShownRef = useRef<boolean>(false);
+
+  const isLocaleHomePath = (path?: string | null) => {
+    if (!path) return false;
+    const segments = path.split("/").filter(Boolean);
+    return segments.length <= 1;
+  };
 
   /**
    * Show "Login Expired" confirmation modal
@@ -46,25 +52,20 @@ export function SessionListeners() {
       okText: t("login.expired.okText"),
       cancelText: t("login.expired.cancelText"),
       closable: false,
-      async onOk() {
-        try {
-          // Silently logout
-          await logout({ silent: true });
-        } finally {
-          // Mark the source as session expired
-          setIsFromSessionExpired(true);
-          Modal.destroyAll();
-          openLoginModal();
-          setTimeout(() => (modalShownRef.current = false), 500);
-        }
+      onOk() {
+        // Clear local session state (session already expired on backend)
+        clearLocalSession();
+        // Mark the source as session expired
+        setIsFromSessionExpired(true);
+        Modal.destroyAll();
+        openLoginModal();
+        setTimeout(() => (modalShownRef.current = false), 500);
       },
-      async onCancel() {
-        try {
-          await logout();
-        } finally {
-          router.push("/");
-          setTimeout(() => (modalShownRef.current = false), 500);
-        }
+      onCancel() {
+        // Clear local session state (session already expired on backend)
+        clearLocalSession();
+        router.push("/");
+        setTimeout(() => (modalShownRef.current = false), 500);
       },
     });
   };
@@ -106,7 +107,7 @@ export function SessionListeners() {
       );
     };
     // Remove confirm from dependency array to avoid duplicate registration due to function reference changes
-  }, [router, pathname, openLoginModal, setIsFromSessionExpired, modal, isSpeedMode]);
+  }, [isSpeedMode]);
 
   // When component first mounts, if no local session is found, show modal immediately
   useEffect(() => {
@@ -129,15 +130,12 @@ export function SessionListeners() {
         const session = await authService.getSession();
 
         // Only show session expired modal if a prior session existed and is now invalid
-        if (!session && hadLocalSession) {
+        if ((!session && hadLocalSession) || (!session && !hadLocalSession && !isLocaleHomePath(pathname))) {
           window.dispatchEvent(
             new CustomEvent(EVENTS.SESSION_EXPIRED, {
               detail: { message: "Session expired, please sign in again" },
             })
           );
-        } else if (!session && !hadLocalSession) {
-          // Full mode with no prior session: proactively prompt login
-          openLoginModal();
         }
       } catch (error) {
         log.error("Error checking session status:", error);
@@ -145,7 +143,7 @@ export function SessionListeners() {
     };
 
     checkSession();
-  }, [pathname, isSpeedMode, openLoginModal]);
+  }, [pathname, isSpeedMode]);
 
   // Sliding expiration: refresh token shortly before expiry on user activity (skip in speed mode)
   useEffect(() => {
