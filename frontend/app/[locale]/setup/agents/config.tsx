@@ -142,8 +142,12 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
     // Clear error when validation passes
     setBusinessLogicError(false);
 
+    // In create mode, agent_id should be 0 (backend will handle this case)
+    // In edit mode, use the current agent id
     const currentAgentId = getCurrentAgentId();
-    if (!currentAgentId) {
+    const agentIdToUse = isCreatingNewAgent ? 0 : currentAgentId || 0;
+
+    if (!isCreatingNewAgent && !currentAgentId) {
       message.error(t("businessLogic.config.error.noAgentId"));
       return;
     }
@@ -156,7 +160,7 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
       // Call backend API to generate agent prompt
       await generatePromptStream(
         {
-          agent_id: Number(currentAgentId),
+          agent_id: agentIdToUse,
           task_description: businessLogic,
           model_id: selectedModel?.id?.toString() || "",
         },
@@ -396,29 +400,35 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
 
   // Memoize event handler to avoid recreating listener
   const handleGetAgentConfigData = useCallback(() => {
-      // Check if there is system prompt content
-      let hasSystemPrompt = false;
+    // Check if there is system prompt content
+    let hasSystemPrompt = false;
 
-      // If any of the segmented prompts has content, consider it as having system prompt
+    // If any of the segmented prompts has content, consider it as having system prompt
     if (dutyContentRef.current && dutyContentRef.current.trim() !== "") {
-        hasSystemPrompt = true;
-    } else if (constraintContentRef.current && constraintContentRef.current.trim() !== "") {
-        hasSystemPrompt = true;
-    } else if (fewShotsContentRef.current && fewShotsContentRef.current.trim() !== "") {
-        hasSystemPrompt = true;
-      }
+      hasSystemPrompt = true;
+    } else if (
+      constraintContentRef.current &&
+      constraintContentRef.current.trim() !== ""
+    ) {
+      hasSystemPrompt = true;
+    } else if (
+      fewShotsContentRef.current &&
+      fewShotsContentRef.current.trim() !== ""
+    ) {
+      hasSystemPrompt = true;
+    }
 
-      // Send the current configuration data to the main page
-      const eventData: AgentConfigDataResponse = {
+    // Send the current configuration data to the main page
+    const eventData: AgentConfigDataResponse = {
       businessLogic: businessLogicRef.current,
-        systemPrompt: hasSystemPrompt ? "has_content" : "",
-      };
+      systemPrompt: hasSystemPrompt ? "has_content" : "",
+    };
 
-      window.dispatchEvent(
-        new CustomEvent("agentConfigDataResponse", {
-          detail: eventData,
-        }) as AgentConfigCustomEvent
-      );
+    window.dispatchEvent(
+      new CustomEvent("agentConfigDataResponse", {
+        detail: eventData,
+      }) as AgentConfigCustomEvent
+    );
   }, []); // Empty deps - handler uses refs for latest values
 
   // Add event listener to respond to the data request from the main page
@@ -452,9 +462,15 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
   };
 
   const getCurrentAgentId = () => {
+    // In edit mode, always use the currently editing agent's id
     if (isEditingAgent && editingAgent) {
       return parseInt(editingAgent.id);
     }
+    // In create mode, the agent has not been persisted yet, so there should be no agent_id
+    if (isCreatingNewAgent) {
+      return undefined;
+    }
+    // Fallback to mainAgentId when not creating and not explicitly editing
     return mainAgentId ? parseInt(mainAgentId) : undefined;
   };
 
