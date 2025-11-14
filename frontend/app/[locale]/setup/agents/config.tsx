@@ -52,8 +52,12 @@ export type AgentConfigHandle = {
   reloadCurrentAgentData: () => Promise<void>;
 };
 
-export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
-  _props,
+interface AgentConfigProps {
+  canAccessProtectedData: boolean;
+}
+
+export default forwardRef<AgentConfigHandle, AgentConfigProps>(function AgentConfig(
+  { canAccessProtectedData },
   ref
 ) {
   const { t } = useTranslation("common");
@@ -293,6 +297,9 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
 
   // Load tools when page is loaded
   useEffect(() => {
+    if (!canAccessProtectedData) {
+      return;
+    }
     // Check embedding configuration once when entering the page
     try {
       const modelConfig = configStore.getModelConfig();
@@ -332,7 +339,7 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
     };
 
     loadTools();
-  }, [t]);
+  }, [canAccessProtectedData, t]);
 
   // Get agent list
   const fetchAgents = async () => {
@@ -371,8 +378,11 @@ export default forwardRef<AgentConfigHandle, {}>(function AgentConfig(
 
   // Get agent list when component is loaded
   useEffect(() => {
+    if (!canAccessProtectedData) {
+      return;
+    }
     fetchAgents();
-  }, []);
+  }, [canAccessProtectedData]);
 
   // Use refs to store latest values to avoid recreating event listener
   const businessLogicRef = useRef(businessLogic);

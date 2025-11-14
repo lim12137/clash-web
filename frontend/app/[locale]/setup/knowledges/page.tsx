@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -27,6 +27,8 @@ export default function KnowledgeSetupPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, isLoading: userLoading, isSpeedMode } = useAuth();
+  const canAccessProtectedData = isSpeedMode || (!userLoading && !!user);
+  const sessionExpiredTriggeredRef = useRef(false);
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -37,19 +39,29 @@ export default function KnowledgeSetupPage() {
   // Check login status and permission
   // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
-    if (!isSpeedMode && !userLoading && !user) {
+    if (isSpeedMode) {
+      sessionExpiredTriggeredRef.current = false;
+      return;
+    }
+
+    if (user) {
+      sessionExpiredTriggeredRef.current = false;
+      return;
+    }
+
+    if (!userLoading && !sessionExpiredTriggeredRef.current) {
+      sessionExpiredTriggeredRef.current = true;
       window.dispatchEvent(
         new CustomEvent(EVENTS.SESSION_EXPIRED, {
           detail: { message: "Session expired, please sign in again" },
         })
       );
-      return;
     }
   }, [isSpeedMode, user, userLoading]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    if (!(isSpeedMode || user)) return;
+    if (!canAccessProtectedData) return;
     checkModelEngineConnection();
 
     // Trigger knowledge base data acquisition when the page is initialized
@@ -72,7 +84,7 @@ export default function KnowledgeSetupPage() {
     };
 
     loadConfigForNormalUser();
-  }, [isSpeedMode, user]);
+  }, [canAccessProtectedData]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -178,16 +190,18 @@ export default function KnowledgeSetupPage() {
       nextText={t("setup.navigation.button.next")}
       completeText={t("setup.navigation.button.complete")}
     >
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        style={{ width: "100%", height: "100%" }}
-      >
-        <DataConfig isActive={true} />
-      </motion.div>
+      {canAccessProtectedData ? (
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <DataConfig isActive={true} />
+        </motion.div>
+      ) : null}
     </SetupLayout>
   );
 }
