@@ -69,9 +69,9 @@ services:
     networks:
       - nexent
 
-  nexent-edit-time:
+  nexent-config:
     image: ${NEXENT_IMAGE}
-    container_name: nexent-edit-time
+    container_name: nexent-config
     restart: always
     volumes:
       - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
@@ -93,7 +93,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
-    entrypoint: ["/bin/bash", "-c", "python backend/edit_time_service.py"]
+    entrypoint: ["/bin/bash", "-c", "python backend/config_service.py"]
 
   nexent-runtime:
     image: ${NEXENT_IMAGE}
@@ -145,7 +145,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
-    entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py"]
+    entrypoint: ["/bin/bash", "-c", "python backend/mcp_service.py"]
 
   nexent-northbound:
     image: ${NEXENT_IMAGE}
@@ -182,8 +182,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - HTTP_BACKEND=http://nexent-edit-time:5010
-      - WS_BACKEND=ws://nexent-edit-time:5010
+      - HTTP_BACKEND=http://nexent-config:5010
+      - WS_BACKEND=ws://nexent-runtime:5014
       - RUNTIME_HTTP_BACKEND=http://nexent-runtime:5014
       - MINIO_ENDPOINT=http://nexent-minio:9000
     logging:

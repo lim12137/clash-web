@@ -125,9 +125,9 @@ Nexent includes three core backend services that need to be started separately:
 
 ```bash
 # Execute in the project root directory, please follow this order:
-source .env && python backend/nexent_mcp_service.py     # MCP service
+source .env && python backend/mcp_service.py            # MCP service
 source .env && python backend/data_process_service.py   # Data processing service
-source .env && python backend/edit_time_service.py      # Edit-time service
+source .env && python backend/config_service.py         # Edit-time service
 source .env && python backend/runtime_service.py        # Runtime service
 ```
 

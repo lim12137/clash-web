@@ -125,9 +125,9 @@ Nexent 包含三个核心后端服务，需要分别启动：
 
 ```bash
 # 在项目根目录下执行，请按以下顺序执行：
-source .env && python backend/nexent_mcp_service.py     # MCP 服务
+source .env && python backend/mcp_service.py            # MCP 服务
 source .env && python backend/data_process_service.py   # 数据处理服务
-source .env && python backend/edit_time_service.py      # 编辑态服务
+source .env && python backend/config_service.py         # 编辑态服务
 source .env && python backend/runtime_service.py        # 运行态服务
 ```
 

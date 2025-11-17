@@ -11,6 +11,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../backend"))
 sys.path.insert(0, backend_dir)
 
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
 minio_client_mock = MagicMock()
@@ -28,6 +35,14 @@ sys.modules['nexent.vector_database'] = MagicMock()
 sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
 sys.modules['nexent.core.agents'] = MagicMock()
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
+sys.modules['nexent.storage.storage_client_factory'] = MagicMock()
+
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
 # Pre-inject a stubbed base_app to avoid import side effects
 backend_pkg = types.ModuleType("backend")
@@ -42,34 +57,34 @@ sys.modules["backend.apps.base_app"] = base_app_mod
 
 # Also stub non-namespaced imports used by the application
 apps_pkg_flat = types.ModuleType("apps")
-base_app_mod_flat = types.ModuleType("apps.edit_time_app")
+base_app_mod_flat = types.ModuleType("apps.config_app")
 base_app_mod_flat.app = MagicMock()
 sys.modules["apps"] = apps_pkg_flat
-sys.modules["apps.edit_time_app"] = base_app_mod_flat
-setattr(apps_pkg_flat, "edit_time_app", base_app_mod_flat)
+sys.modules["apps.config_app"] = base_app_mod_flat
+setattr(apps_pkg_flat, "config_app", base_app_mod_flat)
 
 # Wire package attributes
 setattr(backend_pkg, "apps", apps_pkg)
-setattr(apps_pkg, "edit_time_app", base_app_mod)
+setattr(apps_pkg, "config_app", base_app_mod)
 
 # Mock external dependencies before importing backend modules
-with patch('database.client.MinioClient', return_value=minio_client_mock), \
+with patch('backend.database.client.MinioClient', return_value=minio_client_mock), \
         patch('elasticsearch.Elasticsearch', return_value=MagicMock()), \
         patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore', return_value=MagicMock()):
-    # Mock dotenv before importing edit_time_service
+    # Mock dotenv before importing config_service
     with patch('dotenv.load_dotenv'):
         # Mock logging configuration
         with patch('utils.logging_utils.configure_logging'), \
                 patch('utils.logging_utils.configure_elasticsearch_logging'):
-            from edit_time_service import startup_initialization
+            from config_service import startup_initialization
 
 
 class TestMainService:
-    """Test cases for edit_time_service module"""
+    """Test cases for config_service module"""
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_success(self, mock_logger, mock_initialize_tools):
         """
         Test successful startup initialization.
@@ -96,8 +111,8 @@ class TestMainService:
         mock_initialize_tools.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_with_version_log(self, mock_logger, mock_initialize_tools):
         """
         Test that startup initialization logs the APP version.
@@ -120,8 +135,8 @@ class TestMainService:
         assert version_logged, "APP version should be logged during initialization"
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_tool_initialization_failure(self, mock_logger, mock_initialize_tools):
         """
         Test startup initialization when tool initialization fails.
@@ -153,8 +168,8 @@ class TestMainService:
         mock_initialize_tools.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_database_error(self, mock_logger, mock_initialize_tools):
         """
         Test startup initialization when database connection fails.
@@ -182,8 +197,8 @@ class TestMainService:
         )
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_timeout_error(self, mock_logger, mock_initialize_tools):
         """
         Test startup initialization when tool initialization times out.
@@ -210,8 +225,8 @@ class TestMainService:
         )
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_multiple_calls_safe(self, mock_logger, mock_initialize_tools):
         """
         Test that multiple calls to startup_initialization are safe.
@@ -233,8 +248,8 @@ class TestMainService:
         assert mock_logger.info.call_count >= 4
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_logging_order(self, mock_logger, mock_initialize_tools):
         """
         Test that logging occurs in the correct order during initialization.
@@ -260,8 +275,8 @@ class TestMainService:
         assert "Server initialization completed successfully!" in info_calls[-1]
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_exception_details_logged(self, mock_logger, mock_initialize_tools):
         """
         Test that exception details are properly logged.
@@ -286,8 +301,8 @@ class TestMainService:
         mock_logger.warning.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_no_exception_propagation(self, mock_logger, mock_initialize_tools):
         """
         Test that exceptions during initialization do not propagate.
@@ -313,10 +328,10 @@ class TestMainService:
 
 
 class TestMainServiceModuleIntegration:
-    """Integration tests for edit_time_service module dependencies"""
+    """Integration tests for config_service module dependencies"""
 
-    @patch('edit_time_service.configure_logging')
-    @patch('edit_time_service.configure_elasticsearch_logging')
+    @patch('config_service.configure_logging')
+    @patch('config_service.configure_elasticsearch_logging')
     def test_logging_configuration_called_on_import(self, mock_configure_es, mock_configure_logging):
         """
         Test that logging configuration functions are called when module is imported.
@@ -330,9 +345,9 @@ class TestMainServiceModuleIntegration:
         # In a real scenario, you might need to reload the module to test this properly
         pass  # The actual verification would depend on how the test runner handles imports
 
-    @patch('edit_time_service.APP_VERSION', 'test_version_1.2.3')
-    @patch('edit_time_service.initialize_tools_on_startup', new_callable=AsyncMock)
-    @patch('edit_time_service.logger')
+    @patch('config_service.APP_VERSION', 'test_version_1.2.3')
+    @patch('config_service.initialize_tools_on_startup', new_callable=AsyncMock)
+    @patch('config_service.logger')
     async def test_startup_initialization_with_custom_version(self, mock_logger, mock_initialize_tools):
         """
         Test startup initialization with a custom APP_VERSION.
