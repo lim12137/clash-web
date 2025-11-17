@@ -18,13 +18,23 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.insert(0, backend_dir)
 
-# Patch boto3 and other dependencies before importing anything from backend
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
+
 boto3_mock = MagicMock()
+minio_client_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Mock MinioClient before importing backend modules
-with patch('backend.database.client.MinioClient') as minio_mock:
-    minio_mock.return_value = MagicMock()
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
 
 class SearchRequest(BaseModel):
@@ -48,7 +58,6 @@ class IndexingResponse(BaseModel):
 # Module-level mocks for AWS connections
 # Apply these patches before importing any modules to prevent actual AWS connections
 patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
-patch('backend.database.client.MinioClient').start()
 patch('backend.database.client.get_db_session').start()
 patch('backend.database.client.db_client').start()
 

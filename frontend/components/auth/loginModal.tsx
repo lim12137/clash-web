@@ -138,8 +138,10 @@ export function LoginModal() {
     closeLoginModal();
 
     // If login modal was opened due to session expiration,
-    // re-trigger the session expired event
+    // reset modal state and re-trigger the session expired event
     if (isFromSessionExpired) {
+      // Reset modal state so session expired modal can be shown again
+      document.dispatchEvent(new CustomEvent("modalClosed"));
       setTimeout(() => {
         window.dispatchEvent(
           new CustomEvent(EVENTS.SESSION_EXPIRED, {
@@ -163,9 +165,10 @@ export function LoginModal() {
       width={400}
       centered
       forceRender
-      // Prevent modal from being closed by clicking mask or close button when session is expired
+      // Prevent modal from being closed by clicking mask when session is expired
+      // But allow close button to be visible so user can return to session expired prompt
       maskClosable={!isFromSessionExpired}
-      closable={!isFromSessionExpired}
+      closable={true}
     >
       <Form
         id="login-form"

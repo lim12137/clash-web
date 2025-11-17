@@ -19,7 +19,7 @@ from utils.logging_utils import configure_logging
 from consts.const import (
     REDIS_URL, REDIS_PORT, FLOWER_PORT, RAY_DASHBOARD_PORT, RAY_DASHBOARD_HOST,
     RAY_ACTOR_NUM_CPUS, RAY_NUM_CPUS, DISABLE_RAY_DASHBOARD, DISABLE_CELERY_FLOWER,
-    DOCKER_ENVIRONMENT
+    DOCKER_ENVIRONMENT, RAY_OBJECT_STORE_MEMORY_GB, RAY_preallocate_plasma, RAY_TEMP_DIR
 )
 
 # Load environment variables
@@ -111,16 +111,30 @@ class ServiceManager:
             if not success:
                 # Fallback to direct Ray initialization
                 try:
+                    # Set RAY_preallocate_plasma environment variable before initialization
+                    os.environ["RAY_preallocate_plasma"] = str(
+                        RAY_preallocate_plasma).lower()
+
+                    # Calculate object store memory in bytes
+                    object_store_memory = int(
+                        RAY_OBJECT_STORE_MEMORY_GB * 1024 * 1024 * 1024)
+
+                    logger.info(
+                        f"Fallback: Initializing Ray with object_store_memory={RAY_OBJECT_STORE_MEMORY_GB}GB, preallocate_plasma={RAY_preallocate_plasma}")
+
                     ray.init(
                         num_cpus=num_cpus,
-                        _plasma_directory="/tmp",
+                        object_store_memory=object_store_memory,
+                        _temp_dir=RAY_TEMP_DIR,
+                        object_spilling_directory=RAY_TEMP_DIR,
                         include_dashboard=include_dashboard,
                         dashboard_host=dashboard_host,
                         dashboard_port=self.ray_dashboard_port,
                         ignore_reinit_error=True
                     )
                     success = True
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Fallback Ray initialization failed: {e}")
                     success = False
             
             if success:

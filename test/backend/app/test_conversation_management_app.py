@@ -14,21 +14,35 @@ sys.path.append(backend_dir)
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Import target endpoints with all external dependencies patched
-with patch('backend.database.client.MinioClient') as minio_mock:
-    minio_mock.return_value = MagicMock()
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 
-    from backend.apps.conversation_management_app import (
-        create_new_conversation_endpoint,
-        list_conversations_endpoint,
-        rename_conversation_endpoint,
-        delete_conversation_endpoint,
-        get_conversation_history_endpoint,
-        get_sources_endpoint,
-        generate_conversation_title_endpoint,
-        update_opinion_endpoint,
-        get_message_id_endpoint,
-    )
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_mock = MagicMock()
+minio_mock._ensure_bucket_exists = MagicMock()
+minio_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_mock).start()
+patch('database.client.MinioClient', return_value=minio_mock).start()
+patch('backend.database.client.minio_client', minio_mock).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
+# Import target endpoints with all external dependencies patched
+from backend.apps.conversation_management_app import (
+    create_new_conversation_endpoint,
+    list_conversations_endpoint,
+    rename_conversation_endpoint,
+    delete_conversation_endpoint,
+    get_conversation_history_endpoint,
+    get_sources_endpoint,
+    generate_conversation_title_endpoint,
+    update_opinion_endpoint,
+    get_message_id_endpoint,
+)
 
 
 # -----------------------------

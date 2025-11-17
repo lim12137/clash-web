@@ -11,23 +11,37 @@ sys.modules['boto3'] = boto3_mock
 elasticsearch_mock = MagicMock()
 sys.modules['elasticsearch'] = elasticsearch_mock
 
-# Mock MinioClient class before importing the services
-minio_client_mock = MagicMock()
-with patch('backend.database.client.MinioClient', return_value=minio_client_mock):
-    with patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore', return_value=MagicMock()):
-        with patch('nexent.vector_database.elasticsearch_core.Elasticsearch', return_value=MagicMock()):
-            from jinja2 import StrictUndefined
+# Apply critical patches before importing any modules
+# This prevents real AWS/MinIO/Elasticsearch calls during import
+patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 
-            from backend.services.prompt_service import (
-                call_llm_for_system_prompt,
-                generate_and_save_system_prompt_impl,
-                gen_system_prompt_streamable,
-                get_enabled_tool_description_for_generate_prompt,
-                get_enabled_sub_agent_description_for_generate_prompt,
-                generate_system_prompt,
-                join_info_for_generate_system_prompt,
-                _process_thinking_tokens
-            )
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+minio_client_mock = MagicMock()
+minio_client_mock._ensure_bucket_exists = MagicMock()
+minio_client_mock.client = MagicMock()
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+patch('database.client.MinioClient', return_value=minio_client_mock).start()
+patch('backend.database.client.minio_client', minio_client_mock).start()
+patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore', return_value=MagicMock()).start()
+patch('nexent.vector_database.elasticsearch_core.Elasticsearch', return_value=MagicMock()).start()
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
+from jinja2 import StrictUndefined
+
+from backend.services.prompt_service import (
+    call_llm_for_system_prompt,
+    generate_and_save_system_prompt_impl,
+    gen_system_prompt_streamable,
+    get_enabled_tool_description_for_generate_prompt,
+    get_enabled_sub_agent_description_for_generate_prompt,
+    generate_system_prompt,
+    join_info_for_generate_system_prompt,
+    _process_thinking_tokens
+)
 
 
 class TestPromptService(unittest.TestCase):
@@ -146,6 +160,59 @@ class TestPromptService(unittest.TestCase):
         agent_info = call_args[1]['agent_info']
         self.assertEqual(agent_info.agent_id, 123)
         self.assertEqual(agent_info.business_description, "Test task")
+
+    @patch('backend.services.prompt_service.generate_system_prompt')
+    @patch('backend.services.prompt_service.get_enabled_sub_agent_description_for_generate_prompt')
+    @patch('backend.services.prompt_service.get_enabled_tool_description_for_generate_prompt')
+    @patch('backend.services.prompt_service.update_agent')
+    def test_generate_and_save_system_prompt_impl_create_mode(self, mock_update_agent, mock_get_tool_desc,
+                                                               mock_get_agent_desc, mock_generate_system_prompt):
+        """Test generate_and_save_system_prompt_impl in create mode (agent_id=0)"""
+        # Setup - Mock the generator to return the expected data structure
+        def mock_generator(*args, **kwargs):
+            yield {"type": "duty", "content": "Generated duty prompt", "is_complete": False}
+            yield {"type": "constraint", "content": "Generated constraint prompt", "is_complete": False}
+            yield {"type": "few_shots", "content": "Generated few shots prompt", "is_complete": False}
+            yield {"type": "agent_var_name", "content": "test_agent", "is_complete": True}
+            yield {"type": "agent_display_name", "content": "Test Agent", "is_complete": True}
+            yield {"type": "agent_description", "content": "Test agent description", "is_complete": True}
+            yield {"type": "duty", "content": "Final duty prompt", "is_complete": True}
+            yield {"type": "constraint", "content": "Final constraint prompt", "is_complete": True}
+            yield {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
+
+        mock_generate_system_prompt.side_effect = mock_generator
+
+        # Execute - test as a generator with agent_id=0 (create mode)
+        result_gen = generate_and_save_system_prompt_impl(
+            agent_id=0,
+            model_id=self.test_model_id,
+            task_description="Test task",
+            user_id="user123",
+            tenant_id="tenant456",
+            language="zh"
+        )
+        result = list(result_gen)  # Convert generator to list for assertion
+
+        # Assert
+        self.assertGreater(len(result), 0)
+
+        # In create mode, should NOT call get_enabled_tool_description_for_generate_prompt
+        # and get_enabled_sub_agent_description_for_generate_prompt
+        mock_get_tool_desc.assert_not_called()
+        mock_get_agent_desc.assert_not_called()
+
+        # Should call generate_system_prompt with empty lists for tools and sub-agents
+        mock_generate_system_prompt.assert_called_once_with(
+            [],  # Empty sub_agent_info_list
+            "Test task",
+            [],  # Empty tool_info_list
+            "tenant456",
+            self.test_model_id,
+            "zh"
+        )
+
+        # In create mode, should NOT call update_agent
+        mock_update_agent.assert_not_called()
 
     @patch('backend.services.prompt_service.generate_and_save_system_prompt_impl')
     def test_gen_system_prompt_streamable(self, mock_generate_impl):

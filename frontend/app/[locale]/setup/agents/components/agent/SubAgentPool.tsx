@@ -428,11 +428,8 @@ export default function SubAgentPool({
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  if (isEffectivelyAvailable) {
-                                    handleViewCallRelationship(agent);
-                                  }
+                                  handleViewCallRelationship(agent);
                                 }}
-                                disabled={!isEffectivelyAvailable}
                                 className="agent-action-button agent-action-button-blue"
                               />
                             </TooltipTrigger>
@@ -451,11 +448,8 @@ export default function SubAgentPool({
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    if (isEffectivelyAvailable) {
-                                      onExportAgent(agent);
-                                    }
+                                    onExportAgent(agent);
                                   }}
-                                  disabled={!isEffectivelyAvailable}
                                   className="agent-action-button agent-action-button-green"
                                 />
                               </TooltipTrigger>
@@ -475,11 +469,8 @@ export default function SubAgentPool({
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    if (isEffectivelyAvailable) {
-                                      onDeleteAgent(agent);
-                                    }
+                                    onDeleteAgent(agent);
                                   }}
-                                  disabled={!isEffectivelyAvailable}
                                   className="agent-action-button agent-action-button-red"
                                 />
                               </TooltipTrigger>
