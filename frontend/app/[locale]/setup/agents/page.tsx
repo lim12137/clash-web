@@ -25,14 +25,12 @@ export default function AgentSetupPage() {
   const agentConfigRef = useRef<AgentConfigHandle | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const pendingNavRef = useRef<null | (() => void)>(null);
+  const sessionExpiredTriggeredRef = useRef(false);
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const {
-    user,
-    isLoading: userLoading,
-    isSpeedMode
-  } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode } = useAuth();
+  const canAccessProtectedData = isSpeedMode || (!isSpeedMode && !userLoading && !!user);
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -43,13 +41,17 @@ export default function AgentSetupPage() {
   // Check login status and permission
   // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
-    if (!isSpeedMode && !userLoading && !user) {
+    if (isSpeedMode) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (user) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (!userLoading && !sessionExpiredTriggeredRef.current) {
+      sessionExpiredTriggeredRef.current = true;
       window.dispatchEvent(
         new CustomEvent(EVENTS.SESSION_EXPIRED, {
           detail: { message: "Session expired, please sign in again" },
         })
       );
-      return;
     }
 
     // Only admin users can access this page (full mode)
@@ -61,10 +63,10 @@ export default function AgentSetupPage() {
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    if (isSpeedMode || (user && !userLoading)) {
+    if (canAccessProtectedData) {
       checkModelEngineConnection();
     }
-  }, [isSpeedMode, user, userLoading]);
+  }, [canAccessProtectedData]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -153,7 +155,9 @@ export default function AgentSetupPage() {
           transition={pageTransition}
           style={{ width: "100%", height: "100%" }}
         >
-          <AgentConfig ref={agentConfigRef} />
+          {canAccessProtectedData ? (
+            <AgentConfig ref={agentConfigRef} canAccessProtectedData={canAccessProtectedData} />
+          ) : null}
         </motion.div>
       </SetupLayout>
       <SaveConfirmModal
