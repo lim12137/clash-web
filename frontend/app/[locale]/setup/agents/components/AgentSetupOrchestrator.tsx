@@ -868,6 +868,11 @@ export default function AgentSetupOrchestrator({
 
       // Ensure tool pool won't show loading state
       setIsLoadingTools(false);
+
+      // Reset unsaved state and baseline when explicitly exiting edit mode
+      baselineRef.current = null;
+      setHasUnsavedChanges(false);
+      onUnsavedChange?.(false);
     }
   };
 
