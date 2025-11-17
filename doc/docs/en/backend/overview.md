@@ -179,9 +179,9 @@ uv sync && uv pip install -e ../sdk
 ### Service Startup
 ```bash
 python backend/data_process_service.py   # Data processing service
-python backend/edit_time_service.py      # Edit-time service
-python runtime_service.py                # Runtime service
-python backend/nexent_mcp_service.py     # MCP service
+python backend/config_service.py      # Edit-time service
+python backend/runtime_service.py        # Runtime service
+python backend/mcp_service.py     # MCP service
 ```
 
 ## Performance and Scalability

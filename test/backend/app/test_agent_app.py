@@ -35,7 +35,7 @@ patch('database.client.MinioClient', return_value=minio_mock).start()
 patch('backend.database.client.minio_client', minio_mock).start()
 patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
 
-# Apply patches before importing any app modules (similar to test_base_app.py)
+# Apply patches before importing any app modules (similar to test_config_app.py)
 patches = [
     # Mock database sessions
     patch('backend.database.client.get_db_session', return_value=Mock())
@@ -45,7 +45,7 @@ for p in patches:
     p.start()
 
 # Import target endpoints with all external dependencies patched
-from apps.agent_app import agent_edit_time_router, agent_runtime_router
+from apps.agent_app import agent_config_router, agent_runtime_router
 
 # Mock external dependencies before importing the modules that use them
 # Stub nexent.core.agents.agent_model.ToolConfig to satisfy type imports in consts.model
@@ -143,9 +143,9 @@ runtime_app = FastAPI()
 runtime_app.include_router(agent_runtime_router)
 runtime_client = TestClient(runtime_app)
 
-edit_time_app = FastAPI()
-edit_time_app.include_router(agent_edit_time_router)
-edit_time_client = TestClient(edit_time_app)
+config_app = FastAPI()
+config_app.include_router(agent_config_router)
+edit_time_client = TestClient(config_app)
 
 
 @pytest.fixture

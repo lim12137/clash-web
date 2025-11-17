@@ -144,7 +144,7 @@ DELETE /remote-proxies?service_name={service_name}
 **Start Main Service**
 ```bash
 cd backend
-python edit_time_service.py
+python config_service.py
 python runtime_service.py
 ```
 Service will start at `http://localhost:5010`.
@@ -152,7 +152,7 @@ Service will start at `http://localhost:5010`.
 **Start MCP Service**
 ```bash
 cd backend
-python nexent_mcp_service.py
+python mcp_service.py
 ```
 Service will start at `http://localhost:5011`.
 

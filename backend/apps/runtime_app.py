@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from apps.agent_app import agent_runtime_router as agent_router
+from apps.voice_app import voice_runtime_router as voice_router
+from apps.conversation_management_app import router as conversation_management_router
+from apps.memory_config_app import router as memory_config_router
+from apps.file_management_app import file_management_runtime_router as file_management_router
 
 # Import monitoring utilities
 from utils.monitoring import monitoring_manager
@@ -23,6 +27,10 @@ app.add_middleware(
 )
 
 app.include_router(agent_router)
+app.include_router(conversation_management_router)
+app.include_router(memory_config_router)
+app.include_router(file_management_router)
+app.include_router(voice_router)
 
 # Initialize monitoring for the application
 monitoring_manager.setup_fastapi_app(app)
