@@ -22,6 +22,7 @@ from consts.const import (
     REDIS_BACKEND_URL,
     FORWARD_REDIS_RETRY_DELAY_S,
     FORWARD_REDIS_RETRY_MAX,
+    DISABLE_RAY_DASHBOARD,
 )
 
 
@@ -36,24 +37,28 @@ def init_ray_in_worker():
     Initializes Ray within a Celery worker, ensuring it is done only once.
     This function is designed to be called from within a task.
     """
-    if not ray.is_initialized():
-        logger.info(
-            "Ray not initialized. Initializing Ray for Celery worker...")
-        try:
-            # `configure_logging=False` prevents Ray from setting up its own loggers,
-            # which can interfere with Celery's logging.
-            # `faulthandler=False` is critical to prevent the `AttributeError: 'LoggingProxy' object has no attribute 'fileno'`
-            # error when running inside a Celery worker.
-            ray.init(
-                configure_logging=False,
-                faulthandler=False
-            )
-            logger.info("Ray initialized successfully for Celery worker.")
-        except Exception as e:
-            logger.error(f"Failed to initialize Ray for Celery worker: {e}")
-            raise
-    else:
+    if ray.is_initialized():
         logger.debug("Ray is already initialized.")
+        return
+
+    logger.info("Ray not initialized. Initializing Ray for Celery worker...")
+    try:
+        # `configure_logging=False` prevents Ray from setting up its own loggers,
+        # which can interfere with Celery's logging.
+        # `faulthandler=False` is critical to prevent the
+        # `AttributeError: 'LoggingProxy' object has no attribute 'fileno'`
+        # error when running inside a Celery worker.
+        # We also explicitly control the Ray dashboard behavior here to ensure
+        # that Celery workers respect the global DISABLE_RAY_DASHBOARD setting.
+        ray.init(
+            configure_logging=False,
+            faulthandler=False,
+            include_dashboard=not DISABLE_RAY_DASHBOARD,
+        )
+        logger.info("Ray initialized successfully for Celery worker.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Ray for Celery worker: {e}")
+        raise
 
 
 def run_async(coro):

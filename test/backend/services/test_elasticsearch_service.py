@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import os
 import time
 import unittest
 from unittest.mock import MagicMock
@@ -8,6 +9,13 @@ from unittest.mock import patch
 import numpy as np
 
 from fastapi.responses import StreamingResponse
+
+# Patch environment variables before any imports that might use them
+os.environ.setdefault('MINIO_ENDPOINT', 'http://localhost:9000')
+os.environ.setdefault('MINIO_ACCESS_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_SECRET_KEY', 'minioadmin')
+os.environ.setdefault('MINIO_REGION', 'us-east-1')
+os.environ.setdefault('MINIO_DEFAULT_BUCKET', 'test-bucket')
 
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
@@ -26,6 +34,18 @@ sys.modules['nexent.core.nlp'] = MagicMock()
 sys.modules['nexent.core.nlp.tokenizer'] = MagicMock()
 sys.modules['nexent.vector_database'] = MagicMock()
 sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
+# Mock nexent.storage module and its submodules before any imports
+sys.modules['nexent.storage'] = MagicMock()
+storage_factory_module = MagicMock()
+storage_config_module = MagicMock()
+# Create mock classes/functions that will be imported
+MinIOStorageConfigMock = MagicMock()
+MinIOStorageConfigMock.validate = lambda self: None
+storage_factory_module.create_storage_client_from_config = MagicMock()
+storage_factory_module.MinIOStorageConfig = MinIOStorageConfigMock
+storage_config_module.MinIOStorageConfig = MinIOStorageConfigMock
+sys.modules['nexent.storage.storage_client_factory'] = storage_factory_module
+sys.modules['nexent.storage.minio_config'] = storage_config_module
 
 # Mock specific classes that are imported
 sys.modules['nexent.core.agents.agent_model'].ToolConfig = MagicMock()
@@ -35,9 +55,28 @@ sys.modules['nexent.core.models.tts_model'] = MagicMock()
 sys.modules['nexent.core.models.tts_model'].TTSConfig = MagicMock()
 sys.modules['nexent.core.models.tts_model'].TTSModel = MagicMock()
 
+# Patch storage factory and MinIO config validation to avoid errors during initialization
+# These patches must be started before any imports that use MinioClient
+storage_client_mock = MagicMock()
+# Configure storage_client_mock.delete_file to return tuple (True, None)
+storage_client_mock.delete_file.return_value = (True, None)
+minio_client_mock = MagicMock()
+# Configure default return values for minio_client_mock methods
+minio_client_mock.delete_file.return_value = (True, None)
+minio_client_mock.storage_config = MagicMock()
+minio_client_mock.storage_config.default_bucket = 'test-bucket'
+# Set _storage_client to storage_client_mock so MinioClient.delete_file works correctly
+minio_client_mock._storage_client = storage_client_mock
+patch('nexent.storage.storage_client_factory.create_storage_client_from_config', return_value=storage_client_mock).start()
+patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
+patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
+patch('backend.database.client.minio_client', minio_client_mock).start()
+# Patch attachment_db.minio_client to use the same mock
+# This ensures delete_file and other methods work correctly
+patch('backend.database.attachment_db.minio_client', minio_client_mock).start()
+
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
-        patch('backend.database.client.MinioClient'), \
         patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
     from backend.services.elasticsearch_service import ElasticSearchService, check_knowledge_base_exist_impl
 
@@ -937,7 +976,8 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(len(result["files"][0]["chunks"]), 0)
         self.assertEqual(result["files"][0]["chunk_count"], 0)
 
-    def test_delete_documents(self):
+    @patch('backend.services.elasticsearch_service.delete_file')
+    def test_delete_documents(self, mock_delete_file):
         """
         Test document deletion by path or URL.
 
@@ -947,6 +987,8 @@ class TestElasticSearchService(unittest.TestCase):
         """
         # Setup
         self.mock_es_core.delete_documents_by_path_or_url.return_value = 5
+        # Configure delete_file to return a success response
+        mock_delete_file.return_value = {"success": True, "object_name": "test_path"}
 
         # Execute
         result = ElasticSearchService.delete_documents(
@@ -957,9 +999,12 @@ class TestElasticSearchService(unittest.TestCase):
 
         # Assert
         self.assertEqual(result["status"], "success")
+        self.assertEqual(result["deleted_minio"], True)
         # Verify that delete_documents_by_path_or_url was called with correct parameters
         self.mock_es_core.delete_documents_by_path_or_url.assert_called_once_with(
             "test_index", "test_path")
+        # Verify that delete_file was called with the correct path
+        mock_delete_file.assert_called_once_with("test_path")
 
     def test_accurate_search(self):
         """
@@ -1541,7 +1586,8 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("success", result)
         self.assertTrue(result["success"])
 
-    def test_delete_documents_success_status_200(self):
+    @patch('backend.services.elasticsearch_service.delete_file')
+    def test_delete_documents_success_status_200(self, mock_delete_file):
         """
         Test delete_documents method returns status code 200 on success.
 
@@ -1552,6 +1598,8 @@ class TestElasticSearchService(unittest.TestCase):
         """
         # Setup
         self.mock_es_core.delete_documents_by_path_or_url.return_value = 5
+        # Configure delete_file to return a success response
+        mock_delete_file.return_value = {"success": True, "object_name": "test_path"}
 
         # Execute
         result = ElasticSearchService.delete_documents(
@@ -1561,10 +1609,15 @@ class TestElasticSearchService(unittest.TestCase):
         )
 
         # Assert
-        self.assertEqual(result["status"], "success")
         # Verify successful response status - 200
         self.assertIsInstance(result, dict)
         self.assertEqual(result["status"], "success")
+        self.assertEqual(result["deleted_minio"], True)
+        # Verify that delete_documents_by_path_or_url was called with correct parameters
+        self.mock_es_core.delete_documents_by_path_or_url.assert_called_once_with(
+            "test_index", "test_path")
+        # Verify that delete_file was called with the correct path
+        mock_delete_file.assert_called_once_with("test_path")
 
     @patch('backend.services.elasticsearch_service.get_knowledge_record')
     def test_get_summary_success_status_200(self, mock_get_record):
