@@ -17,6 +17,7 @@ import {
   ConnectionStatus,
   MODEL_STATUS,
 } from "@/const/modelConfig";
+import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
@@ -28,7 +29,9 @@ export default function ModelSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, isSpeedMode, openLoginModal } = useAuth();
+  const { user, isLoading: userLoading, isSpeedMode } = useAuth();
+  const canAccessProtectedData = isSpeedMode || (!userLoading && !!user);
+  const sessionExpiredTriggeredRef = useRef(false);
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.PROCESSING
@@ -47,10 +50,19 @@ export default function ModelSetupPage() {
   const modelConfigSectionRef = useRef<ModelConfigSectionRef | null>(null);
 
   // Check login status and permission
+  // Trigger SESSION_EXPIRED event to show "Login Expired" modal instead of directly opening login modal
   useEffect(() => {
-    if (!isSpeedMode && !userLoading && !user) {
-      openLoginModal();
-      return;
+    if (isSpeedMode) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (user) {
+      sessionExpiredTriggeredRef.current = false;
+    } else if (!userLoading && !sessionExpiredTriggeredRef.current) {
+      sessionExpiredTriggeredRef.current = true;
+      window.dispatchEvent(
+        new CustomEvent(EVENTS.SESSION_EXPIRED, {
+          detail: { message: "Session expired, please sign in again" },
+        })
+      );
     }
 
     // Only admin users can access this page (full mode)
@@ -58,14 +70,14 @@ export default function ModelSetupPage() {
       router.push("/setup/knowledges");
       return;
     }
-  }, [isSpeedMode, user, userLoading, openLoginModal, router]);
+  }, [isSpeedMode, user, userLoading, router]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
-    if (isSpeedMode || (user && !userLoading)) {
+    if (canAccessProtectedData) {
       checkModelEngineConnection();
     }
-  }, [isSpeedMode, user, userLoading]);
+  }, [canAccessProtectedData]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -237,13 +249,18 @@ export default function ModelSetupPage() {
         transition={pageTransition}
         style={{ width: "100%", height: "100%" }}
       >
-        <AppModelConfig
-          onSelectedModelsChange={(selected) => setLiveSelectedModels(selected)}
-          onEmbeddingConnectivityChange={(status) =>
-            setEmbeddingConnectivity(status)
-          }
-          forwardedRef={modelConfigSectionRef}
-        />
+        {canAccessProtectedData ? (
+          <AppModelConfig
+            onSelectedModelsChange={(selected) =>
+              setLiveSelectedModels(selected)
+            }
+            onEmbeddingConnectivityChange={(status) =>
+              setEmbeddingConnectivity(status)
+            }
+            forwardedRef={modelConfigSectionRef}
+            canAccessProtectedData={canAccessProtectedData}
+          />
+        ) : null}
       </motion.div>
 
       <EmbedderCheckModal

@@ -86,6 +86,7 @@ export interface ModelConfigSectionRef {
 
 interface ModelConfigSectionProps {
   skipVerification?: boolean;
+  canAccessProtectedData?: boolean;
 }
 
 export const ModelConfigSection = forwardRef<
@@ -94,7 +95,7 @@ export const ModelConfigSection = forwardRef<
 >((props, ref): ReactNode => {
   const { t } = useTranslation();
   const { message } = App.useApp();
-  const { skipVerification = false } = props;
+  const { skipVerification = false, canAccessProtectedData = false } = props;
   const { modelConfig, updateModelConfig } = useConfig();
   const modelData = getModelData(t);
 
@@ -155,6 +156,9 @@ export const ModelConfigSection = forwardRef<
 
   // Initialize loading
   useEffect(() => {
+    if (!canAccessProtectedData) {
+      return;
+    }
     // Load configuration from backend first, then load model lists when component mounts
     const fetchData = async () => {
       await configService.loadConfigToFrontend();
@@ -163,7 +167,7 @@ export const ModelConfigSection = forwardRef<
     };
 
     fetchData();
-  }, [skipVerification]);
+  }, [canAccessProtectedData, skipVerification]);
 
   // Listen to field error highlight events
   useEffect(() => {

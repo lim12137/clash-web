@@ -9,10 +9,9 @@ from typing import Any, Dict, Optional
 import ray
 
 from consts.const import (
-    RAY_NUM_CPUS,
     RAY_OBJECT_STORE_MEMORY_GB,
-    RAY_PLASMA_DIRECTORY,
     RAY_TEMP_DIR,
+    RAY_preallocate_plasma,
 )
 
 logger = logging.getLogger("data_process.ray_config")
@@ -25,9 +24,9 @@ class RayConfig:
     """Ray configuration manager"""
 
     def __init__(self):
-        self.plasma_directory = RAY_PLASMA_DIRECTORY
         self.object_store_memory_gb = RAY_OBJECT_STORE_MEMORY_GB
         self.temp_dir = RAY_TEMP_DIR
+        self.preallocate_plasma = RAY_preallocate_plasma
 
     def get_init_params(
             self,
@@ -52,7 +51,6 @@ class RayConfig:
         """
         params = {
             "ignore_reinit_error": True,
-            "_plasma_directory": self.plasma_directory,
         }
 
         if address:
@@ -70,9 +68,16 @@ class RayConfig:
             # Temp directory configuration
             params["_temp_dir"] = self.temp_dir
 
+            # Object spilling directory (stable API)
+            # This allows Ray to spill objects to disk when memory is full
+            params["object_spilling_directory"] = self.temp_dir
+
             # Dashboard configuration
+            # Always pass include_dashboard explicitly because Ray's default is True.
+            # If we omit this parameter when include_dashboard is False,
+            # Ray will still start the dashboard by default.
+            params["include_dashboard"] = include_dashboard
             if include_dashboard:
-                params["include_dashboard"] = True
                 params["dashboard_host"] = dashboard_host
                 params["dashboard_port"] = dashboard_port
 
@@ -93,30 +98,49 @@ class RayConfig:
                 logger.info("Ray already initialized, skipping...")
                 return True
 
+            # Set RAY_preallocate_plasma environment variable before initialization
+            # Ray reads this environment variable during initialization
+            os.environ["RAY_preallocate_plasma"] = str(
+                self.preallocate_plasma).lower()
+
             params = self.get_init_params(**kwargs)
 
             # Log the attempt to initialize
-            logger.debug("Initializing Ray cluster...")
-            logger.debug("Ray configuration parameters:")
+            logger.info("Initializing Ray cluster...")
+            logger.info("Ray memory optimization configuration:")
+            logger.info(
+                f"  RAY_preallocate_plasma: {self.preallocate_plasma}")
+            logger.info(
+                f"  Object store memory: {self.object_store_memory_gb} GB")
             for key, value in params.items():
                 if key.startswith('_'):
                     logger.debug(f"  {key}: {value}")
                 elif key == 'object_store_memory':
-                    logger.debug(f"  {key}: {value / (1024 ** 3):.1f} GB")
+                    logger.info(f"  {key}: {value / (1024 ** 3):.2f} GB")
+                elif key == 'object_spilling_directory':
+                    logger.info(f"  {key}: {value}")
                 else:
                     logger.debug(f"  {key}: {value}")
 
             ray.init(**params)
             logger.info("✅ Ray initialization successful")
 
-            # Display cluster information
+            # Display cluster information and verify memory configuration
             try:
                 if hasattr(ray, 'cluster_resources'):
                     resources = ray.cluster_resources()
-                    logger.debug(f"Ray cluster resources: {resources}")
+                    logger.info(f"Ray cluster resources: {resources}")
+
+                    # Log memory-related resources
+                    if 'memory' in resources:
+                        logger.info(
+                            f"  Total cluster memory: {resources['memory'] / (1024**3):.2f} GB")
+                    if 'object_store_memory' in resources:
+                        logger.info(
+                            f"  Object store memory: {resources['object_store_memory'] / (1024**3):.2f} GB")
             except Exception as e:
-                logger.error(
-                    f"Failed to get cluster resources information: {e}")
+                logger.warning(
+                    f"Could not retrieve cluster resources information: {e}")
 
             return True
 
@@ -139,9 +163,17 @@ class RayConfig:
                 logger.debug("Ray already initialized, skipping...")
                 return True
 
+            # Set RAY_preallocate_plasma environment variable before initialization
+            # Note: When connecting to existing cluster, this setting may not take effect
+            # as the cluster was already initialized with its own settings
+            os.environ["RAY_preallocate_plasma"] = str(
+                self.preallocate_plasma).lower()
+
             params = self.get_init_params(address=address)
 
             logger.debug(f"Connecting to Ray cluster: {address}")
+            logger.debug(
+                f"  RAY_preallocate_plasma: {self.preallocate_plasma}")
             ray.init(**params)
             logger.info("✅ Successfully connected to Ray cluster")
 
@@ -180,9 +212,9 @@ class RayConfig:
     def log_configuration(self):
         """Log current configuration information"""
         logger.debug("Ray Configuration:")
-        logger.debug(f"  Plasma directory: {self.plasma_directory}")
         logger.debug(f"  ObjectStore memory: {self.object_store_memory_gb} GB")
         logger.debug(f"  Temp directory: {self.temp_dir}")
+        logger.debug(f"  Preallocate plasma: {self.preallocate_plasma}")
 
     @classmethod
     def init_ray_for_worker(cls, address: str = "auto") -> bool:
