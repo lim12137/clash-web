@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from apps.agent_app import router as agent_router
 from apps.config_sync_app import router as config_sync_router
 from apps.conversation_management_app import router as conversation_management_router
-from apps.elasticsearch_app import router as elasticsearch_router
+from apps.vectordatabase_app import router as vectordatabase_router
 from apps.file_management_app import router as file_manager_router
 from apps.image_app import router as proxy_router
 from apps.knowledge_summary_app import router as summary_router
@@ -45,7 +45,7 @@ app.include_router(memory_router)
 app.include_router(config_sync_router)
 app.include_router(agent_router)
 app.include_router(conversation_management_router)
-app.include_router(elasticsearch_router)
+app.include_router(vectordatabase_router)
 app.include_router(voice_router)
 app.include_router(file_manager_router)
 app.include_router(proxy_router)
