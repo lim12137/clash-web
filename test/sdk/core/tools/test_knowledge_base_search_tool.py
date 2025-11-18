@@ -16,10 +16,10 @@ def mock_observer():
 
 
 @pytest.fixture
-def mock_es_core():
+def mock_vdb_core():
     """Create a mock ElasticSearchCore for testing"""
-    es_core = MagicMock()
-    return es_core
+    vdb_core = MagicMock()
+    return vdb_core
 
 
 @pytest.fixture
@@ -30,27 +30,27 @@ def mock_embedding_model():
 
 
 @pytest.fixture
-def knowledge_base_search_tool(mock_observer, mock_es_core, mock_embedding_model):
+def knowledge_base_search_tool(mock_observer, mock_vdb_core, mock_embedding_model):
     """Create KnowledgeBaseSearchTool instance for testing"""
     tool = KnowledgeBaseSearchTool(
         top_k=5,
         index_names=["test_index1", "test_index2"],
         observer=mock_observer,
         embedding_model=mock_embedding_model,
-        es_core=mock_es_core
+        vdb_core=mock_vdb_core
     )
     return tool
 
 
 @pytest.fixture
-def knowledge_base_search_tool_no_observer(mock_es_core, mock_embedding_model):
+def knowledge_base_search_tool_no_observer(mock_vdb_core, mock_embedding_model):
     """Create KnowledgeBaseSearchTool instance without observer for testing"""
     tool = KnowledgeBaseSearchTool(
         top_k=3,
         index_names=["test_index"],
         observer=None,
         embedding_model=mock_embedding_model,
-        es_core=mock_es_core
+        vdb_core=mock_vdb_core
     )
     return tool
 
@@ -78,41 +78,41 @@ def create_mock_search_result(count=3):
 class TestKnowledgeBaseSearchTool:
     """Test KnowledgeBaseSearchTool functionality"""
     
-    def test_init_with_custom_values(self, mock_observer, mock_es_core, mock_embedding_model):
+    def test_init_with_custom_values(self, mock_observer, mock_vdb_core, mock_embedding_model):
         """Test initialization with custom values"""
         tool = KnowledgeBaseSearchTool(
             top_k=10,
             index_names=["index1", "index2", "index3"],
             observer=mock_observer,
             embedding_model=mock_embedding_model,
-            es_core=mock_es_core
+            vdb_core=mock_vdb_core
         )
 
         assert tool.top_k == 10
         assert tool.index_names == ["index1", "index2", "index3"]
         assert tool.observer == mock_observer
         assert tool.embedding_model == mock_embedding_model
-        assert tool.es_core == mock_es_core
+        assert tool.vdb_core == mock_vdb_core
 
-    def test_init_with_none_index_names(self, mock_es_core, mock_embedding_model):
+    def test_init_with_none_index_names(self, mock_vdb_core, mock_embedding_model):
         """Test initialization with None index_names"""
         tool = KnowledgeBaseSearchTool(
             top_k=5,
             index_names=None,
             observer=None,
             embedding_model=mock_embedding_model,
-            es_core=mock_es_core
+            vdb_core=mock_vdb_core
         )
 
         assert tool.index_names == []
 
-    def test_es_search_hybrid_success(self, knowledge_base_search_tool):
+    def test_search_hybrid_success(self, knowledge_base_search_tool):
         """Test successful hybrid search"""
         # Mock search results
         mock_results = create_mock_search_result(3)
-        knowledge_base_search_tool.es_core.hybrid_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.hybrid_search.return_value = mock_results
 
-        result = knowledge_base_search_tool.es_search_hybrid("test query", ["test_index1"])
+        result = knowledge_base_search_tool.search_hybrid("test query", ["test_index1"])
 
         # Verify result structure
         assert result["total"] == 3
@@ -126,59 +126,59 @@ class TestKnowledgeBaseSearchTool:
             assert "index" in doc
             assert doc["title"] == f"Test Document {i}"
 
-        # Verify es_core was called correctly
-        knowledge_base_search_tool.es_core.hybrid_search.assert_called_once_with(
+        # Verify vdb_core was called correctly
+        knowledge_base_search_tool.vdb_core.hybrid_search.assert_called_once_with(
             index_names=["test_index1"],
             query_text="test query",
             embedding_model=knowledge_base_search_tool.embedding_model,
             top_k=5
         )
 
-    def test_es_search_accurate_success(self, knowledge_base_search_tool):
+    def test_search_accurate_success(self, knowledge_base_search_tool):
         """Test successful accurate search"""
         # Mock search results
         mock_results = create_mock_search_result(2)
-        knowledge_base_search_tool.es_core.accurate_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.accurate_search.return_value = mock_results
 
-        result = knowledge_base_search_tool.es_search_accurate("test query", ["test_index1"])
+        result = knowledge_base_search_tool.search_accurate("test query", ["test_index1"])
 
         # Verify result structure
         assert result["total"] == 2
         assert len(result["results"]) == 2
 
-        # Verify es_core was called correctly
-        knowledge_base_search_tool.es_core.accurate_search.assert_called_once_with(
+        # Verify vdb_core was called correctly
+        knowledge_base_search_tool.vdb_core.accurate_search.assert_called_once_with(
             index_names=["test_index1"],
             query_text="test query",
             top_k=5
         )
 
-    def test_es_search_semantic_success(self, knowledge_base_search_tool):
+    def test_search_semantic_success(self, knowledge_base_search_tool):
         """Test successful semantic search"""
         # Mock search results
         mock_results = create_mock_search_result(4)
-        knowledge_base_search_tool.es_core.semantic_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.semantic_search.return_value = mock_results
 
-        result = knowledge_base_search_tool.es_search_semantic("test query", ["test_index1"])
+        result = knowledge_base_search_tool.search_semantic("test query", ["test_index1"])
 
         # Verify result structure
         assert result["total"] == 4
         assert len(result["results"]) == 4
 
-        # Verify es_core was called correctly
-        knowledge_base_search_tool.es_core.semantic_search.assert_called_once_with(
+        # Verify vdb_core was called correctly
+        knowledge_base_search_tool.vdb_core.semantic_search.assert_called_once_with(
             index_names=["test_index1"],
             query_text="test query",
             embedding_model=knowledge_base_search_tool.embedding_model,
             top_k=5
         )
 
-    def test_es_search_hybrid_error(self, knowledge_base_search_tool):
+    def test_search_hybrid_error(self, knowledge_base_search_tool):
         """Test hybrid search with error"""
-        knowledge_base_search_tool.es_core.hybrid_search.side_effect = Exception("Search error")
+        knowledge_base_search_tool.vdb_core.hybrid_search.side_effect = Exception("Search error")
 
         with pytest.raises(Exception) as excinfo:
-            knowledge_base_search_tool.es_search_hybrid("test query", ["test_index1"])
+            knowledge_base_search_tool.search_hybrid("test query", ["test_index1"])
 
         assert "Error during semantic search" in str(excinfo.value)
 
@@ -186,7 +186,7 @@ class TestKnowledgeBaseSearchTool:
         """Test forward method with accurate search mode"""
         # Mock search results
         mock_results = create_mock_search_result(2)
-        knowledge_base_search_tool.es_core.accurate_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.accurate_search.return_value = mock_results
 
         result = knowledge_base_search_tool.forward("test query", search_mode="accurate")
 
@@ -200,7 +200,7 @@ class TestKnowledgeBaseSearchTool:
         """Test forward method with semantic search mode"""
         # Mock search results
         mock_results = create_mock_search_result(4)
-        knowledge_base_search_tool.es_core.semantic_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.semantic_search.return_value = mock_results
 
         result = knowledge_base_search_tool.forward("test query", search_mode="semantic")
 
@@ -231,7 +231,7 @@ class TestKnowledgeBaseSearchTool:
     def test_forward_no_results(self, knowledge_base_search_tool):
         """Test forward method with no search results"""
         # Mock empty search results
-        knowledge_base_search_tool.es_core.hybrid_search.return_value = []
+        knowledge_base_search_tool.vdb_core.hybrid_search.return_value = []
 
         with pytest.raises(Exception) as excinfo:
             knowledge_base_search_tool.forward("test query")
@@ -242,7 +242,7 @@ class TestKnowledgeBaseSearchTool:
         """Test forward method with custom index names"""
         # Mock search results
         mock_results = create_mock_search_result(2)
-        knowledge_base_search_tool.es_core.hybrid_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.hybrid_search.return_value = mock_results
 
         result = knowledge_base_search_tool.forward(
             "test query", 
@@ -250,8 +250,8 @@ class TestKnowledgeBaseSearchTool:
             index_names=["custom_index1", "custom_index2"]
         )
 
-        # Verify es_core was called with custom index names
-        knowledge_base_search_tool.es_core.hybrid_search.assert_called_once_with(
+        # Verify vdb_core was called with custom index names
+        knowledge_base_search_tool.vdb_core.hybrid_search.assert_called_once_with(
             index_names=["custom_index1", "custom_index2"],
             query_text="test query",
             embedding_model=knowledge_base_search_tool.embedding_model,
@@ -265,7 +265,7 @@ class TestKnowledgeBaseSearchTool:
 
         # Mock search results
         mock_results = create_mock_search_result(2)
-        knowledge_base_search_tool.es_core.hybrid_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.hybrid_search.return_value = mock_results
 
         result = knowledge_base_search_tool.forward("test query")
 
@@ -291,7 +291,7 @@ class TestKnowledgeBaseSearchTool:
                 "index": "test_index"
             }
         ]
-        knowledge_base_search_tool.es_core.hybrid_search.return_value = mock_results
+        knowledge_base_search_tool.vdb_core.hybrid_search.return_value = mock_results
 
         result = knowledge_base_search_tool.forward("test query")
 

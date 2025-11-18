@@ -59,7 +59,7 @@ sys.modules['services.remote_mcp_service'] = MagicMock()
 sys.modules['database.agent_db'] = MagicMock()
 sys.modules['database.tool_db'] = MagicMock()
 sys.modules['database.model_management_db'] = MagicMock()
-sys.modules['services.elasticsearch_service'] = MagicMock()
+sys.modules['services.vectordatabase_service'] = MagicMock()
 sys.modules['services.tenant_config_service'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()
 sys.modules['utils.config_utils'] = MagicMock()
@@ -250,7 +250,7 @@ class TestCreateToolConfigList:
         with patch('backend.agents.create_agent_info.discover_langchain_tools') as mock_discover, \
                 patch('backend.agents.create_agent_info.search_tools_for_sub_agent') as mock_search_tools, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
-                patch('backend.agents.create_agent_info.elastic_core') as mock_elastic, \
+                patch('backend.agents.create_agent_info.get_vector_db_core') as mock_get_vector_db_core, \
                 patch('backend.agents.create_agent_info.get_embedding_model') as mock_embedding:
 
             mock_discover.return_value = []
@@ -268,9 +268,10 @@ class TestCreateToolConfigList:
             ]
             mock_knowledge.return_value = [
                 {"index_name": "knowledge_1"},
-                {"index_name": "knowledge_2"}
+                {"index_name": "knowledge_2"},
             ]
-            mock_elastic.return_value = "mock_elastic_core"
+            mock_vdb_core = "mock_elastic_core"
+            mock_get_vector_db_core.return_value = mock_vdb_core
             mock_embedding.return_value = "mock_embedding_model"
 
             result = await create_tool_config_list("agent_1", "tenant_1", "user_1")
