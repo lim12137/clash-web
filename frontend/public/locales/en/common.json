@@ -1025,5 +1025,16 @@
   "space.detail.source": "Source",
   "space.detail.category": "Category",
   "space.detail.usage": "Usage",
-  "space.detail.parameters": "Parameters"
+  "space.detail.parameters": "Parameters",
+
+  "sidebar.homePage": "Home Page",
+  "sidebar.startChat": "Start Chat",
+  "sidebar.quickConfig": "Quick Setup",
+  "sidebar.agentSpace": "Agent Space",
+  "sidebar.agentMarket": "Agent Market",
+  "sidebar.agentDev": "Agent Development",
+  "sidebar.knowledgeBase": "Knowledge Base",
+  "sidebar.modelManagement": "Model Management",
+  "sidebar.memoryManagement": "Memory Management",
+  "sidebar.userManagement": "User Management"
 }
