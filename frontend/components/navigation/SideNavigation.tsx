@@ -27,6 +27,8 @@ const { Sider } = Layout;
 interface SideNavigationProps {
   onAuthRequired?: () => void;
   onAdminRequired?: () => void;
+  onViewChange?: (view: string) => void;
+  currentView?: string;
 }
 
 /**
@@ -40,12 +42,13 @@ function getMenuKeyFromPathname(pathname: string): string {
   // Map paths to menu keys
   const pathToKeyMap: Record<string, string> = {
     '': '0',           // Home page
-    'chat': '1',       // Start chat
+    'chat': '1',       // Start chat (separate page)
     'setup': '2',      // Quick config
     'space': '3',      // Agent space
     'agents': '5',     // Agent dev
     'knowledges': '6', // Knowledge base
     'models': '7',     // Model management
+    'memory': '8',     // Memory management
   };
   
   return pathToKeyMap[pathWithoutLocale] || '0';
@@ -58,6 +61,8 @@ function getMenuKeyFromPathname(pathname: string): string {
 export function SideNavigation({
   onAuthRequired,
   onAdminRequired,
+  onViewChange,
+  currentView,
 }: SideNavigationProps) {
   const { t } = useTranslation("common");
   const { user, isSpeedMode } = useAuth();
@@ -65,11 +70,27 @@ export function SideNavigation({
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState("0");
   
-  // Update selected key when pathname changes
+  // Update selected key when pathname or currentView changes
   useEffect(() => {
-    const key = getMenuKeyFromPathname(pathname);
-    setSelectedKey(key);
-  }, [pathname]);
+    // If we have a currentView from parent, use it to determine the key
+    if (currentView) {
+      const viewToKeyMap: Record<string, string> = {
+        'home': '0',
+        'chat': '1',
+        'setup': '2',
+        'space': '3',
+        'agents': '5',
+        'knowledges': '6',
+        'models': '7',
+        'memory': '8',
+      };
+      setSelectedKey(viewToKeyMap[currentView] || '0');
+    } else {
+      // Otherwise, fall back to pathname-based selection
+      const key = getMenuKeyFromPathname(pathname);
+      setSelectedKey(key);
+    }
+  }, [pathname, currentView]);
 
   // Menu items configuration
   const menuItems: MenuProps["items"] = [
@@ -78,7 +99,7 @@ export function SideNavigation({
       icon: <Home className="h-4 w-4" />,
       label: t("sidebar.homePage"),
       onClick: () => {
-        window.location.href = "/";
+        onViewChange?.("home");
       },
     },
     {
@@ -89,6 +110,7 @@ export function SideNavigation({
         if (!isSpeedMode && !user) {
           onAuthRequired?.();
         } else {
+          // Chat page remains as separate route since it's a different page structure
           window.location.href = "/chat";
         }
       },
@@ -101,7 +123,7 @@ export function SideNavigation({
         if (!isSpeedMode && user?.role !== "admin") {
           onAdminRequired?.();
         } else {
-          window.location.href = "/setup";
+          onViewChange?.("setup");
         }
       },
     },
@@ -113,7 +135,7 @@ export function SideNavigation({
         if (!isSpeedMode && !user) {
           onAuthRequired?.();
         } else {
-          window.location.href = "/space";
+          onViewChange?.("space");
         }
       },
     },
@@ -130,7 +152,7 @@ export function SideNavigation({
         if (!isSpeedMode && user?.role !== "admin") {
           onAdminRequired?.();
         } else {
-          window.location.href = "/agents";
+          onViewChange?.("agents");
         }
       },
     },
@@ -142,7 +164,7 @@ export function SideNavigation({
         if (!isSpeedMode && !user) {
           onAuthRequired?.();
         } else {
-          window.location.href = "/knowledges";
+          onViewChange?.("knowledges");
         }
       },
     },
@@ -154,7 +176,7 @@ export function SideNavigation({
         if (!isSpeedMode && user?.role !== "admin") {
           onAdminRequired?.();
         } else {
-          window.location.href = "/models";
+          onViewChange?.("models");
         }
       },
     },
@@ -162,6 +184,13 @@ export function SideNavigation({
       key: "8",
       icon: <Database className="h-4 w-4" />,
       label: t("sidebar.memoryManagement"),
+      onClick: () => {
+        if (!isSpeedMode && !user) {
+          onAuthRequired?.();
+        } else {
+          onViewChange?.("memory");
+        }
+      },
     },
     {
       key: "9",
@@ -170,11 +199,11 @@ export function SideNavigation({
     },
   ];
 
-  // Calculate sidebar height dynamically based on header and footer heights
-  const headerHeight = parseInt(HEADER_CONFIG.HEIGHT);
-  const footerHeight = parseInt(FOOTER_CONFIG.HEIGHT);
-  const sidebarHeight = `calc(105vh - ${headerHeight}px - ${footerHeight}px)`;
-  const sidebarTop = `${headerHeight}px`;
+  // Calculate sidebar height dynamically based on header and footer reserved heights
+  const headerReservedHeight = parseInt(HEADER_CONFIG.RESERVED_HEIGHT);
+  const footerReservedHeight = parseInt(FOOTER_CONFIG.RESERVED_HEIGHT);
+  const sidebarHeight = `calc(105vh - ${headerReservedHeight}px - ${footerReservedHeight}px)`;
+  const sidebarTop = `${headerReservedHeight}px`;
 
   return (
     <ConfigProvider

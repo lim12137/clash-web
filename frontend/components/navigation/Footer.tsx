@@ -33,8 +33,8 @@ export function Footer() {
 
   return (
     <footer
-      className="w-full py-4 px-4 border-t border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm"
-      style={{ height: "40px" }}
+      className="w-full py-3 px-4 border-t border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm"
+      style={{ height: FOOTER_CONFIG.DISPLAY_HEIGHT }}
     >
       <div className="flex flex-col md:flex-row justify-between items-center h-full">
         <div className="flex items-center gap-8">

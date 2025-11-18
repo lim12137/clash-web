@@ -937,10 +937,10 @@
 
   "memoryService.loadMemoryError": "加载记忆失败，请稍后重试",
   "memoryService.tenantSharedGroupTitle": "租户所有用户的共享记忆",
-  "memoryService.agentSharedGroupTitle": "{{agentName}} 所有用户的共享记忆",
+  "memoryService.agentSharedGroupTitle": "{{agentName}}",
   "memoryService.agentSharedPlaceholder": "Agent 共享记忆",
   "memoryService.userPersonalGroupTitle": "用户的个性化记忆",
-  "memoryService.userAgentGroupTitle": "{{agentName}} 中的用户记忆",
+  "memoryService.userAgentGroupTitle": "{{agentName}}",
   "memoryService.userAgentPlaceholder": "用户 Agent 记忆",
 
   "memoryManageModal.title": "记忆管理",

@@ -15,10 +15,14 @@ interface NavigationLayoutProps {
   onAdminRequired?: () => void;
   showFooter?: boolean;
   contentMode?: "centered" | "scrollable";
-  /** Custom content for the left side of the top navbar */
-  topNavbarLeftContent?: React.ReactNode;
-  /** Custom content for the right side of the top navbar */
-  topNavbarRightContent?: React.ReactNode;
+  /** Additional title text to display after logo in top navbar */
+  topNavbarAdditionalTitle?: React.ReactNode;
+  /** Additional content to insert before default right nav items in top navbar */
+  topNavbarAdditionalRightContent?: React.ReactNode;
+  /** Callback for view changes in side navigation */
+  onViewChange?: (view: string) => void;
+  /** Current active view */
+  currentView?: string;
 }
 
 /**
@@ -27,8 +31,8 @@ interface NavigationLayoutProps {
  * 
  * @param contentMode - "centered": content is centered vertically and horizontally (default)
  *                      "scrollable": content can scroll and fills the entire area
- * @param topNavbarLeftContent - Custom content to display on the left side of the top navbar
- * @param topNavbarRightContent - Custom content to display on the right side of the top navbar
+ * @param topNavbarAdditionalTitle - Additional title text after logo in top navbar
+ * @param topNavbarAdditionalRightContent - Additional content before default right nav items
  */
 export function NavigationLayout({
   children,
@@ -36,21 +40,25 @@ export function NavigationLayout({
   onAdminRequired,
   showFooter = true,
   contentMode = "centered",
-  topNavbarLeftContent,
-  topNavbarRightContent,
+  topNavbarAdditionalTitle,
+  topNavbarAdditionalRightContent,
+  onViewChange,
+  currentView,
 }: NavigationLayoutProps) {
-  const headerHeight = parseInt(HEADER_CONFIG.HEIGHT);
-  const footerHeight = parseInt(FOOTER_CONFIG.HEIGHT);
+  // Use RESERVED_HEIGHT for layout calculations (actual space occupied)
+  const headerReservedHeight = parseInt(HEADER_CONFIG.RESERVED_HEIGHT);
+  const footerReservedHeight = parseInt(FOOTER_CONFIG.RESERVED_HEIGHT);
+  
   const contentMinHeight = showFooter
-    ? `calc(100vh - ${headerHeight}px - ${footerHeight}px)`
-    : `calc(100vh - ${headerHeight}px)`;
+    ? `calc(100vh - ${headerReservedHeight}px - ${footerReservedHeight}px)`
+    : `calc(100vh - ${headerReservedHeight}px)`;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Top navigation bar */}
       <TopNavbar 
-        leftContent={topNavbarLeftContent}
-        rightContent={topNavbarRightContent}
+        additionalTitle={topNavbarAdditionalTitle}
+        additionalRightContent={topNavbarAdditionalRightContent}
       />
 
       {/* Layout with sidebar and content */}
@@ -66,6 +74,8 @@ export function NavigationLayout({
         <SideNavigation
           onAuthRequired={onAuthRequired}
           onAdminRequired={onAdminRequired}
+          onViewChange={onViewChange}
+          currentView={currentView}
         />
 
         {/* Main content area */}
@@ -76,8 +86,8 @@ export function NavigationLayout({
               : "flex-1 overflow-auto"
           }
           style={{
-                  paddingTop: `${headerHeight}px`,
-                  paddingBottom: showFooter ? `${footerHeight}px` : 0
+                  paddingTop: `${headerReservedHeight}px`,
+                  paddingBottom: showFooter ? `${footerReservedHeight}px` : 0
           }}
         >
           {contentMode === "centered" ? (
