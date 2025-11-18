@@ -135,9 +135,7 @@ export default function ModelsContent({
             onSelectedModelsChange={(selected) =>
               setLiveSelectedModels(selected)
             }
-            onEmbeddingConnectivityChange={(status) =>
-              console.log(status)
-            }
+            onEmbeddingConnectivityChange={() => {}}
             forwardedRef={modelConfigSectionRef}
             canAccessProtectedData={canAccessProtectedData}
           />
