@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useEffect, useRef, useState} from "react";
+import React, {useRef, useState} from "react";
 import {App} from "antd";
 import {motion} from "framer-motion";
 

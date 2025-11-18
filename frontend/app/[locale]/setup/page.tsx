@@ -147,7 +147,7 @@ export default function SetupPage() {
   return (
     <NavigationLayout
       contentMode="scrollable"
-      showFooter={true}
+      showFooter={false}
       topNavbarLeftContent={
         <SetupHeaderLeftContent
           title={t("setup.header.title")}
@@ -173,11 +173,9 @@ export default function SetupPage() {
         nextText={t("setup.navigation.button.next")}
         completeText={t("setup.navigation.button.complete")}
       >
-        
         {/* Render content based on current step */}
         {currentStep === "models" && isAdmin && (
           <ModelsContent
-            showNavigation={true}
             onNext={handleNext}
             connectionStatus={connectionStatus}
             isCheckingConnection={isCheckingConnection}
@@ -187,10 +185,6 @@ export default function SetupPage() {
 
         {currentStep === "knowledges" && (
           <KnowledgesContent
-            showNavigation={true}
-            onBack={handleBack}
-            onNext={isAdmin ? handleNext : undefined}
-            onComplete={!isAdmin ? handleComplete : undefined}
             isSaving={isSaving}
             connectionStatus={connectionStatus}
             isCheckingConnection={isCheckingConnection}
@@ -201,9 +195,6 @@ export default function SetupPage() {
 
         {currentStep === "agents" && isAdmin && (
           <AgentsContent
-            showNavigation={true}
-            onBack={handleBack}
-            onComplete={handleComplete}
             isSaving={isSaving}
             connectionStatus={connectionStatus}
             isCheckingConnection={isCheckingConnection}
