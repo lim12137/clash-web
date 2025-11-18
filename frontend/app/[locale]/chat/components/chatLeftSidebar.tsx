@@ -13,6 +13,7 @@ import {
   Box,
   Bot,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -132,7 +133,8 @@ export function ChatSidebar({
   userAvatarUrl,
   userRole = USER_ROLES.USER,
 }: ChatSidebarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { today, week, older } = categorizeDialogs(conversationList);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -260,10 +262,10 @@ export function ChatSidebar({
       <Button
         variant="ghost"
         size="icon"
-        className={isCollapsed ? "h-10 w-10 rounded-full hover:bg-slate-100" : "size-10 rounded-full hover:bg-slate-100"}
+        className="h-10 w-10 rounded-full hover:bg-slate-100"
         onClick={settingsMenuItems ? undefined : onSettingsClick}
       >
-        <Settings className={isCollapsed ? "h-6 w-6" : "size-5"} />
+        <Settings className="h-6 w-6" strokeWidth={2.5} />
       </Button>
     );
 
@@ -305,9 +307,7 @@ export function ChatSidebar({
                 }}
               >
                 <Dropdown menu={menuProps} placement="topRight" trigger={["click"]}>
-                  <div className={isCollapsed ? "flex justify-center" : ""}>
-                    {buttonContent}
-                  </div>
+                  <div>{buttonContent}</div>
                 </Dropdown>
               </ConfigProvider>
             </TooltipTrigger>
@@ -324,9 +324,7 @@ export function ChatSidebar({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className={isCollapsed ? "flex justify-center" : ""}>
-              {buttonContent}
-            </div>
+            <div>{buttonContent}</div>
           </TooltipTrigger>
           <TooltipContent side={isCollapsed ? "right" : "top"}>
             {t("chatLeftSidebar.settings")}
@@ -457,41 +455,18 @@ export function ChatSidebar({
   const renderCollapsedSidebar = () => {
     return (
       <>
-        {/* Application icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className="flex justify-start p-4 cursor-pointer"
-                onClick={onToggleSidebar}
-              >
-                <div className="h-8 w-8 rounded-full overflow-hidden">
-                  <img
-                    src={collapsedAvatarUrl}
-                    alt={appConfig.appName}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">{appConfig.appName}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <div className="flex flex-col flex-1 items-center">
+        {/* Expand/Collapse button */}
+        <div className="py-3 flex justify-center">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-14 w-14 rounded-full hover:bg-slate-100"
+                  className="h-10 w-10 rounded-full hover:bg-slate-100"
                   onClick={onToggleSidebar}
                 >
-                  <ChevronRight
-                    className="h-6 w-6"
-                    style={{ height: "28px", width: "28px" }}
-                  />
+                  <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -499,20 +474,41 @@ export function ChatSidebar({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        </div>
 
+        {/* Application icon */}
+        <div className="py-3 flex justify-center">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="h-8 w-8 rounded-full overflow-hidden cursor-pointer"
+                  onClick={() => router.push(`/${i18n.language}`)}
+                >
+                  <img
+                    src={collapsedAvatarUrl}
+                    alt={appConfig.appName}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">{appConfig.appName}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        {/* New conversation button */}
+        <div className="py-3 flex justify-center">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-14 w-14 rounded-full hover:bg-slate-100"
+                  className="h-10 w-10 rounded-full hover:bg-slate-100"
                   onClick={onNewConversation}
                 >
-                  <Plus
-                    className="h-6 w-6"
-                    style={{ height: "20px", width: "20px" }}
-                  />
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -522,20 +518,23 @@ export function ChatSidebar({
           </TooltipProvider>
         </div>
 
-        {/* Bottom area */}
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Bottom area - User avatar */}
         {userAuthLoading ? (
-          <div className="py-2 flex justify-center">
+          <div className="py-3 flex justify-center">
             <div className="h-8 w-8 flex items-center justify-center">
               <Spin size="default" />
             </div>
           </div>
         ) : !isSpeedMode ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="py-2 flex justify-center cursor-pointer">
+          <div className="py-3 flex justify-center">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <div
-                    className="h-8 w-8 rounded-full overflow-hidden"
+                    className="h-8 w-8 rounded-full overflow-hidden cursor-pointer"
                     style={{ backgroundColor: "#f0f2f5" }}
                   >
                     {userAvatarUrl ? (
@@ -550,17 +549,19 @@ export function ChatSidebar({
                       </div>
                     )}
                   </div>
-                </div>
-              </TooltipTrigger>
-              {userEmail && (
-                <TooltipContent side="right">{userEmail}</TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+                </TooltipTrigger>
+                {userEmail && (
+                  <TooltipContent side="right">{userEmail}</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ) : null}
 
         {/* Settings button */}
-        {renderSettingsButton(true)}
+        <div className="py-3 flex justify-center">
+          {renderSettingsButton(true)}
+        </div>
       </>
     );
   };
@@ -581,7 +582,7 @@ export function ChatSidebar({
               <div className="flex items-center p-2">
                 <div
                   className="flex-1 min-w-0 flex items-center justify-start cursor-pointer"
-                  onClick={onToggleSidebar}
+                  onClick={() => router.push(`/${i18n.language}`)}
                 >
                   <div>{renderAppIcon()}</div>
                   <h1
