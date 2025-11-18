@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from consts.const import LOCALHOST_IP, LOCALHOST_NAME, DOCKER_INTERNAL_HOST
 from consts.model import ModelConnectStatusEnum
@@ -25,7 +25,7 @@ from utils.model_name_utils import (
     sort_models_by_id,
 )
 from utils.memory_utils import build_memory_config as build_memory_config_for_tenant
-from services.elasticsearch_service import get_es_core
+from services.vectordatabase_service import get_vector_db_core
 from nexent.memory.memory_service import clear_model_memories
 
 logger = logging.getLogger("model_management_service")
@@ -244,12 +244,12 @@ async def delete_model_for_tenant(user_id: str, tenant_id: str, display_name: st
 
             # Best-effort memory cleanup using the fetched variants
             try:
-                es_core = get_es_core()
+                vdb_core = get_vector_db_core()
                 base_memory_config = build_memory_config_for_tenant(tenant_id)
                 for t, m in models_by_type.items():
                     try:
                         await clear_model_memories(
-                            es_core=es_core,
+                            vdb_core=vdb_core,
                             model_repo=m.get("model_repo", ""),
                             model_name=m.get("model_name", ""),
                             embedding_dims=int(m.get("max_tokens") or 0),
