@@ -75,14 +75,10 @@ export function NavigationLayout({
               ? "flex-1 flex items-center justify-center overflow-hidden"
               : "flex-1 overflow-auto"
           }
-          style={
-            contentMode === "scrollable"
-              ? { 
+          style={{
                   paddingTop: `${headerHeight}px`,
                   paddingBottom: showFooter ? `${footerHeight}px` : 0
-                }
-              : undefined
-          }
+          }}
         >
           {contentMode === "centered" ? (
             <div className="w-full h-full flex items-center justify-center p-4">

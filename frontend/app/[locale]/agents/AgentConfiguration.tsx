@@ -36,7 +36,7 @@ import { configStore } from "@/lib/config";
 import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
 import DebugConfig from "./components/DebugConfig";
 
-import "../../i18n";
+import "../i18n";
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG: LayoutConfig = AGENT_SETUP_LAYOUT_DEFAULT;
