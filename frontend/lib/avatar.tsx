@@ -191,6 +191,53 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 /**
+ * Generate avatar from name (for agent avatars)
+ * @param name Agent name or display name
+ * @param size Avatar size (default: 30)
+ * @param scale Scale percentage (default: 80)
+ * @returns Generated avatar data URI
+ */
+export const generateAvatarFromName = (name: string, size: number = 30, scale: number = 80): string => {
+  // Use name as seed to generate consistent color
+  const seed = name || "default";
+  const random = new SeededRandom(seed);
+  
+  // Generate main color from name
+  const r = random.randomInt(50, 200);
+  const g = random.randomInt(50, 200);
+  const b = random.randomInt(50, 200);
+  const mainColor = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  const secondaryColor = generateComplementaryColor(mainColor);
+  
+  // Select icon based on name
+  const iconIndex = random.randomInt(0, presetIcons.length - 1);
+  const selectedIcon = presetIcons[iconIndex];
+  
+  const avatar = createAvatar(iconStyle, {
+    seed: seed,
+    backgroundColor: [mainColor, secondaryColor],
+    backgroundType: ["gradientLinear"], 
+    icon: [selectedIcon.key],
+    scale: scale,
+    size: size,
+    radius: 50
+  });
+  
+  return avatar.toDataUri();
+};
+
+/**
+ * Generate avatar from email or identifier (for user avatars)
+ * @param identifier Email or other identifier
+ * @param size Avatar size (default: 30)
+ * @param scale Scale percentage (default: 80)
+ * @returns Generated avatar data URI
+ */
+export const generateAvatarUrl = (identifier: string, size: number = 30, scale: number = 80): string => {
+  return generateAvatarFromName(identifier, size, scale);
+};
+
+/**
  * Extract main and secondary colors from Dicebear generated Data URI, reserved for app name use
  * @param dataUri Dicebear generated avatar data URI
  * @returns Object containing mainColor and secondaryColor, color values without # prefix

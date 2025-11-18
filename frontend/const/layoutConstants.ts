@@ -6,7 +6,7 @@
 // Header configuration
 export const HEADER_CONFIG = {
   // Header height (including padding)
-  HEIGHT: "64px",
+  HEIGHT: "55px",
   
   // Vertical padding
   VERTICAL_PADDING: "16px", // py-4
@@ -18,7 +18,7 @@ export const HEADER_CONFIG = {
 // Footer configuration
 export const FOOTER_CONFIG = {
   // Footer height (including padding)
-  HEIGHT: "64px",
+  HEIGHT: "50px",
   
   // Vertical padding
   VERTICAL_PADDING: "16px", // py-4

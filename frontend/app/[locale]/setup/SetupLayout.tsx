@@ -10,26 +10,57 @@ import {FiArrowLeft, FiRefreshCw} from "react-icons/fi";
 import {Globe} from "lucide-react";
 import {languageOptions} from "@/const/constants";
 import {useLanguageSwitch} from "@/lib/language";
-import {HEADER_CONFIG} from "@/const/layoutConstants";
 import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
 
-// ================ Header ================
-interface HeaderProps {
-  connectionStatus: ConnectionStatus;
-  isCheckingConnection: boolean;
-  onCheckConnection: () => void;
+// ================ Setup Header Content Components ================
+// These components are exported so they can be used to customize the TopNavbar
+
+interface SetupHeaderLeftContentProps {
   title: string;
   description: string;
 }
 
-function Header({
+export function SetupHeaderLeftContent({
+  title,
+  description,
+}: SetupHeaderLeftContentProps) {
+  const router = useRouter();
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center">
+      <Button
+        onClick={() => router.push("/")}
+        className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+        aria-label={t("setup.header.button.back")}
+        icon={
+          <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
+        }
+        type="text"
+        shape="circle"
+      />
+      <h1 className="text-xl font-bold text-blue-600 dark:text-blue-500">
+        {title}
+      </h1>
+      <div className="mx-2 h-6 border-l border-slate-300 dark:border-slate-600"></div>
+      <span className="text-slate-600 dark:text-slate-400 text-sm">
+        {description}
+      </span>
+    </div>
+  );
+}
+
+interface SetupHeaderRightContentProps {
+  connectionStatus: ConnectionStatus;
+  isCheckingConnection: boolean;
+  onCheckConnection: () => void;
+}
+
+export function SetupHeaderRightContent({
   connectionStatus,
   isCheckingConnection,
   onCheckConnection,
-  title,
-  description,
-}: HeaderProps) {
-  const router = useRouter();
+}: SetupHeaderRightContentProps) {
   const { t } = useTranslation();
   const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
 
@@ -48,30 +79,6 @@ function Header({
   };
 
   return (
-    <header
-      className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm"
-      style={{ height: HEADER_CONFIG.HEIGHT }}
-    >
-      <div className="flex items-center">
-        <Button
-          onClick={() => router.push("/")}
-          className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-          aria-label={t("setup.header.button.back")}
-          icon={
-            <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
-          }
-          type="text"
-          shape="circle"
-        />
-        <h1 className="text-xl font-bold text-blue-600 dark:text-blue-500">
-          {title}
-        </h1>
-        <div className="mx-2 h-6 border-l border-slate-300 dark:border-slate-600"></div>
-        <span className="text-slate-600 dark:text-slate-400 text-sm">
-          {description}
-        </span>
-      </div>
-      {/* Language switch */}
       <div className="flex items-center gap-3">
         <Dropdown
           menu={{
@@ -110,7 +117,6 @@ function Header({
           />
         </div>
       </div>
-    </header>
   );
 }
 
@@ -195,11 +201,6 @@ function Navigation({
 // ================ Layout ================
 interface SetupLayoutProps {
   children: ReactNode;
-  connectionStatus: ConnectionStatus;
-  isCheckingConnection: boolean;
-  onCheckConnection: () => void;
-  title: string;
-  description: string;
   onBack?: () => void;
   onNext?: () => void;
   onComplete?: () => void;
@@ -211,13 +212,13 @@ interface SetupLayoutProps {
   completeText?: string;
 }
 
+/**
+ * SetupLayout - Content wrapper for setup pages
+ * This component should be wrapped by NavigationLayout
+ * Use SetupHeaderLeftContent and SetupHeaderRightContent for customizing the top navbar
+ */
 export default function SetupLayout({
   children,
-  connectionStatus,
-  isCheckingConnection,
-  onCheckConnection,
-  title,
-  description,
   onBack,
   onNext,
   onComplete,
@@ -229,18 +230,12 @@ export default function SetupLayout({
   completeText,
 }: SetupLayoutProps) {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans">
-      <Header
-        connectionStatus={connectionStatus}
-        isCheckingConnection={isCheckingConnection}
-        onCheckConnection={onCheckConnection}
-        title={title}
-        description={description}
-      />
-
-      {/* Main content */}
-      <div className="max-w-[1800px] mx-auto px-8 pb-4 mt-6 bg-transparent">
+    <div className="w-full h-full bg-slate-50 dark:bg-slate-900 font-sans">
+      {/* Main content with fixed size */}
+      <div className="max-w-[1800px] mx-auto px-8 pb-4 pt-6 bg-transparent h-full flex flex-col">
+        <div className="flex-1 overflow-auto">
         {children}
+        </div>
         <Navigation
           onBack={onBack}
           onNext={onNext}
