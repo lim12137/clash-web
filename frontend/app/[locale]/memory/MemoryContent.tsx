@@ -1,0 +1,518 @@
+"use client";
+
+import React, { useState } from "react";
+import { App, Button, Card, Input, List, Menu, Switch, Tabs } from "antd";
+import { motion } from "framer-motion";
+import "./memory.css";
+import {
+  MessageSquarePlus,
+  Eraser,
+  MessageSquareOff,
+  UsersRound,
+  UserRound,
+  Bot,
+  Share2,
+  Settings,
+  MessageSquareDashed,
+  Check,
+  X,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { useAuth } from "@/hooks/useAuth";
+import { useMemory } from "@/hooks/useMemory";
+import { useSetupFlow } from "@/hooks/useSetupFlow";
+import { USER_ROLES, MEMORY_TAB_KEYS, MemoryTabKey } from "@/const/modelConfig";
+import { MEMORY_SHARE_STRATEGY, MemoryShareStrategy } from "@/const/memoryConfig";
+import {
+  SETUP_PAGE_CONTAINER,
+  STANDARD_CARD,
+} from "@/const/layoutConstants";
+
+import MemoryDeleteConfirmation from "./components/MemoryDeleteConfirmation";
+
+interface MemoryContentProps {
+  /** Custom navigation handler (optional) */
+  onNavigate?: () => void;
+}
+
+/**
+ * MemoryContent - Main component for memory management page
+ * Redesigned from modal to full-page layout with cards
+ */
+export default function MemoryContent({ onNavigate }: MemoryContentProps) {
+  const { message } = App.useApp();
+  const { t } = useTranslation("common");
+  const { user, isSpeedMode } = useAuth();
+
+  // Use custom hook for common setup flow logic
+  const { canAccessProtectedData, pageVariants, pageTransition } = useSetupFlow({
+    requireAdmin: false,
+  });
+
+  const role: (typeof USER_ROLES)[keyof typeof USER_ROLES] = (isSpeedMode ||
+    user?.role === USER_ROLES.ADMIN
+    ? USER_ROLES.ADMIN
+    : USER_ROLES.USER) as (typeof USER_ROLES)[keyof typeof USER_ROLES];
+
+  // Mock user and tenant IDs (should come from context)
+  const currentUserId = "user1";
+  const currentTenantId = "tenant1";
+
+  const memory = useMemory({
+    visible: true,
+    currentUserId,
+    currentTenantId,
+    message,
+  });
+
+  // Clear memory confirmation state
+  const [clearConfirmVisible, setClearConfirmVisible] = useState(false);
+  const [clearTarget, setClearTarget] = useState<{
+    key: string;
+    title: string;
+  } | null>(null);
+
+  const handleClearConfirm = (groupKey: string, groupTitle: string) => {
+    setClearTarget({ key: groupKey, title: groupTitle });
+    setClearConfirmVisible(true);
+  };
+
+  const handleClearConfirmOk = async () => {
+    if (clearTarget) {
+      await memory.handleClearMemory(clearTarget.key, clearTarget.title);
+      setClearConfirmVisible(false);
+      setClearTarget(null);
+    }
+  };
+
+  const handleClearConfirmCancel = () => {
+    setClearConfirmVisible(false);
+    setClearTarget(null);
+  };
+
+  // Render base settings in a horizontal control bar
+  const renderBaseSettings = () => {
+    const shareOptionLabels: Record<MemoryShareStrategy, string> = {
+      [MEMORY_SHARE_STRATEGY.ALWAYS]: t("memoryManageModal.shareOption.always"),
+      [MEMORY_SHARE_STRATEGY.ASK]: t("memoryManageModal.shareOption.ask"),
+      [MEMORY_SHARE_STRATEGY.NEVER]: t("memoryManageModal.shareOption.never"),
+    };
+
+    return (
+      <Card className="mb-6 shadow-sm">
+        <div className="flex items-center justify-between gap-8">
+          <div className="flex items-center gap-4">
+            <Settings className="size-5 text-gray-600" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">
+                {t("memoryManageModal.memoryAbility")}
+              </span>
+            </div>
+          </div>
+          <Switch
+            checked={memory.memoryEnabled}
+            onChange={memory.setMemoryEnabled}
+          />
+        </div>
+
+        {memory.memoryEnabled && (
+          <div className="flex items-center justify-between gap-8 mt-6 pt-6 border-t">
+            <div className="flex items-center gap-4">
+              <Share2 className="size-5 text-gray-600" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">
+                  {t("memoryManageModal.agentMemoryShare")}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {Object.entries(shareOptionLabels).map(([key, label]) => (
+                <Button
+                  key={key}
+                  type={memory.shareOption === key ? "primary" : "default"}
+                  size="middle"
+                  onClick={() => memory.setShareOption(key as MemoryShareStrategy)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+    );
+  };
+
+  // Render add memory input (inline, doesn't expand container)
+  const renderAddMemoryInput = (groupKey: string) => {
+    if (memory.addingMemoryKey !== groupKey) return null;
+
+    return (
+      <div className="w-full flex items-center justify-center">
+        <div className="w-full flex items-start gap-3">
+          <Input.TextArea
+            value={memory.newMemoryContent}
+            onChange={(e) => memory.setNewMemoryContent(e.target.value)}
+            placeholder={t("memoryManageModal.inputPlaceholder")}
+            maxLength={500}
+            showCount
+            onPressEnter={memory.confirmAddingMemory}
+            disabled={memory.isAddingMemory}
+            className="flex-1"
+            autoSize={{ minRows: 1, maxRows: 3 }}
+            style={{ minHeight: "60px" }}
+          />
+          <div className="flex flex-col gap-2 flex-shrink-0 pt-1">
+            <Button
+              type="primary"
+              size="middle"
+              shape="circle"
+              icon={<Check className="size-4" />}
+              onClick={memory.confirmAddingMemory}
+              loading={memory.isAddingMemory}
+              disabled={!memory.newMemoryContent.trim()}
+              className="bg-green-500 hover:bg-green-600"
+            />
+            <Button
+              size="middle"
+              shape="circle"
+              icon={<X className="size-4" />}
+              onClick={memory.cancelAddingMemory}
+              disabled={memory.isAddingMemory}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render single list (for tenant shared and user personal) - no card, with header buttons
+  const renderSingleList = (group: { title: string; key: string; items: any[] }) => {
+    return (
+      <div className="memory-single-list">
+        <List
+          header={
+            <div className="flex items-center justify-between">
+              <span className="text-base font-medium">{group.title}</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MessageSquarePlus className="size-4" />}
+                  onClick={() => memory.startAddingMemory(group.key)}
+                  className="hover:bg-green-50 hover:text-green-600"
+                  title={t("memoryManageModal.addMemory")}
+                />
+                {group.items.length > 0 && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MessageSquareOff className="size-4" />}
+                    onClick={() => handleClearConfirm(group.key, group.title)}
+                    danger
+                    className="hover:bg-red-50"
+                    title={t("memoryManageModal.clearMemory")}
+                  />
+                )}
+              </div>
+            </div>
+          }
+          bordered
+          dataSource={group.items}
+          locale={{
+            emptyText: (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                <MessageSquareDashed className="size-12 mb-3 opacity-50" />
+                <p className="text-sm">{t("memoryManageModal.noMemory")}</p>
+              </div>
+            ),
+          }}
+          style={{ height: "calc(100vh - 280px)", overflowY: "auto" }}
+          renderItem={(item) => (
+            <List.Item
+              className="hover:bg-gray-50 transition-colors"
+              actions={[
+                <Button
+                  key="delete"
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<Eraser className="size-4" />}
+                  onClick={() => memory.handleDeleteMemory(item.id, group.key)}
+                  title={t("memoryManageModal.deleteMemory")}
+                />,
+              ]}
+            >
+              <div className="flex flex-col text-sm">{item.memory}</div>
+            </List.Item>
+          )}
+        >
+          {memory.addingMemoryKey === group.key && (
+            <List.Item 
+              className="bg-blue-50 border-t-2 border-blue-300 flex items-center" 
+              style={{ minHeight: "100px", padding: "20px" }}
+            >
+              {renderAddMemoryInput(group.key)}
+            </List.Item>
+          )}
+        </List>
+      </div>
+    );
+  };
+
+  // Render memory groups with menu (for agent shared and user agent)
+  const renderMemoryWithMenu = (
+    groups: { title: string; key: string; items: any[] }[],
+    showSwitch = false,
+    tabKey?: MemoryTabKey
+  ) => {
+    const [selectedKey, setSelectedKey] = useState<string>(
+      groups.length > 0 ? groups[0].key : ""
+    );
+
+    if (groups.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <MessageSquareDashed className="size-16 mb-4 text-gray-300" />
+          <p className="text-base text-gray-500">{t("memoryManageModal.noMemory")}</p>
+        </div>
+      );
+    }
+
+    const currentGroup = groups.find((g) => g.key === selectedKey) || groups[0];
+    const isPlaceholder = /-placeholder$/.test(currentGroup.key);
+    const disabled = !isPlaceholder && !!memory.disabledGroups[currentGroup.key];
+
+    const menuItems = groups.map((g) => {
+      const groupDisabled = !/-placeholder$/.test(g.key) && !!memory.disabledGroups[g.key];
+      return {
+        key: g.key,
+        label: (
+          <div className="flex items-center justify-between w-full">
+            <span className="truncate">{g.title}</span>
+            {showSwitch && !/-placeholder$/.test(g.key) && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Switch
+                  size="small"
+                  checked={!groupDisabled}
+                  onChange={(val) => memory.toggleGroup(g.key, val)}
+                />
+              </div>
+            )}
+          </div>
+        ),
+        disabled: groupDisabled,
+      };
+    });
+
+    return (
+      <div className="flex gap-4" style={{ height: "calc(100vh - 280px)" }}>
+        {/* Left Menu */}
+        <Menu
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          onClick={({ key }) => setSelectedKey(key)}
+          items={menuItems}
+          style={{ width: 280, height: "100%", overflowY: "auto" }}
+        />
+
+        {/* Right List */}
+        <div className="flex-1">
+          <List
+            header={
+              <div className="flex items-center justify-between">
+                <span className="text-base font-medium">{currentGroup.title}</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MessageSquarePlus className="size-4" />}
+                    onClick={() => memory.startAddingMemory(currentGroup.key)}
+                    disabled={disabled}
+                    className="hover:bg-green-50 hover:text-green-600"
+                    title={t("memoryManageModal.addMemory")}
+                  />
+                  {currentGroup.items.length > 0 && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<MessageSquareOff className="size-4" />}
+                      onClick={() =>
+                        !isPlaceholder && handleClearConfirm(currentGroup.key, currentGroup.title)
+                      }
+                      disabled={disabled}
+                      danger
+                      className="hover:bg-red-50"
+                      title={t("memoryManageModal.clearMemory")}
+                    />
+                  )}
+                </div>
+              </div>
+            }
+            bordered
+            dataSource={currentGroup.items}
+            locale={{
+              emptyText: (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <MessageSquareDashed className="size-12 mb-3 opacity-50" />
+                  <p className="text-sm">{t("memoryManageModal.noMemory")}</p>
+                </div>
+              ),
+            }}
+            style={{ height: "100%", overflowY: "auto" }}
+            renderItem={(item) => (
+              <List.Item
+                className="hover:bg-gray-50 transition-colors"
+                actions={[
+                  <Button
+                    key="delete"
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<Eraser className="size-4" />}
+                    onClick={() => memory.handleDeleteMemory(item.id, currentGroup.key)}
+                    disabled={disabled}
+                    title={t("memoryManageModal.deleteMemory")}
+                  />,
+                ]}
+              >
+                <div className="flex flex-col text-sm">{item.memory}</div>
+              </List.Item>
+            )}
+          >
+            {memory.addingMemoryKey === currentGroup.key && (
+              <List.Item 
+                className="bg-blue-50 border-t-2 border-blue-300 flex items-center" 
+                style={{ minHeight: "100px", padding: "20px" }}
+              >
+                {renderAddMemoryInput(currentGroup.key)}
+              </List.Item>
+            )}
+          </List>
+        </div>
+      </div>
+    );
+  };
+
+  const tabItems = [
+    {
+      key: MEMORY_TAB_KEYS.BASE,
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <Settings className="size-4" />
+          {t("memoryManageModal.baseSettings")}
+        </span>
+      ),
+      children: renderBaseSettings(),
+    },
+    ...(role === USER_ROLES.ADMIN
+      ? [
+          {
+            key: MEMORY_TAB_KEYS.TENANT,
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <UsersRound className="size-4" />
+                {t("memoryManageModal.tenantShareTab")}
+              </span>
+            ),
+            children: renderSingleList(memory.tenantSharedGroup),
+            disabled: !memory.memoryEnabled,
+          },
+          {
+            key: MEMORY_TAB_KEYS.AGENT_SHARED,
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <Share2 className="size-4" />
+                {t("memoryManageModal.agentShareTab")}
+              </span>
+            ),
+            children: renderMemoryWithMenu(
+              memory.agentSharedGroups,
+              true,
+              MEMORY_TAB_KEYS.AGENT_SHARED
+            ),
+            disabled:
+              !memory.memoryEnabled ||
+              memory.shareOption === MEMORY_SHARE_STRATEGY.NEVER,
+          },
+        ]
+      : []),
+    {
+      key: MEMORY_TAB_KEYS.USER_PERSONAL,
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <UserRound className="size-4" />
+          {t("memoryManageModal.userPersonalTab")}
+        </span>
+      ),
+      children: renderSingleList(memory.userPersonalGroup),
+      disabled: !memory.memoryEnabled,
+    },
+    {
+      key: MEMORY_TAB_KEYS.USER_AGENT,
+      label: (
+        <span className="inline-flex items-center gap-2">
+          <Bot className="size-4" />
+          {t("memoryManageModal.userAgentTab")}
+        </span>
+      ),
+      children: renderMemoryWithMenu(
+        memory.userAgentGroups,
+        true,
+        MEMORY_TAB_KEYS.USER_AGENT
+      ),
+      disabled: !memory.memoryEnabled,
+    },
+  ];
+
+  return (
+    <>
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        style={{ width: "100%", height: "100%" }}
+      >
+        {canAccessProtectedData ? (
+          <div
+            className="w-full mx-auto"
+            style={{
+              maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
+              padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`,
+            }}
+          >
+            <div
+              className={STANDARD_CARD.BASE_CLASSES}
+              style={{
+                height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+                padding: "25px",
+              }}
+            >
+              <Tabs
+                size="middle"
+                items={tabItems}
+                activeKey={memory.activeTabKey}
+                onChange={(key) => memory.setActiveTabKey(key)}
+                tabBarStyle={{
+                  marginBottom: "16px",
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
+      </motion.div>
+
+      {/* Clear memory confirmation */}
+      <MemoryDeleteConfirmation
+        visible={clearConfirmVisible}
+        targetTitle={clearTarget?.title ?? ""}
+        onOk={handleClearConfirmOk}
+        onCancel={handleClearConfirmCancel}
+      />
+    </>
+  );
+}
+
