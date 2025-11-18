@@ -96,16 +96,37 @@ export function SideNavigation({
       key: "5",
       icon: <Code className="h-4 w-4" />,
       label: t("sidebar.agentDev"),
+      onClick: () => {
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
+        } else {
+          window.location.href = "/agents";
+        }
+      },
     },
     {
       key: "6",
       icon: <BookOpen className="h-4 w-4" />,
       label: t("sidebar.knowledgeBase"),
+      onClick: () => {
+        if (!isSpeedMode && !user) {
+          onAuthRequired?.();
+        } else {
+          window.location.href = "/knowledges";
+        }
+      },
     },
     {
       key: "7",
       icon: <Settings className="h-4 w-4" />,
       label: t("sidebar.modelManagement"),
+      onClick: () => {
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
+        } else {
+          window.location.href = "/models";
+        }
+      },
     },
     {
       key: "8",
