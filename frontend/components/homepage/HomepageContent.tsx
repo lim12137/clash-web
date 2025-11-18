@@ -65,35 +65,59 @@ export function HomepageContent({
           transition={{ duration: 0.8, delay: 0.4 }}
           className="flex flex-col sm:flex-row gap-4"
         >
-          <Link
-            href={isSpeedMode || user ? "/chat" : "#"}
-            onClick={onAuthRequired}
-          >
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+          {/* Start Chat Button */}
+          {isSpeedMode || user ? (
+            <Link href="/chat">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.startChat")}
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              onClick={onAuthRequired}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
               <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
               {t("page.startChat")}
             </Button>
-          </Link>
+          )}
 
-          <Link
-            href={isSpeedMode || user?.role === "admin" ? "/setup" : "#"}
-            onClick={onAdminRequired}
-          >
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+          {/* Quick Config Button */}
+          {isSpeedMode || user?.role === "admin" ? (
+            <Link href="/setup">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.quickConfig")}
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              onClick={onAdminRequired}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
               <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
               {t("page.quickConfig")}
             </Button>
-          </Link>
+          )}
 
-          <Link
-            href={isSpeedMode || user ? "/space" : "#"}
-            onClick={onAuthRequired}
-          >
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+          {/* Agent Space Button */}
+          {isSpeedMode || user ? (
+            <Link href="/space">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.agentSpace")}
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              onClick={onAuthRequired}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
               <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
               {t("page.agentSpace")}
             </Button>
-          </Link>
+          )}
         </motion.div>
 
         {/* Data protection notice - only shown in full version */}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { usePathname } from "next/navigation";
 import { Layout, Menu, ConfigProvider, Button } from "antd";
 import {
   Bot,
@@ -29,6 +30,28 @@ interface SideNavigationProps {
 }
 
 /**
+ * Get menu key based on current pathname
+ */
+function getMenuKeyFromPathname(pathname: string): string {
+  // Remove locale prefix (e.g., /zh/, /en/)
+  const segments = pathname.split('/').filter(Boolean);
+  const pathWithoutLocale = segments.length > 1 ? segments[1] : '';
+  
+  // Map paths to menu keys
+  const pathToKeyMap: Record<string, string> = {
+    '': '0',           // Home page
+    'chat': '1',       // Start chat
+    'setup': '2',      // Quick config
+    'space': '3',      // Agent space
+    'agents': '5',     // Agent dev
+    'knowledges': '6', // Knowledge base
+    'models': '7',     // Model management
+  };
+  
+  return pathToKeyMap[pathWithoutLocale] || '0';
+}
+
+/**
  * Side navigation component with collapsible menu
  * Displays main navigation items for the application
  */
@@ -38,8 +61,15 @@ export function SideNavigation({
 }: SideNavigationProps) {
   const { t } = useTranslation("common");
   const { user, isSpeedMode } = useAuth();
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [selectedKey, setSelectedKey] = useState("1");
+  const [selectedKey, setSelectedKey] = useState("0");
+  
+  // Update selected key when pathname changes
+  useEffect(() => {
+    const key = getMenuKeyFromPathname(pathname);
+    setSelectedKey(key);
+  }, [pathname]);
 
   // Menu items configuration
   const menuItems: MenuProps["items"] = [
@@ -96,16 +126,37 @@ export function SideNavigation({
       key: "5",
       icon: <Code className="h-4 w-4" />,
       label: t("sidebar.agentDev"),
+      onClick: () => {
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
+        } else {
+          window.location.href = "/agents";
+        }
+      },
     },
     {
       key: "6",
       icon: <BookOpen className="h-4 w-4" />,
       label: t("sidebar.knowledgeBase"),
+      onClick: () => {
+        if (!isSpeedMode && !user) {
+          onAuthRequired?.();
+        } else {
+          window.location.href = "/knowledges";
+        }
+      },
     },
     {
       key: "7",
       icon: <Settings className="h-4 w-4" />,
       label: t("sidebar.modelManagement"),
+      onClick: () => {
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
+        } else {
+          window.location.href = "/models";
+        }
+      },
     },
     {
       key: "8",
