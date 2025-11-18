@@ -183,23 +183,21 @@ export default function CollaborativeAgentDisplay({
             <Tag
               key={agent.id}
               color="blue"
-              className="px-0.5 py-0.5 text-xs flex items-center justify-center"
+              className="flex items-center h-8"
               closable={isEditingMode && !isGeneratingAgent}
               onClose={() => handleRemoveCollaborativeAgent(Number(agent.id))}
               closeIcon={<CloseOutlined className="text-xs" />}
               style={{
-                fontSize: "9px",
-                padding: "1px 2px",
-                lineHeight: "1.2",
-                height: "auto",
-                minHeight: "16px",
-                borderRadius: "4px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
+                maxWidth: "200px",
               }}
             >
-              <span className="text-[9px] leading-none text-center">
+              <span
+                className="inline-block truncate"
+                style={{
+                  maxWidth: isEditingMode ? "170px" : "190px",
+                }}
+                title={agent.display_name || agent.name}
+              >
                 {agent.display_name || agent.name}
               </span>
             </Tag>
@@ -209,3 +207,4 @@ export default function CollaborativeAgentDisplay({
     </div>
   );
 }
+
