@@ -525,13 +525,13 @@ export default forwardRef<AgentConfigHandle, AgentConfigProps>(function AgentCon
         className="w-full mx-auto"
         style={{
           maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
-          height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+          padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`,
         }}
       >
         <div
           className={STANDARD_CARD.BASE_CLASSES}
           style={{
-            height: "100%",
+            height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
             ...STANDARD_CARD.CONTENT_SCROLL,
           }}
         >

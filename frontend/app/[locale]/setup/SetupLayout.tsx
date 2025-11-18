@@ -1,12 +1,11 @@
 "use client";
 
 import React, {ReactNode} from "react";
-import {useRouter} from "next/navigation";
 import {useTranslation} from "react-i18next";
 
 import {Badge, Button, Dropdown} from "antd";
 import {DownOutlined} from "@ant-design/icons";
-import {FiArrowLeft, FiRefreshCw} from "react-icons/fi";
+import {FiRefreshCw} from "react-icons/fi";
 import {Globe} from "lucide-react";
 import {languageOptions} from "@/const/constants";
 import {useLanguageSwitch} from "@/lib/language";
@@ -14,41 +13,6 @@ import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
 
 // ================ Setup Header Content Components ================
 // These components are exported so they can be used to customize the TopNavbar
-
-interface SetupHeaderLeftContentProps {
-  title: string;
-  description: string;
-}
-
-export function SetupHeaderLeftContent({
-  title,
-  description,
-}: SetupHeaderLeftContentProps) {
-  const router = useRouter();
-  const { t } = useTranslation();
-
-  return (
-    <div className="flex items-center">
-      <Button
-        onClick={() => router.push("/")}
-        className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-        aria-label={t("setup.header.button.back")}
-        icon={
-          <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
-        }
-        type="text"
-        shape="circle"
-      />
-      <h1 className="text-xl font-bold text-blue-600 dark:text-blue-500">
-        {title}
-      </h1>
-      <div className="mx-2 h-6 border-l border-slate-300 dark:border-slate-600"></div>
-      <span className="text-slate-600 dark:text-slate-400 text-sm">
-        {description}
-      </span>
-    </div>
-  );
-}
 
 interface SetupHeaderRightContentProps {
   connectionStatus: ConnectionStatus;
@@ -215,7 +179,7 @@ interface SetupLayoutProps {
 /**
  * SetupLayout - Content wrapper for setup pages
  * This component should be wrapped by NavigationLayout
- * Use SetupHeaderLeftContent and SetupHeaderRightContent for customizing the top navbar
+ * Use SetupHeaderRightContent for customizing the top navbar
  */
 export default function SetupLayout({
   children,
