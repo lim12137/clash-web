@@ -138,7 +138,7 @@ def stop_patches():
 
 atexit.register(stop_patches)
 
-# Create FastAPI apps for runtime and edit-time routers
+# Create FastAPI apps for runtime and config routers
 runtime_app = FastAPI()
 runtime_app.include_router(agent_runtime_router)
 runtime_client = TestClient(runtime_app)
