@@ -147,7 +147,7 @@
       "description": "基于多模态知识库、数据处理能力，提供多模态的智能体服务，支持文本、图像、音频等多种数据类型的输入输出。"
     }
   ],
-  "page.copyright": "Nexent 智能体 © {{year}}",
+  "page.copyright": "Nexent © {{year}}",
   "page.termsOfUse": "使用条款",
   "page.loginPrompt.title": "登录账号",
   "page.loginPrompt.register": "注册",

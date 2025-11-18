@@ -2,14 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
-
 import { useConfig } from "@/hooks/useConfig";
 import { configService } from "@/services/configService";
 import { EVENTS } from "@/const/auth";
+import { ChatInterface } from "./chatInterface";
 
-import { ChatInterface } from "./internal/chatInterface";
-
-export default function ChatPage() {
+/**
+ * ChatContent component - Main chat page content
+ * Handles authentication, config loading, and session management for the chat interface
+ */
+export function ChatContent() {
   const { appConfig } = useConfig();
   const { user, isLoading: userLoading, isSpeedMode } = useAuth();
   const canAccessProtectedData = isSpeedMode || (!userLoading && !!user);
@@ -56,8 +58,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-full w-full flex-col">
       <ChatInterface />
     </div>
   );
 }
+

@@ -21,12 +21,14 @@ import KnowledgesContent from "./knowledges/KnowledgesContent";
 import { SpaceContent } from "./space/components/SpaceContent";
 import { fetchAgentList, importAgent } from "@/services/agentConfigService";
 import SetupLayout from "./setup/SetupLayout";
+import { ChatContent } from "./chat/internal/ChatContent";
+import { ChatTopNavContent } from "./chat/internal/ChatTopNavContent";
 import { Badge, Button as AntButton } from "antd";
 import { FiRefreshCw } from "react-icons/fi";
 import { USER_ROLES } from "@/const/modelConfig";
 
 // View type definition
-type ViewType = "home" | "memory" | "models" | "agents" | "knowledges" | "space" | "setup";
+type ViewType = "home" | "memory" | "models" | "agents" | "knowledges" | "space" | "setup" | "chat";
 type SetupStep = "models" | "knowledges" | "agents";
 
 export default function Home() {
@@ -240,7 +242,7 @@ export default function Home() {
     };
 
     const handleSetupComplete = () => {
-      window.location.href = "/chat";
+      setCurrentView("chat");
     };
     
     // Determine setup button visibility based on current step and user role
@@ -290,6 +292,9 @@ export default function Home() {
               <HomepageContent
                 onAuthRequired={handleAuthRequired}
                 onAdminRequired={handleAdminRequired}
+                onChatNavigate={() => setCurrentView("chat")}
+                onSetupNavigate={() => setCurrentView("setup")}
+                onSpaceNavigate={() => setCurrentView("space")}
               />
             </div>
           );
@@ -344,8 +349,16 @@ export default function Home() {
               onRefresh={loadAgents}
               onLoadAgents={loadAgents}
               onImportAgent={handleImportAgent}
+              onChatNavigate={(agentId) => {
+                // TODO: Store the selected agentId and pass it to ChatContent
+                // For now, just navigate to chat view
+                setCurrentView("chat");
+              }}
             />
           );
+        
+        case "chat":
+          return <ChatContent />;
         
         case "setup":
           const setupNavProps = getSetupNavigationProps();
@@ -441,7 +454,18 @@ export default function Home() {
         onViewChange={handleViewChange}
         currentView={currentView}
         showFooter={currentView !== "setup"}
-        contentMode={currentView === "home" ? "centered" : currentView === "memory" || currentView === "models" ? "centered" : "scrollable"}
+        contentMode={
+          currentView === "home" 
+            ? "centered" 
+            : currentView === "memory" || currentView === "models" 
+            ? "centered" 
+            : currentView === "chat"
+            ? "fullscreen"
+            : "scrollable"
+        }
+        topNavbarAdditionalTitle={
+          currentView === "chat" ? <ChatTopNavContent /> : undefined
+        }
         topNavbarAdditionalRightContent={
           currentView === "setup" ? renderStatusBadge() : undefined
         }
