@@ -10,8 +10,8 @@ const app = next({
 const handle = app.getRequestHandler();
 
 // Backend addresses
-const HTTP_BACKEND = process.env.HTTP_BACKEND || 'http://localhost:5010'; // edit-time
-const WS_BACKEND = process.env.WS_BACKEND || 'ws://localhost:5014'; // edit-time
+const HTTP_BACKEND = process.env.HTTP_BACKEND || 'http://localhost:5010'; // config
+const WS_BACKEND = process.env.WS_BACKEND || 'ws://localhost:5014'; // runtime
 const RUNTIME_HTTP_BACKEND = process.env.RUNTIME_HTTP_BACKEND || 'http://localhost:5014'; // runtime
 const MINIO_BACKEND = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
 const PORT = 3000;
@@ -27,7 +27,7 @@ app.prepare().then(() => {
     if (pathname.includes('/attachments/') && !pathname.startsWith('/api/')) {
       proxy.web(req, res, { target: MINIO_BACKEND });
     } else if (pathname.startsWith('/api/')) {
-      // Route runtime endpoints to runtime backend, others to edit-time backend
+      // Route runtime endpoints to runtime backend, others to config backend
       const isRuntime =
         pathname.startsWith('/api/agent/run') ||
         pathname.startsWith('/api/agent/stop') ||

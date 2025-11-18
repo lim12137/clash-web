@@ -79,7 +79,7 @@ services:
     container_name: nexent-config
     restart: always
     ports:
-      - "5010:5010"  # Edit-time service port
+      - "5010:5010"  # Config service port
     volumes:
       - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
       - ${ROOT_DIR}/openssh-server/ssh-keys:/opt/ssh-keys:ro
