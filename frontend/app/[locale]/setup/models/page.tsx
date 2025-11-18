@@ -20,7 +20,8 @@ import {
 import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
-import SetupLayout from "../SetupLayout";
+import SetupLayout, { SetupHeaderLeftContent, SetupHeaderRightContent } from "../SetupLayout";
+import { NavigationLayout } from "@/components/navigation/NavigationLayout";
 import AppModelConfig from "./config";
 import { ModelConfigSectionRef } from "./components/modelConfig";
 import EmbedderCheckModal from "./components/model/EmbedderCheckModal";
@@ -231,49 +232,62 @@ export default function ModelSetupPage() {
   }
 
   return (
-    <SetupLayout
-      connectionStatus={connectionStatus}
-      isCheckingConnection={isCheckingConnection}
-      onCheckConnection={checkModelEngineConnection}
-      title={t("setup.header.title")}
-      description={t("setup.header.description")}
-      onNext={handleNext}
-      showNext={true}
-      nextText={t("setup.navigation.button.next")}
+    <NavigationLayout
+      contentMode="scrollable"
+      showFooter={false}
+      topNavbarLeftContent={
+        <SetupHeaderLeftContent
+          title={t("setup.header.title")}
+          description={t("setup.header.description")}
+        />
+      }
+      topNavbarRightContent={
+        <SetupHeaderRightContent
+          connectionStatus={connectionStatus}
+          isCheckingConnection={isCheckingConnection}
+          onCheckConnection={checkModelEngineConnection}
+        />
+      }
     >
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        style={{ width: "100%", height: "100%" }}
+      <SetupLayout
+        onNext={handleNext}
+        showNext={true}
+        nextText={t("setup.navigation.button.next")}
       >
-        {canAccessProtectedData ? (
-          <AppModelConfig
-            onSelectedModelsChange={(selected) =>
-              setLiveSelectedModels(selected)
-            }
-            onEmbeddingConnectivityChange={(status) =>
-              setEmbeddingConnectivity(status)
-            }
-            forwardedRef={modelConfigSectionRef}
-            canAccessProtectedData={canAccessProtectedData}
-          />
-        ) : null}
-      </motion.div>
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: "100%", height: "100%" }}
+        >
+          {canAccessProtectedData ? (
+            <AppModelConfig
+              onSelectedModelsChange={(selected) =>
+                setLiveSelectedModels(selected)
+              }
+              onEmbeddingConnectivityChange={(status) =>
+                setEmbeddingConnectivity(status)
+              }
+              forwardedRef={modelConfigSectionRef}
+              canAccessProtectedData={canAccessProtectedData}
+            />
+          ) : null}
+        </motion.div>
 
-      <EmbedderCheckModal
-        emptyWarningOpen={embeddingModalOpen}
-        onEmptyOk={handleEmbeddingOk}
-        onEmptyCancel={() => setEmbeddingModalOpen(false)}
-        connectivityWarningOpen={connectivityWarningOpen}
-        onConnectivityOk={handleConnectivityOk}
-        onConnectivityCancel={() => setConnectivityWarningOpen(false)}
-        modifyWarningOpen={false}
-        onModifyOk={() => {}}
-        onModifyCancel={() => {}}
-      />
-    </SetupLayout>
+        <EmbedderCheckModal
+          emptyWarningOpen={embeddingModalOpen}
+          onEmptyOk={handleEmbeddingOk}
+          onEmptyCancel={() => setEmbeddingModalOpen(false)}
+          connectivityWarningOpen={connectivityWarningOpen}
+          onConnectivityOk={handleConnectivityOk}
+          onConnectivityCancel={() => setConnectivityWarningOpen(false)}
+          modifyWarningOpen={false}
+          onModifyOk={() => {}}
+          onModifyCancel={() => {}}
+        />
+      </SetupLayout>
+    </NavigationLayout>
   );
 }
