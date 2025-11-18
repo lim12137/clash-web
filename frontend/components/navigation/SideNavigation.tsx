@@ -201,7 +201,7 @@ export function SideNavigation({
   // Calculate sidebar height dynamically based on header and footer reserved heights
   const headerReservedHeight = parseInt(HEADER_CONFIG.RESERVED_HEIGHT);
   const footerReservedHeight = parseInt(FOOTER_CONFIG.RESERVED_HEIGHT);
-  const sidebarHeight = `calc(105vh - ${headerReservedHeight}px - ${footerReservedHeight}px)`;
+  const sidebarHeight = `calc(100vh - ${headerReservedHeight}px - ${footerReservedHeight}px)`;
   const sidebarTop = `${headerReservedHeight}px`;
 
   return (
