@@ -12,13 +12,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 
 interface HomepageContentProps {
   onAuthRequired: () => void;
   onAdminRequired: () => void;
+  onChatNavigate?: () => void;
+  onSetupNavigate?: () => void;
+  onSpaceNavigate?: () => void;
 }
 
 /**
@@ -28,6 +30,9 @@ interface HomepageContentProps {
 export function HomepageContent({
   onAuthRequired,
   onAdminRequired,
+  onChatNavigate,
+  onSetupNavigate,
+  onSpaceNavigate,
 }: HomepageContentProps) {
   const { t } = useTranslation("common");
   const { user, isSpeedMode } = useAuth();
@@ -67,12 +72,13 @@ export function HomepageContent({
         >
           {/* Start Chat Button */}
           {isSpeedMode || user ? (
-            <Link href="/chat">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                {t("page.startChat")}
-              </Button>
-            </Link>
+            <Button 
+              onClick={onChatNavigate}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
+              <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+              {t("page.startChat")}
+            </Button>
           ) : (
             <Button 
               onClick={onAuthRequired}
@@ -85,12 +91,13 @@ export function HomepageContent({
 
           {/* Quick Config Button */}
           {isSpeedMode || user?.role === "admin" ? (
-            <Link href="/setup">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                {t("page.quickConfig")}
-              </Button>
-            </Link>
+            <Button 
+              onClick={onSetupNavigate}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
+              <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+              {t("page.quickConfig")}
+            </Button>
           ) : (
             <Button 
               onClick={onAdminRequired}
@@ -103,12 +110,13 @@ export function HomepageContent({
 
           {/* Agent Space Button */}
           {isSpeedMode || user ? (
-            <Link href="/space">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                {t("page.agentSpace")}
-              </Button>
-            </Link>
+            <Button 
+              onClick={onSpaceNavigate}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
+              <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+              {t("page.agentSpace")}
+            </Button>
           ) : (
             <Button 
               onClick={onAuthRequired}
