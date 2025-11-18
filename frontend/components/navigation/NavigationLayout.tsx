@@ -14,7 +14,7 @@ interface NavigationLayoutProps {
   onAuthRequired?: () => void;
   onAdminRequired?: () => void;
   showFooter?: boolean;
-  contentMode?: "centered" | "scrollable";
+  contentMode?: "centered" | "scrollable" | "fullscreen";
   /** Additional title text to display after logo in top navbar */
   topNavbarAdditionalTitle?: React.ReactNode;
   /** Additional content to insert before default right nav items in top navbar */
@@ -31,6 +31,7 @@ interface NavigationLayoutProps {
  * 
  * @param contentMode - "centered": content is centered vertically and horizontally (default)
  *                      "scrollable": content can scroll and fills the entire area
+ *                      "fullscreen": content fills entire area with no padding, seamless integration
  * @param topNavbarAdditionalTitle - Additional title text after logo in top navbar
  * @param topNavbarAdditionalRightContent - Additional content before default right nav items
  */
@@ -54,7 +55,7 @@ export function NavigationLayout({
     : `calc(100vh - ${headerReservedHeight}px)`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className={`min-h-screen flex flex-col ${contentMode === "fullscreen" ? "bg-white dark:bg-slate-900" : "bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800"}`}>
       {/* Top navigation bar */}
       <TopNavbar 
         additionalTitle={topNavbarAdditionalTitle}
@@ -83,11 +84,13 @@ export function NavigationLayout({
           className={
             contentMode === "centered"
               ? "flex-1 flex items-center justify-center overflow-hidden"
+              : contentMode === "fullscreen"
+              ? "flex-1 overflow-hidden"
               : "flex-1 overflow-auto"
           }
           style={{
-                  paddingTop: `${headerReservedHeight}px`,
-                  paddingBottom: showFooter ? `${footerReservedHeight}px` : 0
+                  paddingTop: contentMode === "fullscreen" ? `${headerReservedHeight}px` : `${headerReservedHeight}px`,
+                  paddingBottom: contentMode === "fullscreen" ? (showFooter ? `${footerReservedHeight}px` : 0) : (showFooter ? `${footerReservedHeight}px` : 0)
           }}
         >
           {contentMode === "centered" ? (

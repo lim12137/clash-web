@@ -24,6 +24,7 @@ interface SpaceContentProps {
   onRefresh: () => void;
   onLoadAgents: () => void;
   onImportAgent: () => void;
+  onChatNavigate?: (agentId: string) => void;
 }
 
 /**
@@ -37,6 +38,7 @@ export function SpaceContent({
   onRefresh,
   onLoadAgents,
   onImportAgent,
+  onChatNavigate,
 }: SpaceContentProps) {
   const router = useRouter();
   const { t } = useTranslation("common");
@@ -52,7 +54,12 @@ export function SpaceContent({
 
   // Handle chat with agent
   const handleChat = (agentId: string) => {
-    router.push(`/chat?agent=${agentId}`);
+    if (onChatNavigate) {
+      onChatNavigate(agentId);
+    } else {
+      // Fallback to URL navigation if callback not provided
+      router.push(`/chat?agent=${agentId}`);
+    }
   };
 
   return (
