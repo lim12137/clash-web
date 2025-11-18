@@ -78,7 +78,7 @@ ElasticSearchService = MagicMock()
 RedisService = MagicMock()
 
 # Import routes and services
-from backend.apps.elasticsearch_app import router
+from backend.apps.vectordatabase_app import router
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
 # Create test client
@@ -96,13 +96,8 @@ client = TestClient(app)
 
 
 @pytest.fixture
-def es_core_mock():
+def vdb_core_mock():
     return MagicMock(spec=ElasticSearchCore)
-
-
-@pytest.fixture
-def es_service_mock():
-    return MagicMock(spec=ElasticSearchService)
 
 
 @pytest.fixture
@@ -126,15 +121,15 @@ def auth_data():
 
 
 @pytest.mark.asyncio
-async def test_create_new_index_success(es_core_mock, auth_data):
+async def test_create_new_index_success(vdb_core_mock, auth_data):
     """
     Test creating a new index successfully.
     Verifies that the endpoint returns the expected response when index creation succeeds.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.create_index") as mock_create:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.create_index") as mock_create:
 
         expected_response = {"status": "success",
                              "index_name": auth_data["index_name"]}
@@ -151,15 +146,15 @@ async def test_create_new_index_success(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_create_new_index_error(es_core_mock, auth_data):
+async def test_create_new_index_error(vdb_core_mock, auth_data):
     """
     Test creating a new index with error.
     Verifies that the endpoint returns an appropriate error response when index creation fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.create_index") as mock_create:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.create_index") as mock_create:
 
         mock_create.side_effect = Exception("Test error")
 
@@ -174,18 +169,18 @@ async def test_create_new_index_error(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_delete_index_success(es_core_mock, redis_service_mock, auth_data):
+async def test_delete_index_success(vdb_core_mock, redis_service_mock, auth_data):
     """
     Test deleting an index successfully.
     Verifies that the endpoint returns the expected response and performs Redis cleanup.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files, \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_index") as mock_delete, \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files, \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_index") as mock_delete, \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
 
         # Properly setup the async mock for list_files
         mock_list_files.return_value = {"files": []}
@@ -237,27 +232,27 @@ async def test_delete_index_success(es_core_mock, redis_service_mock, auth_data)
         assert "minio_cleanup" in actual_response
 
         # Verify full_delete_knowledge_base was called with the correct parameters
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_full_delete.assert_called_once_with(
             auth_data["index_name"],
-            ANY,  # Use ANY instead of es_core_mock to ignore object identity
+            ANY,  # Use ANY instead of vdb_core_mock to ignore object identity
             auth_data["user_id"]
         )
 
 
 @pytest.mark.asyncio
-async def test_delete_index_redis_error(es_core_mock, redis_service_mock, auth_data):
+async def test_delete_index_redis_error(vdb_core_mock, redis_service_mock, auth_data):
     """
     Test deleting an index with Redis error.
     Verifies that the endpoint still succeeds with ES but reports Redis cleanup error.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files, \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_index") as mock_delete, \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files, \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_index") as mock_delete, \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
 
         # Properly setup the async mock for list_files
         mock_list_files.return_value = {"files": []}
@@ -310,23 +305,23 @@ async def test_delete_index_redis_error(es_core_mock, redis_service_mock, auth_d
         ) or "error" in str(actual_response).lower()
 
         # Verify full_delete_knowledge_base was called with the correct parameters
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_full_delete.assert_called_once_with(
             auth_data["index_name"],
-            ANY,  # Use ANY instead of es_core_mock to ignore object identity
+            ANY,  # Use ANY instead of vdb_core_mock to ignore object identity
             auth_data["user_id"]
         )
 
 
 @pytest.mark.asyncio
-async def test_get_list_indices_success(es_core_mock):
+async def test_get_list_indices_success(vdb_core_mock):
     """
     Test listing indices successfully.
     Verifies that the endpoint returns the expected list of indices.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_indices") as mock_list:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_indices") as mock_list:
 
         expected_response = {"indices": ["index1", "index2"]}
         mock_list.return_value = expected_response
@@ -342,14 +337,14 @@ async def test_get_list_indices_success(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_list_indices_error(es_core_mock):
+async def test_get_list_indices_error(vdb_core_mock):
     """
     Test listing indices with error.
     Verifies that the endpoint returns an appropriate error response when listing fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_indices") as mock_list:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_indices") as mock_list:
 
         mock_list.side_effect = Exception("Test error")
 
@@ -362,16 +357,16 @@ async def test_get_list_indices_error(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_create_index_documents_success(es_core_mock, auth_data):
+async def test_create_index_documents_success(vdb_core_mock, auth_data):
     """
     Test indexing documents successfully.
     Verifies that the endpoint returns the expected response after documents are indexed.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.index_documents") as mock_index, \
-            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.index_documents") as mock_index, \
+            patch("backend.apps.vectordatabase_app.get_embedding_model", return_value=MagicMock()):
 
         index_name = "test_index"
         documents = [{"id": 1, "text": "test doc"}]
@@ -397,16 +392,16 @@ async def test_create_index_documents_success(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_create_index_documents_exception(es_core_mock, auth_data):
+async def test_create_index_documents_exception(vdb_core_mock, auth_data):
     """
     Test indexing documents with exception.
     Verifies that the endpoint returns an appropriate error response when an exception occurs during indexing.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.index_documents") as mock_index, \
-            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.index_documents") as mock_index, \
+            patch("backend.apps.vectordatabase_app.get_embedding_model", return_value=MagicMock()):
 
         index_name = "test_index"
         documents = [{"id": 1, "text": "test doc"}]
@@ -430,15 +425,15 @@ async def test_create_index_documents_exception(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_create_index_documents_auth_exception(es_core_mock, auth_data):
+async def test_create_index_documents_auth_exception(vdb_core_mock, auth_data):
     """
     Test indexing documents with authentication exception.
     Verifies that the endpoint returns an appropriate error response when authentication fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id") as mock_get_user, \
-            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id") as mock_get_user, \
+            patch("backend.apps.vectordatabase_app.get_embedding_model", return_value=MagicMock()):
 
         index_name = "test_index"
         documents = [{"id": 1, "text": "test doc"}]
@@ -462,15 +457,15 @@ async def test_create_index_documents_auth_exception(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_create_index_documents_embedding_model_exception(es_core_mock, auth_data):
+async def test_create_index_documents_embedding_model_exception(vdb_core_mock, auth_data):
     """
     Test indexing documents with embedding model exception.
     Verifies that the endpoint returns an appropriate error response when embedding model fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.get_embedding_model") as mock_get_embedding:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.get_embedding_model") as mock_get_embedding:
 
         index_name = "test_index"
         documents = [{"id": 1, "text": "test doc"}]
@@ -495,16 +490,16 @@ async def test_create_index_documents_embedding_model_exception(es_core_mock, au
 
 
 @pytest.mark.asyncio
-async def test_create_index_documents_validation_exception(es_core_mock, auth_data):
+async def test_create_index_documents_validation_exception(vdb_core_mock, auth_data):
     """
     Test indexing documents with validation exception.
     Verifies that the endpoint returns an appropriate error response when document validation fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.index_documents") as mock_index, \
-            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.index_documents") as mock_index, \
+            patch("backend.apps.vectordatabase_app.get_embedding_model", return_value=MagicMock()):
 
         index_name = "test_index"
         documents = [{"id": 1, "text": "test doc"}]
@@ -528,14 +523,14 @@ async def test_create_index_documents_validation_exception(es_core_mock, auth_da
 
 
 @pytest.mark.asyncio
-async def test_get_index_files_success(es_core_mock):
+async def test_get_index_files_success(vdb_core_mock):
     """
     Test listing index files successfully.
     Using pytest-asyncio to properly handle async operations.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files:
 
         index_name = "test_index"
         expected_files = {
@@ -560,14 +555,14 @@ async def test_get_index_files_success(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_index_files_exception(es_core_mock):
+async def test_get_index_files_exception(vdb_core_mock):
     """
     Test listing index files with exception.
     Verifies that the endpoint returns an appropriate error response when an exception occurs during file listing.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files:
 
         index_name = "test_index"
 
@@ -586,20 +581,20 @@ async def test_get_index_files_exception(es_core_mock):
         assert response.json() == {"detail": expected_error_detail}
 
         # Verify list_files was called with correct parameters
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_list_files.assert_called_once_with(
-            index_name, include_chunks=False, es_core=ANY)
+            index_name, include_chunks=False, vdb_core=ANY)
 
 
 @pytest.mark.asyncio
-async def test_get_index_files_validation_exception(es_core_mock):
+async def test_get_index_files_validation_exception(vdb_core_mock):
     """
     Test listing index files with validation exception.
     Verifies that the endpoint returns an appropriate error response when index validation fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files:
 
         index_name = "test_index"
 
@@ -621,14 +616,14 @@ async def test_get_index_files_validation_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_index_files_timeout_exception(es_core_mock):
+async def test_get_index_files_timeout_exception(vdb_core_mock):
     """
     Test listing index files with timeout exception.
     Verifies that the endpoint returns an appropriate error response when operation times out.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files:
 
         index_name = "test_index"
 
@@ -650,14 +645,14 @@ async def test_get_index_files_timeout_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_index_files_permission_exception(es_core_mock):
+async def test_get_index_files_permission_exception(vdb_core_mock):
     """
     Test listing index files with permission exception.
     Verifies that the endpoint returns an appropriate error response when permission is denied.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.list_files") as mock_list_files:
 
         index_name = "test_index"
 
@@ -679,14 +674,14 @@ async def test_get_index_files_permission_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_health_check_success(es_core_mock):
+async def test_health_check_success(vdb_core_mock):
     """
     Test health check endpoint successfully.
     Using pytest-asyncio to properly handle async operations.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
 
         expected_response = {"status": "ok", "elasticsearch": "connected"}
         mock_health.return_value = expected_response
@@ -700,13 +695,13 @@ async def test_health_check_success(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_check_knowledge_base_exist_success(es_core_mock, auth_data):
+async def test_check_knowledge_base_exist_success(vdb_core_mock, auth_data):
     """
     Test check knowledge base exist endpoint success.
     """
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.check_knowledge_base_exist_impl") as mock_impl:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.check_knowledge_base_exist_impl") as mock_impl:
 
         expected_response = {"exist": True, "scope": "tenant"}
         mock_impl.return_value = expected_response
@@ -719,13 +714,13 @@ async def test_check_knowledge_base_exist_success(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_check_knowledge_base_exist_error(es_core_mock, auth_data):
+async def test_check_knowledge_base_exist_error(vdb_core_mock, auth_data):
     """
     Test check knowledge base exist endpoint error path.
     """
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.check_knowledge_base_exist_impl") as mock_impl:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.check_knowledge_base_exist_impl") as mock_impl:
 
         mock_impl.side_effect = Exception("Test error")
 
@@ -738,15 +733,15 @@ async def test_check_knowledge_base_exist_error(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_delete_index_exception(es_core_mock, auth_data):
+async def test_delete_index_exception(vdb_core_mock, auth_data):
     """
     Test deleting an index with exception.
     Verifies that the endpoint returns an appropriate error response when an exception occurs during deletion.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
 
         # Setup the mock to raise an exception
         mock_full_delete.side_effect = Exception("Database connection failed")
@@ -765,20 +760,20 @@ async def test_delete_index_exception(es_core_mock, auth_data):
         # Verify full_delete_knowledge_base was called with the correct parameters
         mock_full_delete.assert_called_once_with(
             auth_data["index_name"],
-            ANY,  # Use ANY instead of es_core_mock to ignore object identity
+            ANY,  # Use ANY instead of vdb_core_mock to ignore object identity
             auth_data["user_id"]
         )
 
 
 @pytest.mark.asyncio
-async def test_delete_index_auth_exception(es_core_mock, auth_data):
+async def test_delete_index_auth_exception(vdb_core_mock, auth_data):
     """
     Test deleting an index with authentication exception.
     Verifies that the endpoint returns an appropriate error response when authentication fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_current_user_id") as mock_get_user:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_current_user_id") as mock_get_user:
 
         # Setup the mock to raise an authentication exception
         mock_get_user.side_effect = Exception("Invalid authorization token")
@@ -799,15 +794,15 @@ async def test_delete_index_auth_exception(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
-async def test_delete_documents_success(es_core_mock, redis_service_mock):
+async def test_delete_documents_success(vdb_core_mock, redis_service_mock):
     """
     Test deleting documents successfully.
     Verifies that the endpoint returns the expected response and performs Redis cleanup.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_documents") as mock_delete_docs:
 
         index_name = "test_index"
         path_or_url = "test_document.pdf"
@@ -852,22 +847,22 @@ async def test_delete_documents_success(es_core_mock, redis_service_mock):
         assert actual_response["redis_cleanup"] == redis_result
 
         # Verify delete_documents was called with the correct parameters
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
         redis_service_mock.delete_document_records.assert_called_once_with(
             index_name, path_or_url)
 
 
 @pytest.mark.asyncio
-async def test_delete_documents_redis_error(es_core_mock, redis_service_mock):
+async def test_delete_documents_redis_error(vdb_core_mock, redis_service_mock):
     """
     Test deleting documents with Redis error.
     Verifies that the endpoint still succeeds with ES but reports Redis cleanup error.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_documents") as mock_delete_docs:
 
         index_name = "test_index"
         path_or_url = "test_document.pdf"
@@ -906,21 +901,21 @@ async def test_delete_documents_redis_error(es_core_mock, redis_service_mock):
         assert actual_response["redis_cleanup_error"] == redis_error_message
 
         # Verify delete_documents was called
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
         redis_service_mock.delete_document_records.assert_called_once_with(
             index_name, path_or_url)
 
 
 @pytest.mark.asyncio
-async def test_delete_documents_es_exception(es_core_mock):
+async def test_delete_documents_es_exception(vdb_core_mock):
     """
     Test deleting documents with Elasticsearch exception.
     Verifies that the endpoint returns an appropriate error response when ES deletion fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_documents") as mock_delete_docs:
 
         index_name = "test_index"
         path_or_url = "test_document.pdf"
@@ -941,20 +936,20 @@ async def test_delete_documents_es_exception(es_core_mock):
         assert response.json() == {"detail": expected_error_detail}
 
         # Verify delete_documents was called
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
 
 
 @pytest.mark.asyncio
-async def test_delete_documents_redis_warnings(es_core_mock, redis_service_mock):
+async def test_delete_documents_redis_warnings(vdb_core_mock, redis_service_mock):
     """
     Test deleting documents with Redis warnings.
     Verifies that the endpoint handles Redis warnings properly.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_documents") as mock_delete_docs:
 
         index_name = "test_index"
         path_or_url = "test_document.pdf"
@@ -1000,21 +995,21 @@ async def test_delete_documents_redis_warnings(es_core_mock, redis_service_mock)
             "Some cache keys could not be deleted"]
 
         # Verify delete_documents was called
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
         redis_service_mock.delete_document_records.assert_called_once_with(
             index_name, path_or_url)
 
 
 @pytest.mark.asyncio
-async def test_delete_documents_validation_exception(es_core_mock):
+async def test_delete_documents_validation_exception(vdb_core_mock):
     """
     Test deleting documents with validation exception.
     Verifies that the endpoint returns an appropriate error response when validation fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.delete_documents") as mock_delete_docs:
 
         index_name = "test_index"
         path_or_url = "test_document.pdf"
@@ -1035,19 +1030,19 @@ async def test_delete_documents_validation_exception(es_core_mock):
         assert response.json() == {"detail": expected_error_detail}
 
         # Verify delete_documents was called
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
 
 
 @pytest.mark.asyncio
-async def test_health_check_exception(es_core_mock):
+async def test_health_check_exception(vdb_core_mock):
     """
     Test health check endpoint with exception.
     Verifies that the endpoint returns an appropriate error response when an exception occurs during health check.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
         # Setup the mock to raise an exception
         mock_health.side_effect = Exception("Elasticsearch connection failed")
 
@@ -1062,19 +1057,19 @@ async def test_health_check_exception(es_core_mock):
         assert response.json() == {"detail": expected_error_detail}
 
         # Verify health_check was called
-        # Use ANY for the es_core parameter because the actual object may differ
+        # Use ANY for the vdb_core parameter because the actual object may differ
         mock_health.assert_called_once_with(ANY)
 
 
 @pytest.mark.asyncio
-async def test_health_check_timeout_exception(es_core_mock):
+async def test_health_check_timeout_exception(vdb_core_mock):
     """
     Test health check endpoint with timeout exception.
     Verifies that the endpoint returns an appropriate error response when operation times out.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
 
         # Setup the mock to raise a timeout exception
         mock_health.side_effect = TimeoutError("Health check timed out")
@@ -1094,14 +1089,14 @@ async def test_health_check_timeout_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_health_check_connection_exception(es_core_mock):
+async def test_health_check_connection_exception(vdb_core_mock):
     """
     Test health check endpoint with connection exception.
     Verifies that the endpoint returns an appropriate error response when connection fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
 
         # Setup the mock to raise a connection exception
         mock_health.side_effect = ConnectionError(
@@ -1122,14 +1117,14 @@ async def test_health_check_connection_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_health_check_permission_exception(es_core_mock):
+async def test_health_check_permission_exception(vdb_core_mock):
     """
     Test health check endpoint with permission exception.
     Verifies that the endpoint returns an appropriate error response when permission is denied.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
 
         # Setup the mock to raise a permission exception
         mock_health.side_effect = PermissionError(
@@ -1150,14 +1145,14 @@ async def test_health_check_permission_exception(es_core_mock):
 
 
 @pytest.mark.asyncio
-async def test_health_check_validation_exception(es_core_mock):
+async def test_health_check_validation_exception(vdb_core_mock):
     """
     Test health check endpoint with validation exception.
     Verifies that the endpoint returns an appropriate error response when validation fails.
     """
     # Setup mocks
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.health_check") as mock_health:
 
         # Setup the mock to raise a validation exception
         mock_health.side_effect = ValueError(

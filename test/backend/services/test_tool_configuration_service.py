@@ -1603,8 +1603,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
     @patch('backend.services.tool_configuration_service.inspect.signature')
     @patch('backend.services.tool_configuration_service.get_selected_knowledge_list')
     @patch('backend.services.tool_configuration_service.get_embedding_model')
-    @patch('backend.services.tool_configuration_service.elastic_core')
-    def test_validate_local_tool_knowledge_base_search_success(self, mock_elastic_core, mock_get_embedding_model,
+    @patch('backend.services.tool_configuration_service.get_vector_db_core')
+    def test_validate_local_tool_knowledge_base_search_success(self, mock_get_vector_db_core, mock_get_embedding_model,
                                                                mock_get_knowledge_list, mock_signature, mock_get_class):
         """Test successful knowledge_base_search tool validation with proper dependencies"""
         # Mock tool class
@@ -1620,7 +1620,7 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         mock_sig.parameters = {
             'self': Mock(),
             'index_names': Mock(),
-            'es_core': Mock(),
+            'vdb_core': Mock(),
             'embedding_model': Mock()
         }
         mock_signature.return_value = mock_sig
@@ -1632,7 +1632,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         ]
         mock_get_knowledge_list.return_value = mock_knowledge_list
         mock_get_embedding_model.return_value = "mock_embedding_model"
-        # elastic_core is already a mock object, we don't need to set return_value
+        mock_vdb_core = Mock()
+        mock_get_vector_db_core.return_value = mock_vdb_core
 
         from backend.services.tool_configuration_service import _validate_local_tool
 
@@ -1651,8 +1652,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         expected_params = {
             "param": "config",
             "index_names": ["index1", "index2"],
-            "es_core": mock_elastic_core,  # Use the mock object directly
-            "embedding_model": "mock_embedding_model"
+            "vdb_core": mock_vdb_core,
+            "embedding_model": "mock_embedding_model",
         }
         mock_tool_class.assert_called_once_with(**expected_params)
         mock_tool_instance.forward.assert_called_once_with(query="test query")
@@ -1720,8 +1721,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
     @patch('backend.services.tool_configuration_service.inspect.signature')
     @patch('backend.services.tool_configuration_service.get_selected_knowledge_list')
     @patch('backend.services.tool_configuration_service.get_embedding_model')
-    @patch('backend.services.tool_configuration_service.elastic_core')
-    def test_validate_local_tool_knowledge_base_search_empty_knowledge_list(self, mock_elastic_core,
+    @patch('backend.services.tool_configuration_service.get_vector_db_core')
+    def test_validate_local_tool_knowledge_base_search_empty_knowledge_list(self, mock_get_vector_db_core,
                                                                             mock_get_embedding_model,
                                                                             mock_get_knowledge_list,
                                                                             mock_signature,
@@ -1740,7 +1741,7 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         mock_sig.parameters = {
             'self': Mock(),
             'index_names': Mock(),
-            'es_core': Mock(),
+            'vdb_core': Mock(),
             'embedding_model': Mock()
         }
         mock_signature.return_value = mock_sig
@@ -1748,7 +1749,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         # Mock empty knowledge list
         mock_get_knowledge_list.return_value = []
         mock_get_embedding_model.return_value = "mock_embedding_model"
-        # elastic_core is already a mock object, we don't need to set return_value
+        mock_vdb_core = Mock()
+        mock_get_vector_db_core.return_value = mock_vdb_core
 
         from backend.services.tool_configuration_service import _validate_local_tool
 
@@ -1766,8 +1768,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         expected_params = {
             "param": "config",
             "index_names": [],
-            "es_core": mock_elastic_core,  # Use the mock object directly
-            "embedding_model": "mock_embedding_model"
+            "vdb_core": mock_vdb_core,
+            "embedding_model": "mock_embedding_model",
         }
         mock_tool_class.assert_called_once_with(**expected_params)
         mock_tool_instance.forward.assert_called_once_with(query="test query")
@@ -1776,8 +1778,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
     @patch('backend.services.tool_configuration_service.inspect.signature')
     @patch('backend.services.tool_configuration_service.get_selected_knowledge_list')
     @patch('backend.services.tool_configuration_service.get_embedding_model')
-    @patch('backend.services.tool_configuration_service.elastic_core')
-    def test_validate_local_tool_knowledge_base_search_execution_error(self, mock_elastic_core,
+    @patch('backend.services.tool_configuration_service.get_vector_db_core')
+    def test_validate_local_tool_knowledge_base_search_execution_error(self, mock_get_vector_db_core,
                                                                        mock_get_embedding_model,
                                                                        mock_get_knowledge_list,
                                                                        mock_signature,
@@ -1797,7 +1799,7 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         mock_sig.parameters = {
             'self': Mock(),
             'index_names': Mock(),
-            'es_core': Mock(),
+            'vdb_core': Mock(),
             'embedding_model': Mock()
         }
         mock_signature.return_value = mock_sig
@@ -1806,7 +1808,8 @@ class TestValidateLocalToolKnowledgeBaseSearch:
         mock_knowledge_list = [{"index_name": "index1", "knowledge_id": "kb1"}]
         mock_get_knowledge_list.return_value = mock_knowledge_list
         mock_get_embedding_model.return_value = "mock_embedding_model"
-        # elastic_core is already a mock object, we don't need to set return_value
+        mock_vdb_core = Mock()
+        mock_get_vector_db_core.return_value = mock_vdb_core
 
         from backend.services.tool_configuration_service import _validate_local_tool
 

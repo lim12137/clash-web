@@ -562,7 +562,7 @@ async def test_clear_model_memories_early_exit_when_index_missing(monkeypatch):
     monkeypatch.setattr(memory_service, "reset_all_memory", _reset)
 
     ok = await memory_service.clear_model_memories(
-        es_core=es,
+        vdb_core=es,
         model_repo="jina-ai",
         model_name="jina-embeddings-v2-base-en",
         embedding_dims=768,
@@ -586,7 +586,7 @@ async def test_clear_model_memories_success_and_config_adjustment_with_repo(monk
     monkeypatch.setattr(memory_service, "reset_all_memory", _reset)
 
     ok = await memory_service.clear_model_memories(
-        es_core=es,
+        vdb_core=es,
         model_repo="jina-ai",
         model_name="jina-embeddings-v2-base-en",
         embedding_dims=1024,
@@ -622,7 +622,7 @@ async def test_clear_model_memories_handles_es_exists_exception(monkeypatch):
     monkeypatch.setattr(memory_service, "reset_all_memory", _reset)
 
     ok = await memory_service.clear_model_memories(
-        es_core=es,
+        vdb_core=es,
         model_repo="",
         model_name="m",
         embedding_dims=128,
@@ -644,7 +644,7 @@ async def test_clear_model_memories_swallow_failures_and_no_repo(monkeypatch):
     monkeypatch.setattr(memory_service, "reset_all_memory", _reset)
 
     ok = await memory_service.clear_model_memories(
-        es_core=es,
+        vdb_core=es,
         model_repo=None,
         model_name="Model",
         embedding_dims=256,
@@ -660,7 +660,7 @@ async def test_clear_model_memories_swallow_failures_and_no_repo(monkeypatch):
 async def test_clear_model_memories_invalid_model_name():
     es = _DummyESCore(exists_behavior=lambda index: True)
     ok = await memory_service.clear_model_memories(
-        es_core=es,
+        vdb_core=es,
         model_repo="any",
         model_name="",
         embedding_dims=512,

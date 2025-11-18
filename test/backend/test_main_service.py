@@ -31,8 +31,32 @@ sys.modules['nexent.core.models'] = MagicMock()
 sys.modules['nexent.core.models.embedding_model'] = MagicMock()
 sys.modules['nexent.core.nlp'] = MagicMock()
 sys.modules['nexent.core.nlp.tokenizer'] = MagicMock()
-sys.modules['nexent.vector_database'] = MagicMock()
-sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
+
+# Create stub vector database modules to satisfy imports
+vector_db_module = types.ModuleType("nexent.vector_database")
+vector_db_module.__path__ = []  # Mark as package
+vector_db_base_module = types.ModuleType("nexent.vector_database.base")
+
+class MockVectorDatabaseCore:
+    def __init__(self, *args, **kwargs):
+        pass
+
+vector_db_base_module.VectorDatabaseCore = MockVectorDatabaseCore
+
+vector_db_es_module = types.ModuleType("nexent.vector_database.elasticsearch_core")
+
+class MockElasticSearchCore:
+    def __init__(self, *args, **kwargs):
+        pass
+
+vector_db_es_module.ElasticSearchCore = MockElasticSearchCore
+
+sys.modules['nexent.vector_database'] = vector_db_module
+sys.modules['nexent.vector_database.base'] = vector_db_base_module
+sys.modules['nexent.vector_database.elasticsearch_core'] = vector_db_es_module
+setattr(vector_db_module, "base", vector_db_base_module)
+setattr(vector_db_module, "elasticsearch_core", vector_db_es_module)
+
 sys.modules['nexent.core.agents'] = MagicMock()
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
 sys.modules['nexent.storage.storage_client_factory'] = MagicMock()

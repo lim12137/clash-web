@@ -39,10 +39,11 @@ async def auto_summary(
             language=language,
             model_id=model_id
         )
-    except Exception:
-        logger.error("Knowledge base summary generation failed", exc_info=True)
+    except Exception as e:
+        logger.error(
+            f"Knowledge base summary generation failed: {e}", exc_info=True)
         return StreamingResponse(
-            "data: {\"status\": \"error\", \"message\": \"Knowledge base summary generation failed due to an internal error.\"}\n\n",
+            "data: {{\"status\": \"error\", \"message\": \"Knowledge base summary generation failed due to an internal error.\"}}\n\n",
             media_type="text/event-stream",
             status_code=500
         )
