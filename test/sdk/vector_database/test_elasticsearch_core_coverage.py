@@ -9,6 +9,7 @@ import time
 import os
 import sys
 from typing import List, Dict, Any
+from datetime import datetime, timedelta
 
 # Add the project root to the path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +17,7 @@ project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
 sys.path.insert(0, project_root)
 
 # Import the class under test
-from sdk.nexent.vector_database.elasticsearch_core import ElasticSearchCore
+from sdk.nexent.vector_database.elasticsearch_core import ElasticSearchCore, BulkOperation
 from elasticsearch import exceptions
 
 
@@ -256,6 +257,231 @@ class TestElasticSearchCoreCoverage:
         result = vdb_core.delete_documents("test_index", "/path/to/file.pdf")
         assert result == 0
         vdb_core.client.delete_by_query.assert_called_once()
+
+    def test_create_index_request_error_existing(self, vdb_core):
+        """Ensure RequestError with resource already exists still succeeds."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.indices.exists.return_value = False
+        meta = MagicMock(status=400)
+        vdb_core.client.indices.create.side_effect = exceptions.RequestError(
+            "resource_already_exists_exception", meta, {"error": {"reason": "exists"}}
+        )
+        vdb_core._ensure_index_ready = MagicMock(return_value=True)
+
+        assert vdb_core.create_index("test_index") is True
+        vdb_core._ensure_index_ready.assert_called_once_with("test_index")
+
+    def test_create_index_request_error_failure(self, vdb_core):
+        """Ensure create_index returns False for non recoverable RequestError."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.indices.exists.return_value = False
+        meta = MagicMock(status=400)
+        vdb_core.client.indices.create.side_effect = exceptions.RequestError(
+            "validation_exception", meta, {"error": {"reason": "bad"}}
+        )
+
+        assert vdb_core.create_index("test_index") is False
+
+    def test_create_index_general_exception(self, vdb_core):
+        """Ensure unexpected exception from create_index returns False."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.indices.exists.return_value = False
+        vdb_core.client.indices.create.side_effect = Exception("boom")
+
+        assert vdb_core.create_index("test_index") is False
+
+    def test_force_refresh_with_retry_zero_attempts(self, vdb_core):
+        """Ensure guard clause without attempts returns False."""
+        vdb_core.client = MagicMock()
+        result = vdb_core._force_refresh_with_retry("idx", max_retries=0)
+        assert result is False
+
+    def test_bulk_operation_context_preexisting_operation(self, vdb_core):
+        """Ensure context skips apply/restore when operations remain."""
+        existing = BulkOperation(
+            index_name="test_index",
+            operation_id="existing",
+            start_time=datetime.utcnow(),
+            expected_duration=timedelta(seconds=30),
+        )
+        vdb_core._bulk_operations = {"test_index": [existing]}
+
+        with patch.object(vdb_core, "_apply_bulk_settings") as mock_apply, \
+                patch.object(vdb_core, "_restore_normal_settings") as mock_restore:
+
+            with vdb_core.bulk_operation_context("test_index") as op_id:
+                assert op_id != existing.operation_id
+
+        mock_apply.assert_not_called()
+        mock_restore.assert_not_called()
+        assert vdb_core._bulk_operations["test_index"] == [existing]
+
+    def test_get_user_indices_exception(self, vdb_core):
+        """Ensure get_user_indices returns empty list on failure."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.indices.get_alias.side_effect = Exception("failure")
+
+        assert vdb_core.get_user_indices() == []
+
+    def test_check_index_exists(self, vdb_core):
+        """Ensure check_index_exists delegates to client."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.indices.exists.return_value = True
+
+        assert vdb_core.check_index_exists("idx") is True
+        vdb_core.client.indices.exists.assert_called_once_with(index="idx")
+
+    def test_small_batch_insert_sets_embedding_model_name(self, vdb_core):
+        """_small_batch_insert should attach embedding model name."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.bulk.return_value = {"errors": False, "items": []}
+        vdb_core._preprocess_documents = MagicMock(return_value=[{"content": "body"}])
+        vdb_core._handle_bulk_errors = MagicMock()
+
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.get_embeddings.return_value = [[0.1, 0.2]]
+        mock_embedding_model.embedding_model_name = "demo-model"
+
+        vdb_core._small_batch_insert("idx", [{"content": "body"}], "content", mock_embedding_model)
+        operations = vdb_core.client.bulk.call_args.kwargs["operations"]
+        inserted_doc = operations[1]
+        assert inserted_doc["embedding_model_name"] == "demo-model"
+
+    def test_large_batch_insert_sets_default_embedding_model_name(self, vdb_core):
+        """_large_batch_insert should fall back to 'unknown' when attr missing."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.bulk.return_value = {"errors": False, "items": []}
+        vdb_core._preprocess_documents = MagicMock(return_value=[{"content": "body"}])
+        vdb_core._handle_bulk_errors = MagicMock()
+
+        class SimpleEmbedding:
+            def get_embeddings(self, texts):
+                return [[0.1 for _ in texts]]
+
+        embedding_model = SimpleEmbedding()
+
+        vdb_core._large_batch_insert("idx", [{"content": "body"}], 10, "content", embedding_model)
+        operations = vdb_core.client.bulk.call_args.kwargs["operations"]
+        inserted_doc = operations[1]
+        assert inserted_doc["embedding_model_name"] == "unknown"
+
+    def test_large_batch_insert_bulk_exception(self, vdb_core):
+        """Ensure bulk exceptions are handled and indexing continues."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.bulk.side_effect = Exception("bulk error")
+        vdb_core._preprocess_documents = MagicMock(return_value=[{"content": "body"}])
+
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.get_embeddings.return_value = [[0.1]]
+
+        result = vdb_core._large_batch_insert("idx", [{"content": "body"}], 1, "content", mock_embedding_model)
+        assert result == 0
+
+    def test_large_batch_insert_preprocess_exception(self, vdb_core):
+        """Ensure outer exception handler returns zero on preprocess failure."""
+        vdb_core._preprocess_documents = MagicMock(side_effect=Exception("fail"))
+
+        mock_embedding_model = MagicMock()
+        result = vdb_core._large_batch_insert("idx", [{"content": "body"}], 10, "content", mock_embedding_model)
+        assert result == 0
+
+    def test_count_documents_success(self, vdb_core):
+        """Ensure count_documents returns ES count."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.count.return_value = {"count": 42}
+
+        assert vdb_core.count_documents("idx") == 42
+
+    def test_count_documents_exception(self, vdb_core):
+        """Ensure count_documents returns zero on error."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.count.side_effect = Exception("fail")
+
+        assert vdb_core.count_documents("idx") == 0
+
+    def test_search_and_multi_search_passthrough(self, vdb_core):
+        """Ensure search helpers delegate to the client."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.search.return_value = {"hits": {}}
+        vdb_core.client.msearch.return_value = {"responses": []}
+
+        assert vdb_core.search("idx", {"query": {"match_all": {}}}) == {"hits": {}}
+        assert vdb_core.multi_search([{"query": {"match_all": {}}}], "idx") == {"responses": []}
+
+    def test_exec_query_formats_results(self, vdb_core):
+        """Ensure exec_query strips metadata and exposes scores."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.search.return_value = {
+            "hits": {
+                "hits": [
+                    {
+                        "_score": 1.23,
+                        "_index": "idx",
+                        "_source": {"id": "doc1", "content": "body"},
+                    }
+                ]
+            }
+        }
+
+        results = vdb_core.exec_query("idx", {"query": {}})
+        assert results == [
+            {"score": 1.23, "document": {"id": "doc1", "content": "body"}, "index": "idx"}
+        ]
+
+    def test_hybrid_search_missing_fields_logged_for_accurate(self, vdb_core):
+        """Ensure hybrid_search tolerates missing accurate fields."""
+        mock_embedding_model = MagicMock()
+        with patch.object(vdb_core, "accurate_search", return_value=[{"score": 1.0}]), \
+                patch.object(vdb_core, "semantic_search", return_value=[]):
+            assert vdb_core.hybrid_search(["idx"], "query", mock_embedding_model) == []
+
+    def test_hybrid_search_missing_fields_logged_for_semantic(self, vdb_core):
+        """Ensure hybrid_search tolerates missing semantic fields."""
+        mock_embedding_model = MagicMock()
+        with patch.object(vdb_core, "accurate_search", return_value=[]), \
+                patch.object(vdb_core, "semantic_search", return_value=[{"score": 0.5}]):
+            assert vdb_core.hybrid_search(["idx"], "query", mock_embedding_model) == []
+
+    def test_hybrid_search_faulty_combined_results(self, vdb_core):
+        """Inject faulty combined result to hit KeyError handling in final loop."""
+        mock_embedding_model = MagicMock()
+        accurate_payload = [
+            {"score": 1.0, "document": {"id": "doc1"}, "index": "idx"}
+        ]
+
+        with patch.object(vdb_core, "accurate_search", return_value=accurate_payload), \
+                patch.object(vdb_core, "semantic_search", return_value=[]):
+
+            injected = {"done": False}
+
+            def tracer(frame, event, arg):
+                if (
+                    frame.f_code.co_name == "hybrid_search"
+                    and event == "line"
+                    and frame.f_lineno == 788
+                    and not injected["done"]
+                ):
+                    frame.f_locals["combined_results"]["faulty"] = {
+                        "accurate_score": 0,
+                        "semantic_score": 0,
+                    }
+                    injected["done"] = True
+                return tracer
+
+            sys.settrace(tracer)
+            try:
+                results = vdb_core.hybrid_search(["idx"], "query", mock_embedding_model)
+            finally:
+                sys.settrace(None)
+
+            assert len(results) == 1
+
+    def test_get_documents_detail_exception(self, vdb_core):
+        """Ensure get_documents_detail returns empty list on failure."""
+        vdb_core.client = MagicMock()
+        vdb_core.client.search.side_effect = Exception("fail")
+
+        assert vdb_core.get_documents_detail("idx") == []
 
     def test_get_indices_detail_success(self, vdb_core):
         """Test get_indices_detail successful case"""
