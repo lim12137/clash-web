@@ -19,7 +19,8 @@ import {
 import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
-import SetupLayout from "../SetupLayout";
+import SetupLayout, { SetupHeaderLeftContent, SetupHeaderRightContent } from "../SetupLayout";
+import { NavigationLayout } from "@/components/navigation/NavigationLayout";
 import DataConfig from "./config";
 
 export default function KnowledgeSetupPage() {
@@ -174,34 +175,47 @@ export default function KnowledgeSetupPage() {
   const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
   return (
-    <SetupLayout
-      connectionStatus={connectionStatus}
-      isCheckingConnection={isCheckingConnection}
-      onCheckConnection={checkModelEngineConnection}
-      title={t("setup.header.title")}
-      description={t("setup.header.description")}
-      onBack={handleBack}
-      onNext={isAdmin ? handleNext : undefined}
-      onComplete={isAdmin ? undefined : handleComplete}
-      isSaving={isSaving}
-      showBack={isAdmin}
-      showNext={isAdmin}
-      showComplete={!isAdmin}
-      nextText={t("setup.navigation.button.next")}
-      completeText={t("setup.navigation.button.complete")}
+    <NavigationLayout
+      contentMode="scrollable"
+      showFooter={false}
+      topNavbarLeftContent={
+        <SetupHeaderLeftContent
+          title={t("setup.header.title")}
+          description={t("setup.header.description")}
+        />
+      }
+      topNavbarRightContent={
+        <SetupHeaderRightContent
+          connectionStatus={connectionStatus}
+          isCheckingConnection={isCheckingConnection}
+          onCheckConnection={checkModelEngineConnection}
+        />
+      }
     >
-      {canAccessProtectedData ? (
-        <motion.div
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-          style={{ width: "100%", height: "100%" }}
-        >
-          <DataConfig isActive={true} />
-        </motion.div>
-      ) : null}
-    </SetupLayout>
+      <SetupLayout
+        onBack={handleBack}
+        onNext={isAdmin ? handleNext : undefined}
+        onComplete={isAdmin ? undefined : handleComplete}
+        isSaving={isSaving}
+        showBack={isAdmin}
+        showNext={isAdmin}
+        showComplete={!isAdmin}
+        nextText={t("setup.navigation.button.next")}
+        completeText={t("setup.navigation.button.complete")}
+      >
+        {canAccessProtectedData ? (
+          <motion.div
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageVariants}
+            transition={pageTransition}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <DataConfig isActive={true} />
+          </motion.div>
+        ) : null}
+      </SetupLayout>
+    </NavigationLayout>
   );
 }

@@ -1025,5 +1025,16 @@
   "space.detail.source": "来源",
   "space.detail.category": "分类",
   "space.detail.usage": "用途",
-  "space.detail.parameters": "参数"
+  "space.detail.parameters": "参数",
+
+  "sidebar.homePage": "首页",
+  "sidebar.startChat": "开始问答",
+  "sidebar.quickConfig": "快速配置",
+  "sidebar.agentSpace": "智能体空间",
+  "sidebar.agentMarket": "智能体市场",
+  "sidebar.agentDev": "智能体开发",
+  "sidebar.knowledgeBase": "知识库",
+  "sidebar.modelManagement": "模型管理",
+  "sidebar.memoryManagement": "记忆管理",
+  "sidebar.userManagement": "用户管理"
 }

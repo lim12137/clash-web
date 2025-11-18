@@ -17,7 +17,8 @@ import {
 import { EVENTS } from "@/const/auth";
 import log from "@/lib/logger";
 
-import SetupLayout from "../SetupLayout";
+import SetupLayout, { SetupHeaderLeftContent, SetupHeaderRightContent } from "../SetupLayout";
+import { NavigationLayout } from "@/components/navigation/NavigationLayout";
 import AgentConfig, { AgentConfigHandle } from "./config";
 import SaveConfirmModal from "./components/SaveConfirmModal";
 
@@ -134,32 +135,45 @@ export default function AgentSetupPage() {
 
   return (
     <>
-      <SetupLayout
-        connectionStatus={connectionStatus}
-        isCheckingConnection={isCheckingConnection}
-        onCheckConnection={checkModelEngineConnection}
-        title={t("setup.header.title")}
-        description={t("setup.header.description")}
-        onBack={handleBack}
-        onComplete={handleComplete}
-        isSaving={isSaving}
-        showBack={true}
-        showComplete={true}
-        completeText={t("setup.navigation.button.complete")}
+      <NavigationLayout
+        contentMode="scrollable"
+        showFooter={false}
+        topNavbarLeftContent={
+          <SetupHeaderLeftContent
+            title={t("setup.header.title")}
+            description={t("setup.header.description")}
+          />
+        }
+        topNavbarRightContent={
+          <SetupHeaderRightContent
+            connectionStatus={connectionStatus}
+            isCheckingConnection={isCheckingConnection}
+            onCheckConnection={checkModelEngineConnection}
+          />
+        }
       >
-        <motion.div
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-          style={{ width: "100%", height: "100%" }}
+        <SetupLayout
+          onBack={handleBack}
+          onComplete={handleComplete}
+          isSaving={isSaving}
+          showBack={true}
+          showComplete={true}
+          completeText={t("setup.navigation.button.complete")}
         >
-          {canAccessProtectedData ? (
-            <AgentConfig ref={agentConfigRef} canAccessProtectedData={canAccessProtectedData} />
-          ) : null}
-        </motion.div>
-      </SetupLayout>
+          <motion.div
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageVariants}
+            transition={pageTransition}
+            style={{ width: "100%", height: "100%" }}
+          >
+            {canAccessProtectedData ? (
+              <AgentConfig ref={agentConfigRef} canAccessProtectedData={canAccessProtectedData} />
+            ) : null}
+          </motion.div>
+        </SetupLayout>
+      </NavigationLayout>
       <SaveConfirmModal
         open={showSaveConfirm}
         onCancel={async () => {
