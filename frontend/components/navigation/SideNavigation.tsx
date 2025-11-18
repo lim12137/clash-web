@@ -110,8 +110,7 @@ export function SideNavigation({
         if (!isSpeedMode && !user) {
           onAuthRequired?.();
         } else {
-          // Chat page remains as separate route since it's a different page structure
-          window.location.href = "/chat";
+          onViewChange?.("chat");
         }
       },
     },
@@ -235,7 +234,7 @@ export function SideNavigation({
           trigger={null}
           breakpoint="lg"
           collapsedWidth={64}
-          width={250}
+          width={277}
           className="!bg-white/95 dark:!bg-slate-900/95 border-r border-slate-200 dark:border-slate-700 backdrop-blur-sm shadow-sm"
           style={{
             overflow: "auto",
@@ -269,7 +268,7 @@ export function SideNavigation({
           className="shadow-md hover:shadow-lg transition-all"
           style={{
             position: "fixed",
-            left: collapsed ? "52px" : "238px",
+            left: collapsed ? "52px" : "264px",
             top: "50vh",
             transform: "translateY(-50%)",
             width: "24px",
