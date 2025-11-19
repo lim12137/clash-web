@@ -25,7 +25,7 @@ class MockVoiceService:
 
 
 # Now import the app under test
-from apps.voice_app import router
+from apps.voice_app import voice_runtime_router, voice_config_router
 
 
 class TestVoiceApp:
@@ -34,7 +34,8 @@ class TestVoiceApp:
     def setup_method(self):
         """Set up test fixtures"""
         self.app = FastAPI()
-        self.app.include_router(router)
+        self.app.include_router(voice_runtime_router)
+        self.app.include_router(voice_config_router)
         self.client = TestClient(self.app)
 
     def test_stt_websocket_success(self):
@@ -276,7 +277,8 @@ class TestVoiceAppIntegration:
     def setup_method(self):
         """Set up test fixtures"""
         self.app = FastAPI()
-        self.app.include_router(router)
+        self.app.include_router(voice_runtime_router)
+        self.app.include_router(voice_config_router)
         self.client = TestClient(self.app)
 
     def test_voice_connectivity_real_logic_stt(self):

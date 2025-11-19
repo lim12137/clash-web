@@ -10,6 +10,7 @@ export interface Agent {
   name: string;
   display_name?: string;
   description: string;
+  unavailable_reasons?: string[];
   model: string;
   model_id?: number;
   max_step: number;
@@ -153,7 +154,6 @@ export interface SubAgentPoolProps {
   isGeneratingAgent?: boolean;
   editingAgent?: Agent | null;
   isCreatingNewAgent?: boolean;
-  editingAgentName?: string | null;
   onExportAgent?: (agent: Agent) => void;
   onDeleteAgent?: (agent: Agent) => void;
 }
@@ -170,6 +170,7 @@ export interface ToolPoolProps {
   isEditingMode?: boolean;
   isGeneratingAgent?: boolean;
   isEmbeddingConfigured?: boolean;
+  agentUnavailableReasons?: string[];
 }
 
 // Simple prompt editor props interface

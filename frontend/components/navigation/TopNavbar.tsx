@@ -140,7 +140,7 @@ export function TopNavbar({ additionalTitle, additionalRightContent }: TopNavbar
 
   return (
     <header
-      className="w-full py-3 px-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10"
+      className="w-full py-3 px-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-50"
       style={{ height: HEADER_CONFIG.DISPLAY_HEIGHT }}
     >
       {/* Left section - Logo + additional title */}

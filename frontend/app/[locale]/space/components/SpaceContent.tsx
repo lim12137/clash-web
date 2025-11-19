@@ -58,7 +58,7 @@ export function SpaceContent({
       onChatNavigate(agentId);
     } else {
       // Fallback to URL navigation if callback not provided
-      router.push(`/chat?agent=${agentId}`);
+    router.push(`/chat?agent=${agentId}`);
     }
   };
 
