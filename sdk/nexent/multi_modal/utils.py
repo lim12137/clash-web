@@ -2,40 +2,53 @@ import base64
 import logging
 from datetime import datetime
 import uuid
-from typing import Tuple
+from typing import Literal, Optional, Tuple
 import mimetypes
 from pathlib import PurePosixPath
 
 
 logger = logging.getLogger("multi_modal")
 
+UrlType = Literal["http", "https", "s3"]
 
-def is_url(url: str) -> bool:
+
+def is_url(url: str) -> Optional[UrlType]:
     """
-    Check if a string is a URL (S3 or HTTP/HTTPS)
+    Classify a string URL as HTTP(S) or S3.
 
     Args:
-        url: String to check
+        url: URL candidate
 
     Returns:
-        True if it is a URL, False otherwise
+        'http', 'https', or 's3' when the input matches the respective
+        scheme. Returns None when the input is not a supported URL.
     """
     if not url or not isinstance(url, str):
-        return False
+        return None
 
-    # Check for HTTP/HTTPS URLs
-    if url.startswith(("http://", "https://")):
-        return True
+    url = url.strip()
 
-    # Check for S3 URLs
+    if url.startswith("http://"):
+        return "http"
+
+    if url.startswith("https://"):
+        return "https"
+
     if url.startswith("s3://"):
-        return True
+        bucket_path = url.replace("s3://", "", 1)
+        bucket_object = bucket_path.split("/", 1)
+        if len(bucket_object) == 2 and all(bucket_object):
+            return "s3"
+        return None
 
-    # Check for MinIO path format: /bucket/key
-    if url.startswith("/") and len(url.split("/")) >= 3:
-        return True
+    if url.startswith("/"):
+        stripped = url.lstrip("/")
+        parts = stripped.split("/", 1)
+        if len(parts) == 2 and all(parts):
+            return "s3"
+        return None
 
-    return False
+    return None
 
 
 def bytes_to_base64(bytes_data: bytes, content_type: str = "application/octet-stream") -> str:

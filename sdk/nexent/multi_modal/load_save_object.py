@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import requests
 
 from .utils import (
+    UrlType,
     is_url,
     generate_object_name,
     detect_content_type_from_bytes,
@@ -36,20 +37,28 @@ class LoadSaveObjectManager:
             raise ValueError("Storage client is not initialized.")
         return self._storage_client
 
-    def download_file_from_url(self, url: str, timeout: int = 30) -> Optional[bytes]:
+    def download_file_from_url(
+            self,
+            url: str,
+            url_type: UrlType,
+            timeout: int = 30
+    ) -> Optional[bytes]:
         """
         Download file content from S3 URL or HTTP/HTTPS URL as bytes.
         """
         if not url:
             return None
 
+        if not url_type:
+            raise ValueError("url_type must be provided for download_file_from_url")
+
         try:
-            if url.startswith(('http://', 'https://')):
+            if url_type in ("http", "https"):
                 response = requests.get(url, timeout=timeout)
                 response.raise_for_status()
                 return response.content
 
-            if url.startswith('s3://') or url.startswith('/'):
+            if url_type == "s3":
                 client = self._get_client()
                 bucket, object_name = parse_s3_url(url)
 
@@ -68,7 +77,7 @@ class LoadSaveObjectManager:
                 except Exception as exc:
                     raise ValueError(f"Failed to read stream content: {exc}") from exc
 
-            raise ValueError(f"Unsupported URL format: {url[:50]}...")
+            raise ValueError(f"Unsupported URL type: {url_type}")
 
         except Exception as exc:
             logger.error(f"Failed to download file from URL: {exc}")
@@ -115,22 +124,24 @@ class LoadSaveObjectManager:
             def wrapper(*args, **kwargs):
                 def _transform_single_value(param_name: str, value: Any,
                                             transformer: Optional[Callable[[bytes], Any]]) -> Any:
-                    if isinstance(value, str) and is_url(value):
-                        bytes_data = self.download_file_from_url(value)
+                    if isinstance(value, str):
+                        url_type = is_url(value)
+                        if url_type:
+                            bytes_data = self.download_file_from_url(value, url_type=url_type)
 
-                        if bytes_data is None:
-                            raise ValueError(f"Failed to download file from URL: {value}")
+                            if bytes_data is None:
+                                raise ValueError(f"Failed to download file from URL: {value}")
 
-                        if transformer:
-                            transformed_data = transformer(bytes_data)
-                            logger.info(
-                                f"Downloaded {param_name} from URL and transformed "
-                                f"using {transformer.__name__}"
-                            )
-                            return transformed_data
+                            if transformer:
+                                transformed_data = transformer(bytes_data)
+                                logger.info(
+                                    f"Downloaded {param_name} from URL and transformed "
+                                    f"using {transformer.__name__}"
+                                )
+                                return transformed_data
 
-                        logger.info(f"Downloaded {param_name} from URL as bytes (binary stream)")
-                        return bytes_data
+                            logger.info(f"Downloaded {param_name} from URL as bytes (binary stream)")
+                            return bytes_data
 
                     raise ValueError(
                         f"Parameter '{param_name}' is not a URL string. "
