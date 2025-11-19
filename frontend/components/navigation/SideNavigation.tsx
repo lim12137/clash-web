@@ -184,8 +184,8 @@ export function SideNavigation({
       icon: <Database className="h-4 w-4" />,
       label: t("sidebar.memoryManagement"),
       onClick: () => {
-        if (!isSpeedMode && !user) {
-          onAuthRequired?.();
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
         } else {
           onViewChange?.("memory");
         }
@@ -195,6 +195,14 @@ export function SideNavigation({
       key: "9",
       icon: <Users className="h-4 w-4" />,
       label: t("sidebar.userManagement"),
+      onClick: () => {
+        if (!isSpeedMode && user?.role !== "admin") {
+          onAdminRequired?.();
+        } else {
+          // TODO: Implement user management view
+          onViewChange?.("users");
+        }
+      },
     },
   ];
 
