@@ -20,9 +20,10 @@ from fastapi import Body, Depends, Path, Query
 from fastapi.responses import StreamingResponse
 from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
 from nexent.core.nlp.tokenizer import calculate_term_weights
+from nexent.vector_database.base import VectorDatabaseCore
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
-from consts.const import ES_API_KEY, ES_HOST, LANGUAGE
+from consts.const import ES_API_KEY, ES_HOST, LANGUAGE, VectorDatabaseType
 from database.attachment_db import delete_file
 from database.knowledge_db import (
     create_knowledge_record,
@@ -35,31 +36,42 @@ from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 
 # Configure logging
-logger = logging.getLogger("elasticsearch_service")
+logger = logging.getLogger("vectordatabase_service")
 
 
+def get_vector_db_core(
+    db_type: VectorDatabaseType = VectorDatabaseType.ELASTICSEARCH,
+) -> VectorDatabaseCore:
+    """
+    Return a VectorDatabaseCore implementation based on the requested type.
+
+    Args:
+        db_type: Target vector database provider. Defaults to Elasticsearch.
+
+    Returns:
+        VectorDatabaseCore: Concrete vector database implementation.
+
+    Raises:
+        ValueError: If the requested database type is not supported.
+    """
+    if db_type == VectorDatabaseType.ELASTICSEARCH:
+        return ElasticSearchCore(
+            host=ES_HOST,
+            api_key=ES_API_KEY,
+            verify_certs=False,
+            ssl_show_warn=False,
+        )
+
+    raise ValueError(f"Unsupported vector database type: {db_type}")
 
 
-# Old keyword-based summary method removed - replaced with Map-Reduce approach
-# See utils/document_vector_utils.py for new implementation
-
-
-# Initialize ElasticSearchCore instance with HTTPS support
-elastic_core = ElasticSearchCore(
-    host=ES_HOST,
-    api_key=ES_API_KEY,
-    verify_certs=False,
-    ssl_show_warn=False,
-)
-
-
-def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tenant_id: str) -> dict:
+def check_knowledge_base_exist_impl(index_name: str, vdb_core: VectorDatabaseCore, user_id: str, tenant_id: str) -> dict:
     """
     Check knowledge base existence and handle orphan cases
 
     Args:
         index_name: Name of the index to check
-        es_core: Elasticsearch core instance
+        vdb_core: Elasticsearch core instance
         user_id: Current user ID
         tenant_id: Current tenant ID
 
@@ -67,7 +79,7 @@ def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tena
         dict: Status information about the knowledge base
     """
     # 1. Check index existence in ES and corresponding record in PG
-    es_exists = es_core.client.indices.exists(index=index_name)
+    es_exists = vdb_core.check_index_exists(index_name)
     pg_record = get_knowledge_record({"index_name": index_name})
 
     # Case A: Orphan in ES only (exists in ES, missing in PG)
@@ -75,7 +87,7 @@ def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tena
         logger.warning(
             f"Detected orphan knowledge base '{index_name}' – present in ES, absent in PG. Deleting ES index only.")
         try:
-            es_core.delete_index(index_name)
+            vdb_core.delete_index(index_name)
             # Clean up Redis records related to this index to avoid stale tasks
             try:
                 redis_service = get_redis_service()
@@ -121,11 +133,6 @@ def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tena
         return {"status": "exists_in_other_tenant"}
 
 
-def get_es_core():
-    # ensure embedding model is latest
-    return elastic_core
-
-
 def get_embedding_model(tenant_id: str):
     # Get the tenant config
     model_config = tenant_config_manager.get_model_config(
@@ -144,7 +151,7 @@ def get_embedding_model(tenant_id: str):
 
 class ElasticSearchService:
     @staticmethod
-    async def full_delete_knowledge_base(index_name: str, es_core: ElasticSearchCore, user_id: str):
+    async def full_delete_knowledge_base(index_name: str, vdb_core: VectorDatabaseCore, user_id: str):
         """
         Completely delete a knowledge base, including its index, associated files in MinIO,
         and all related records in Redis and PostgreSQL.
@@ -157,7 +164,7 @@ class ElasticSearchService:
                 f"Step 1/4: Retrieving file list for index: {index_name}")
             try:
                 file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False,
-                                                                         es_core=es_core)
+                                                                         vdb_core=vdb_core)
                 files_to_delete = file_list_result.get("files", [])
                 logger.debug(
                     f"Found {len(files_to_delete)} files to delete from MinIO for index '{index_name}'.")
@@ -209,7 +216,7 @@ class ElasticSearchService:
             # 3. Delete Elasticsearch index and its DB record
             logger.debug(
                 f"Step 3/4: Deleting Elasticsearch index '{index_name}' and its database record.")
-            delete_index_result = await ElasticSearchService.delete_index(index_name, es_core, user_id)
+            delete_index_result = await ElasticSearchService.delete_index(index_name, vdb_core, user_id)
 
             # 4. Clean up Redis records related to this knowledge base
             logger.debug(
@@ -262,17 +269,17 @@ class ElasticSearchService:
                                    description="Name of the index to create"),
             embedding_dim: Optional[int] = Query(
                 None, description="Dimension of the embedding vectors"),
-            es_core: ElasticSearchCore = Depends(get_es_core),
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core),
             user_id: Optional[str] = Body(
                 None, description="ID of the user creating the knowledge base"),
             tenant_id: Optional[str] = Body(
                 None, description="ID of the tenant creating the knowledge base"),
     ):
         try:
-            if es_core.client.indices.exists(index=index_name):
+            if vdb_core.check_index_exists(index_name):
                 raise Exception(f"Index {index_name} already exists")
             embedding_model = get_embedding_model(tenant_id)
-            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or (
+            success = vdb_core.create_index(index_name, embedding_dim=embedding_dim or (
                 embedding_model.embedding_dim if embedding_model else 1024))
             if not success:
                 raise Exception(f"Failed to create index {index_name}")
@@ -289,14 +296,14 @@ class ElasticSearchService:
     async def delete_index(
             index_name: str = Path(...,
                                    description="Name of the index to delete"),
-            es_core: ElasticSearchCore = Depends(get_es_core),
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core),
             user_id: Optional[str] = Body(
                 None, description="ID of the user delete the knowledge base"),
     ):
         try:
             # 1. Get list of files from the index
             try:
-                files_to_delete = await ElasticSearchService.list_files(index_name, es_core=es_core)
+                files_to_delete = await ElasticSearchService.list_files(index_name, vdb_core=vdb_core)
                 if files_to_delete and files_to_delete.get("files"):
                     # 2. Delete files from MinIO storage
                     for file_info in files_to_delete["files"]:
@@ -312,7 +319,7 @@ class ElasticSearchService:
                     f"Error deleting associated files from MinIO for index {index_name}: {str(e)}")
 
             # 3. Delete the index in Elasticsearch
-            success = es_core.delete_index(index_name)
+            success = vdb_core.delete_index(index_name)
             if not success:
                 # Even if deletion fails, we proceed to database record cleanup
                 logger.warning(
@@ -342,7 +349,7 @@ class ElasticSearchService:
                 description="ID of the tenant listing the knowledge base"),
             user_id: str = Body(
                 description="ID of the user listing the knowledge base"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
     ):
         """
         List all indices that the current user has permissions to access.
@@ -353,12 +360,12 @@ class ElasticSearchService:
             include_stats: Whether to include index stats
             tenant_id: ID of the tenant listing the knowledge base
             user_id: ID of the user listing the knowledge base
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
 
         Returns:
             Dict[str, Any]: A dictionary containing the list of indices and the count.
         """
-        all_indices_list = es_core.get_user_indices(pattern)
+        all_indices_list = vdb_core.get_user_indices(pattern)
 
         db_record = get_knowledge_info_by_tenant_id(tenant_id=tenant_id)
 
@@ -385,7 +392,7 @@ class ElasticSearchService:
         if include_stats:
             stats_info = []
             if filtered_indices_list:
-                indice_stats = es_core.get_index_stats(filtered_indices_list)
+                indice_stats = vdb_core.get_indices_detail(filtered_indices_list)
                 for index_name in filtered_indices_list:
                     index_stats = indice_stats.get(index_name, {})
                     stats_info.append({
@@ -402,79 +409,12 @@ class ElasticSearchService:
         return response
 
     @staticmethod
-    def get_index_name(
-            index_name: str = Path(..., description="Name of the index"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
-    ):
-        """
-        Get detailed information about the index, including statistics, field mappings, file list, and processing
-        information
-
-        Args:
-            index_name: Index name
-            es_core: ElasticSearchCore instance
-
-        Returns:
-            Dictionary containing detailed index information
-        """
-        try:
-            # Get all the info in one combined response
-            stats = es_core.get_index_stats([index_name])
-            mappings = es_core.get_index_mapping([index_name])
-
-            # Check if stats and mappings are valid
-            if stats and index_name in stats:
-                index_stats = stats[index_name]
-            else:
-                logger.error(f"404: Index {index_name} not found in stats")
-                index_stats = {}
-
-            if mappings and index_name in mappings:
-                fields = mappings[index_name]
-            else:
-                logger.error(f"404: Index {index_name} not found in mappings:")
-                fields = []
-
-            # Check if base_info exists in stats
-            search_performance = {}
-            if index_stats and "base_info" in index_stats:
-                base_info = index_stats["base_info"]
-                search_performance = index_stats.get("search_performance", {})
-            else:
-                logger.error(f"404: Index {index_name} may not be created yet")
-                base_info = {
-                    "doc_count": 0,
-                    "unique_sources_count": 0,
-                    "store_size": "0",
-                    "process_source": "Unknown",
-                    "embedding_model": "Unknown",
-                }
-
-            return {
-                "base_info": base_info,
-                "search_performance": search_performance,
-                "fields": fields
-            }
-        except Exception as e:
-            error_msg = str(e)
-            # Check if it's an ElasticSearch connection issue
-            if "503" in error_msg or "search_phase_execution_exception" in error_msg:
-                raise Exception(
-                    f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
-            elif "ApiError" in error_msg:
-                raise Exception(
-                    f"ElasticSearch API error for index {index_name}: {error_msg}")
-            else:
-                raise Exception(
-                    f"Error getting info for index {index_name}: {error_msg}")
-
-    @staticmethod
     def index_documents(
             embedding_model: BaseEmbedding,
             index_name: str = Path(..., description="Name of the index"),
             data: List[Dict[str, Any]
                        ] = Body(..., description="Document List to process"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
     ):
         """
         Index documents and create vector embeddings, create index if it doesn't exist
@@ -483,7 +423,7 @@ class ElasticSearchService:
             embedding_model: Optional embedding model to use for generating document vectors
             index_name: Index name
             data: List containing document data to be indexed
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
 
         Returns:
             IndexingResponse object containing indexing result information
@@ -493,10 +433,10 @@ class ElasticSearchService:
                 raise Exception("Index name is required")
 
             # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
-            if not es_core.client.indices.exists(index=index_name):
+            if not vdb_core.check_index_exists(index_name):
                 try:
                     ElasticSearchService.create_index(
-                        index_name, es_core=es_core)
+                        index_name, vdb_core=vdb_core)
                     logger.info(f"Created new index {index_name}")
                 except Exception as create_error:
                     raise Exception(
@@ -565,7 +505,7 @@ class ElasticSearchService:
 
             # Index documents (use default batch_size and content_field)
             try:
-                total_indexed = es_core.index_documents(
+                total_indexed = vdb_core.vectorize_documents(
                     index_name=index_name,
                     embedding_model=embedding_model,
                     documents=documents,
@@ -592,7 +532,7 @@ class ElasticSearchService:
             index_name: str = Path(..., description="Name of the index"),
             include_chunks: bool = Query(
                 False, description="Whether to include text chunks for each file"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
     ):
         """
         Get file list for the specified index, including files that are not yet stored in ES
@@ -600,7 +540,7 @@ class ElasticSearchService:
         Args:
             index_name: Name of the index
             include_chunks: Whether to include text chunks for each file
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
 
         Returns:
             Dictionary containing file list
@@ -608,7 +548,7 @@ class ElasticSearchService:
         try:
             files = []
             # Get existing files from ES
-            existing_files = es_core.get_file_list_with_details(index_name)
+            existing_files = vdb_core.get_documents_detail(index_name)
 
             # Get unique celery files list and the status of each file
             celery_task_files = await get_all_files_status(index_name)
@@ -694,9 +634,9 @@ class ElasticSearchService:
 
                 if msearch_body:
                     try:
-                        msearch_responses = es_core.client.msearch(
+                        msearch_responses = vdb_core.multi_search(
                             body=msearch_body,
-                            index=index_name
+                            index_name=index_name
                         )
 
                         for i, file_path in enumerate(completed_files_map.keys()):
@@ -740,29 +680,29 @@ class ElasticSearchService:
             index_name: str = Path(..., description="Name of the index"),
             path_or_url: str = Query(...,
                                      description="Path or URL of documents to delete"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
     ):
         # 1. Delete ES documents
-        deleted_count = es_core.delete_documents_by_path_or_url(
+        deleted_count = vdb_core.delete_documents(
             index_name, path_or_url)
         # 2. Delete MinIO file
         minio_result = delete_file(path_or_url)
         return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 
     @staticmethod
-    def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
+    def health_check(vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)):
         """
         Check the health status of the API and Elasticsearch
 
         Args:
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
 
         Returns:
             Response containing health status information
         """
         try:
             # Try to list indices as a health check
-            indices = es_core.get_user_indices()
+            indices = vdb_core.get_user_indices()
             return {
                 "status": "healthy",
                 "elasticsearch": "connected",
@@ -776,8 +716,7 @@ class ElasticSearchService:
                                      ..., description="Name of the index to get documents from"),
                                  batch_size: int = Query(
                                      1000, description="Number of documents to retrieve per batch"),
-                                 es_core: ElasticSearchCore = Depends(
-                                     get_es_core),
+                                 vdb_core: VectorDatabaseCore = Depends(get_vector_db_core),
                                  user_id: Optional[str] = Body(
                                      None, description="ID of the user delete the knowledge base"),
                                  tenant_id: Optional[str] = Body(
@@ -797,7 +736,7 @@ class ElasticSearchService:
         Args:
             index_name: Name of the index to summarize
             batch_size: Number of documents to sample (default: 1000)
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
             tenant_id: ID of the tenant
             language: Language of the summary (default: 'zh')
             model_id: Model ID for LLM summarization
@@ -822,7 +761,7 @@ class ElasticSearchService:
             # Step 1: Get documents and calculate embeddings
             document_samples, doc_embeddings = process_documents_for_clustering(
                 index_name=index_name,
-                es_core=es_core,
+                vdb_core=vdb_core,
                 sample_doc_count=sample_count
             )
             
@@ -872,7 +811,7 @@ class ElasticSearchService:
                                    description="Name of the index to get documents from"),
             batch_size: int = Query(
                 1000, description="Maximum number of documents to retrieve"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
     ):
         """
         Get random sample of documents from the specified index
@@ -880,15 +819,14 @@ class ElasticSearchService:
         Args:
             index_name: Name of the index to get documents from
             batch_size: Maximum number of documents to retrieve, default 1000
-            es_core: ElasticSearchCore instance
+            vdb_core: VectorDatabaseCore instance
 
         Returns:
             Dictionary containing total count and sampled documents
         """
         try:
             # Get total document count
-            count_response = es_core.client.count(index=index_name)
-            total_docs = count_response['count']
+            total_docs = vdb_core.count_documents(index_name)
 
             # Construct the random sampling query using random_score
             query = {
@@ -906,9 +844,9 @@ class ElasticSearchService:
             }
 
             # Execute the query
-            response = es_core.client.search(
-                index=index_name,
-                body=query
+            response = vdb_core.search(
+                index_name=index_name,
+                query=query
             )
 
             # Extract and process the sampled documents

@@ -234,7 +234,7 @@ docker network rm elastic
 - `elasticsearch_core.py`: 主类，包含所有 Elasticsearch 操作
 - `embedding_model.py`: 处理使用 Jina AI 模型生成嵌入向量
 - `utils.py`: 数据格式化和显示的工具函数
-- `elasticsearch_service.py`: FastAPI 服务，提供 REST API 接口
+- `vectordatabase_service.py`: FastAPI 服务，提供 REST API 接口
 
 ## 使用示例
 
@@ -244,10 +244,10 @@ docker network rm elastic
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
 # 使用 .env 文件中的凭据初始化
-es_core = ElasticSearchCore()
+vdb_core = ElasticSearchCore()
 
 # 或直接指定凭据
-es_core = ElasticSearchCore(
+vdb_core = ElasticSearchCore(
     host="https://localhost:9200",
     api_key="your_api_key",
     verify_certs=False,
@@ -259,21 +259,21 @@ es_core = ElasticSearchCore(
 
 ```python
 # 创建新的向量索引
-es_core.create_vector_index("my_documents")
+vdb_core.create_index("my_documents")
 
 # 列出所有用户索引
-indices = es_core.get_user_indices()
+indices = vdb_core.get_user_indices()
 print(indices)
 
 # 获取所有索引的统计信息
-all_indices_stats = es_core.get_all_indices_stats()
+all_indices_stats = vdb_core.get_all_indices_stats()
 print(all_indices_stats)
 
 # 删除索引
-es_core.delete_index("my_documents")
+vdb_core.delete_index("my_documents")
 
 # 创建测试知识库
-index_name, doc_count = es_core.create_test_knowledge_base()
+index_name, doc_count = vdb_core.create_test_knowledge_base()
 print(f"创建了测试知识库 {index_name}，包含 {doc_count} 个文档")
 ```
 
@@ -304,11 +304,11 @@ documents = [
     }
 ]
 # 支持批量处理，默认批处理大小为3000
-total_indexed = es_core.index_documents("my_documents", documents, batch_size=3000)
+total_indexed = vdb_core.vectorize_documents("my_documents", documents, batch_size=3000)
 print(f"成功索引了 {total_indexed} 个文档")
 
 # 通过 URL 或路径删除文档
-deleted_count = es_core.delete_documents_by_path_or_url("my_documents", "https://example.com/doc1")
+deleted_count = vdb_core.delete_documents("my_documents", "https://example.com/doc1")
 print(f"删除了 {deleted_count} 个文档")
 ```
 
@@ -316,17 +316,17 @@ print(f"删除了 {deleted_count} 个文档")
 
 ```python
 # 文本精确搜索
-results = es_core.accurate_search("my_documents", "示例查询", top_k=5)
+results = vdb_core.accurate_search("my_documents", "示例查询", top_k=5)
 for result in results:
     print(f"得分: {result['score']}, 文档: {result['document']['title']}")
 
 # 语义向量搜索
-results = es_core.semantic_search("my_documents", "示例查询", top_k=5)
+results = vdb_core.semantic_search("my_documents", "示例查询", top_k=5)
 for result in results:
     print(f"得分: {result['score']}, 文档: {result['document']['title']}")
 
 # 混合搜索
-results = es_core.hybrid_search(
+results = vdb_core.hybrid_search(
     "my_documents",
     "示例查询",
     top_k=5,
@@ -340,19 +340,19 @@ for result in results:
 
 ```python
 # 获取索引统计信息
-stats = es_core.get_index_stats("my_documents")
+stats = vdb_core.get_indices_detail(["my_documents"])
 print(stats)
 
 # 获取文件列表及详细信息
-file_details = es_core.get_file_list_with_details("my_documents")
+file_details = vdb_core.get_documents_detail("my_documents")
 print(file_details)
 
 # 获取嵌入模型信息
-embedding_model = es_core.get_embedding_model_info("my_documents")
+embedding_model = vdb_core.get_embedding_model_info("my_documents")
 print(f"使用的嵌入模型: {embedding_model}")
 
 # 打印所有索引信息
-es_core.print_all_indices_info()
+vdb_core.print_all_indices_info()
 ```
 
 ## ElasticSearchCore 主要功能
@@ -368,7 +368,7 @@ ElasticSearchCore 类提供了以下主要功能:
 
 ```python
 # 获取索引的文件列表及详细信息
-files = es_core.get_file_list_with_details("my_documents")
+files = vdb_core.get_documents_detail("my_documents")
 for file in files:
     print(f"文件路径: {file['path_or_url']}")
     print(f"文件名: {file['file']}")
@@ -377,11 +377,11 @@ for file in files:
     print("---")
 
 # 获取嵌入模型信息
-model_info = es_core.get_embedding_model_info("my_documents")
+model_info = vdb_core.get_embedding_model_info("my_documents")
 print(f"使用的嵌入模型: {model_info}")
 
 # 获取所有索引的综合统计信息
-all_stats = es_core.get_all_indices_stats()
+all_stats = vdb_core.get_all_indices_stats()
 for index_name, stats in all_stats.items():
     print(f"索引: {index_name}")
     print(f"文档数: {stats['base_info']['doc_count']}")
@@ -392,12 +392,12 @@ for index_name, stats in all_stats.items():
 
 ## API 服务接口
 
-通过 `elasticsearch_service.py` 提供的 FastAPI 服务，可使用 REST API 访问上述所有功能。
+通过 `vectordatabase_service.py` 提供的 FastAPI 服务，可使用 REST API 访问上述所有功能。
 
 ### 服务启动
 
 ```bash
-python -m nexent.service.elasticsearch_service
+python -m nexent.service.vectordatabase_service
 ```
 
 服务默认在 `http://localhost:8000` 运行。
@@ -836,13 +836,13 @@ print(json.dumps(response.json(), indent=2, ensure_ascii=False))
 
 ```python
 # 初始化 ElasticSearchCore
-es_core = ElasticSearchCore()
+vdb_core = ElasticSearchCore()
 
 # 获取或创建测试知识库
 index_name = "sample_articles"
 
 # 列出所有用户索引
-user_indices = es_core.get_user_indices()
+user_indices = vdb_core.get_user_indices()
 for idx in user_indices:
     print(f"  - {idx}")
 
@@ -850,20 +850,20 @@ for idx in user_indices:
 if index_name in user_indices:
     # 精确搜索
     query = "Doctor"
-    accurate_results = es_core.accurate_search(index_name, query, top_k=2)
+    accurate_results = vdb_core.accurate_search(index_name, query, top_k=2)
     
     # 语义搜索
     query = "medical professionals in London"
-    semantic_results = es_core.semantic_search(index_name, query, top_k=2)
+    semantic_results = vdb_core.semantic_search(index_name, query, top_k=2)
 
     # 混合搜索
     query = "medical professionals in London"
-    semantic_results = es_core.hybrid_search(index_name, query, top_k=2, weight_accurate=0.5)
+    semantic_results = vdb_core.hybrid_search(index_name, query, top_k=2, weight_accurate=0.5)
     
     # 获取索引统计信息
-    stats = es_core.get_index_stats(index_name)
-    fields = es_core.get_index_mapping(index_name)
-    unique_sources = es_core.get_unique_sources_count(index_name)
+    stats = vdb_core.get_indices_detail([index_name])
+    fields = vdb_core.get_index_mapping(index_name)
+    unique_sources = vdb_core.get_unique_sources_count(index_name)
 ```
 
 ## 许可证

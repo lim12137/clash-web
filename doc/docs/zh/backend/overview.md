@@ -28,7 +28,7 @@ backend/
 ├── services/                     # 业务服务层
 │   ├── agent_service.py         # 代理业务逻辑
 │   ├── conversation_management_service.py # 对话管理
-│   ├── elasticsearch_service.py # 搜索引擎服务
+│   ├── vectordatabase_service.py # 搜索引擎服务
 │   ├── model_health_service.py  # 模型健康检查
 │   ├── prompt_service.py        # 提示词服务
 │   └── tenant_config_service.py # 租户配置服务

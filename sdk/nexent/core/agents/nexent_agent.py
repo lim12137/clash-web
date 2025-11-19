@@ -68,7 +68,7 @@ class NexentAgent:
             if class_name == "KnowledgeBaseSearchTool":
                 tools_obj = tool_class(index_names=tool_config.metadata.get("index_names", []),
                                        observer=self.observer,
-                                       es_core=tool_config.metadata.get("es_core", []),
+                                       vdb_core=tool_config.metadata.get("vdb_core", []),
                                        embedding_model=tool_config.metadata.get("embedding_model", []),
                                        **params)
             else:

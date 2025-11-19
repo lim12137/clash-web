@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -8,6 +9,11 @@ load_dotenv(override=True)
 # Test voice file path
 TEST_VOICE_PATH = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'assets', 'test.wav')
+
+
+# Vector database providers
+class VectorDatabaseType(str, Enum):
+    ELASTICSEARCH = "elasticsearch"
 
 
 # ModelEngine Configuration
