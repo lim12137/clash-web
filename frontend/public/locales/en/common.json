@@ -939,10 +939,10 @@
 
   "memoryService.loadMemoryError": "Failed to load memories, please try again later",
   "memoryService.tenantSharedGroupTitle": "Tenant shared memories",
-  "memoryService.agentSharedGroupTitle": "Shared memories of all users in {{agentName}}",
+  "memoryService.agentSharedGroupTitle": "{{agentName}}",
   "memoryService.agentSharedPlaceholder": "Agent Shared Memories",
   "memoryService.userPersonalGroupTitle": "User's personal memories",
-  "memoryService.userAgentGroupTitle": "User memories in {{agentName}}",
+  "memoryService.userAgentGroupTitle": "{{agentName}}",
   "memoryService.userAgentPlaceholder": "User Agent Memories",
 
   "memoryManageModal.title": "Memory Management",
@@ -1027,5 +1027,16 @@
   "space.detail.source": "Source",
   "space.detail.category": "Category",
   "space.detail.usage": "Usage",
-  "space.detail.parameters": "Parameters"
+  "space.detail.parameters": "Parameters",
+
+  "sidebar.homePage": "Home Page",
+  "sidebar.startChat": "Start Chat",
+  "sidebar.quickConfig": "Quick Setup",
+  "sidebar.agentSpace": "Agent Space",
+  "sidebar.agentMarket": "Agent Market",
+  "sidebar.agentDev": "Agent Development",
+  "sidebar.knowledgeBase": "Knowledge Base",
+  "sidebar.modelManagement": "Model Management",
+  "sidebar.memoryManagement": "Memory Management",
+  "sidebar.userManagement": "User Management"
 }

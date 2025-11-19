@@ -147,7 +147,7 @@
       "description": "基于多模态知识库、数据处理能力，提供多模态的智能体服务，支持文本、图像、音频等多种数据类型的输入输出。"
     }
   ],
-  "page.copyright": "Nexent 智能体 © {{year}}",
+  "page.copyright": "Nexent © {{year}}",
   "page.termsOfUse": "使用条款",
   "page.loginPrompt.title": "登录账号",
   "page.loginPrompt.register": "注册",
@@ -939,10 +939,10 @@
 
   "memoryService.loadMemoryError": "加载记忆失败，请稍后重试",
   "memoryService.tenantSharedGroupTitle": "租户所有用户的共享记忆",
-  "memoryService.agentSharedGroupTitle": "{{agentName}} 所有用户的共享记忆",
+  "memoryService.agentSharedGroupTitle": "{{agentName}}",
   "memoryService.agentSharedPlaceholder": "Agent 共享记忆",
   "memoryService.userPersonalGroupTitle": "用户的个性化记忆",
-  "memoryService.userAgentGroupTitle": "{{agentName}} 中的用户记忆",
+  "memoryService.userAgentGroupTitle": "{{agentName}}",
   "memoryService.userAgentPlaceholder": "用户 Agent 记忆",
 
   "memoryManageModal.title": "记忆管理",
@@ -1027,5 +1027,16 @@
   "space.detail.source": "来源",
   "space.detail.category": "分类",
   "space.detail.usage": "用途",
-  "space.detail.parameters": "参数"
+  "space.detail.parameters": "参数",
+
+  "sidebar.homePage": "首页",
+  "sidebar.startChat": "开始问答",
+  "sidebar.quickConfig": "快速配置",
+  "sidebar.agentSpace": "智能体空间",
+  "sidebar.agentMarket": "智能体市场",
+  "sidebar.agentDev": "智能体开发",
+  "sidebar.knowledgeBase": "知识库",
+  "sidebar.modelManagement": "模型管理",
+  "sidebar.memoryManagement": "记忆管理",
+  "sidebar.userManagement": "用户管理"
 }
