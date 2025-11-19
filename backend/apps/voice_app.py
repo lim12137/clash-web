@@ -16,10 +16,11 @@ from services.voice_service import get_voice_service
 
 logger = logging.getLogger("voice_app")
 
-router = APIRouter(prefix="/voice")
+voice_runtime_router = APIRouter(prefix="/voice")
+voice_config_router = APIRouter(prefix="/voice")
 
 
-@router.websocket("/stt/ws")
+@voice_runtime_router.websocket("/stt/ws")
 async def stt_websocket(websocket: WebSocket):
     """WebSocket endpoint for real-time audio streaming and STT"""
     logger.info("STT WebSocket connection attempt...")
@@ -39,7 +40,7 @@ async def stt_websocket(websocket: WebSocket):
         logger.info("STT WebSocket connection closed")
 
 
-@router.websocket("/tts/ws")
+@voice_runtime_router.websocket("/tts/ws")
 async def tts_websocket(websocket: WebSocket):
     """WebSocket endpoint for streaming TTS"""
     logger.info("TTS WebSocket connection attempt...")
@@ -73,7 +74,7 @@ async def tts_websocket(websocket: WebSocket):
             await websocket.close()
 
 
-@router.post("/connectivity")
+@voice_config_router.post("/connectivity")
 async def check_voice_connectivity(request: VoiceConnectivityRequest):
     """
     Check voice service connectivity
