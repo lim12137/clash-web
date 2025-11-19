@@ -1,16 +1,18 @@
-import time
 import logging
 import threading
-from typing import List, Dict, Any, Optional
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from ..core.models.embedding_model import BaseEmbedding
-from .utils import format_size, format_timestamp, build_weighted_query
-from .base import VectorDatabaseCore
+from typing import Any, Dict, List, Optional
+
 from elasticsearch import Elasticsearch, exceptions
 
+from ..core.models.embedding_model import BaseEmbedding
 from ..core.nlp.tokenizer import calculate_term_weights
+from .base import VectorDatabaseCore
+from .utils import build_weighted_query, format_size
+
 
 logger = logging.getLogger("elasticsearch_core")
 
@@ -201,7 +203,7 @@ class ElasticSearchCore(VectorDatabaseCore):
                                        "query": {"match_all": {}}, "size": 0})
                     return True
 
-            except Exception as e:
+            except Exception:
                 time.sleep(0.1)
 
         logger.warning(
@@ -608,6 +610,55 @@ class ElasticSearchCore(VectorDatabaseCore):
         except Exception as e:
             logger.error(f"Error counting documents: {str(e)}")
             return 0
+
+    def get_index_chunks(self, index_name: str, batch_size: int = 1000) -> List[Dict[str, Any]]:
+        """
+        Retrieve every chunk record stored in an index using the scroll API.
+        """
+        chunks: List[Dict[str, Any]] = []
+        scroll_id: Optional[str] = None
+
+        try:
+            response = self.client.search(
+                index=index_name,
+                body={"query": {"match_all": {}},
+                      "_source": {"excludes": ["embedding"]}},
+                size=batch_size,
+                scroll="2m",
+            )
+            scroll_id = response.get("_scroll_id")
+
+            while True:
+                hits = response.get("hits", {}).get("hits", [])
+                if not hits:
+                    break
+
+                for hit in hits:
+                    chunk = hit.get("_source", {}).copy()
+                    if "id" not in chunk:
+                        chunk["id"] = hit.get("_id")
+                    chunks.append(chunk)
+
+                if not scroll_id:
+                    break
+
+                response = self.client.scroll(scroll_id=scroll_id, scroll="2m")
+                scroll_id = response.get("_scroll_id")
+
+        except exceptions.NotFoundError:
+            logger.info(f"Index {index_name} not found when fetching chunks")
+        except Exception as e:
+            logger.error(f"Error fetching chunks for index {index_name}: {e}")
+        finally:
+            if scroll_id:
+                try:
+                    self.client.clear_scroll(scroll_id=scroll_id)
+                except Exception as cleanup_error:
+                    logger.warning(
+                        f"Failed to clear scroll context for index {index_name}: {cleanup_error}"
+                    )
+
+        return chunks
 
     def search(self, index_name: str, query: Dict[str, Any]) -> Dict[str, Any]:
         """
