@@ -16,11 +16,12 @@ from utils.file_management_utils import trigger_data_process
 logger = logging.getLogger("file_management_app")
 
 # Create API router
-router = APIRouter(prefix="/file")
+file_management_runtime_router = APIRouter(prefix="/file")
+file_management_config_router = APIRouter(prefix="/file")
 
 
 # Handle preflight requests
-@router.options("/{full_path:path}")
+@file_management_config_router.options("/{full_path:path}")
 async def options_route(full_path: str):
     return JSONResponse(
         status_code=HTTPStatus.OK,
@@ -28,7 +29,7 @@ async def options_route(full_path: str):
     )
 
 
-@router.post("/upload")
+@file_management_config_router.post("/upload")
 async def upload_files(
         file: List[UploadFile] = File(..., alias="file"),
         destination: str = Form(...,
@@ -59,7 +60,7 @@ async def upload_files(
                             detail="No valid files uploaded")
 
 
-@router.post("/process")
+@file_management_config_router.post("/process")
 async def process_files(
         files: List[dict] = Body(
             ..., description="List of file details to process, including path_or_url and filename"),
@@ -100,7 +101,7 @@ async def process_files(
     )
 
 
-@router.post("/storage")
+@file_management_runtime_router.post("/storage")
 async def storage_upload_files(
     files: List[UploadFile] = File(..., description="List of files to upload"),
     folder: str = Form(
@@ -125,7 +126,7 @@ async def storage_upload_files(
     }
 
 
-@router.get("/storage")
+@file_management_config_router.get("/storage")
 async def get_storage_files(
     prefix: str = Query("", description="File prefix filter"),
     limit: int = Query(100, description="Maximum number of files to return"),
@@ -160,7 +161,7 @@ async def get_storage_files(
         )
 
 
-@router.get("/storage/{path}/{object_name}")
+@file_management_config_router.get("/storage/{path}/{object_name}")
 async def get_storage_file(
     object_name: str = PathParam(..., description="File object name"),
     download: str = Query("ignore", description="How to get the file"),
@@ -200,7 +201,7 @@ async def get_storage_file(
         )
 
 
-@router.delete("/storage/{object_name:path}")
+@file_management_config_router.delete("/storage/{object_name:path}")
 async def remove_storage_file(
     object_name: str = PathParam(..., description="File object name to delete")
 ):
@@ -224,7 +225,7 @@ async def remove_storage_file(
         )
 
 
-@router.post("/storage/batch-urls")
+@file_management_config_router.post("/storage/batch-urls")
 async def get_storage_file_batch_urls(
     request_data: dict = Body(...,
                               description="JSON containing list of file object names"),
@@ -272,7 +273,7 @@ async def get_storage_file_batch_urls(
     }
 
 
-@router.post("/preprocess")
+@file_management_runtime_router.post("/preprocess")
 async def agent_preprocess_api(
         request: Request, query: str = Form(...),
         files: List[UploadFile] = File(...),
