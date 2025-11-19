@@ -1554,10 +1554,12 @@ async def test_list_all_agent_info_impl_success():
         assert result[0]["name"] == "Agent 1"
         assert result[0]["display_name"] == "Display Agent 1"
         assert result[0]["is_available"] == True
+        assert result[0]["unavailable_reasons"] == []
         assert result[1]["agent_id"] == 2
         assert result[1]["name"] == "Agent 2"
         assert result[1]["display_name"] == "Display Agent 2"
         assert result[1]["is_available"] == True
+        assert result[1]["unavailable_reasons"] == []
 
         # Verify mock calls
         mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
@@ -1619,7 +1621,9 @@ async def test_list_all_agent_info_impl_with_unavailable_tools():
         # Assert
         assert len(result) == 2
         assert result[0]["is_available"] == True
+        assert result[0]["unavailable_reasons"] == []
         assert result[1]["is_available"] == False
+        assert result[1]["unavailable_reasons"] == ["tool_unavailable"]
 
         # Verify mock calls
         mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
@@ -1645,6 +1649,74 @@ async def test_list_all_agent_info_impl_query_error():
 
         assert "Failed to query all agent info" in str(context.value)
         mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
+
+
+async def test_list_all_agent_info_impl_model_unavailable():
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Agent 1",
+            "display_name": "Display Agent 1",
+            "description": "Agent with unavailable model",
+            "enabled": True,
+            "model_id": 101
+        }
+    ]
+
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+            patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools, \
+            patch('backend.services.agent_service.get_model_by_model_id') as mock_get_model:
+        mock_query_agents.return_value = mock_agents
+        mock_search_tools.return_value = []
+        mock_get_model.return_value = {
+            "connect_status": agent_service.ModelConnectStatusEnum.UNAVAILABLE.value
+        }
+
+        result = await list_all_agent_info_impl(tenant_id="test_tenant")
+
+        assert len(result) == 1
+        assert result[0]["is_available"] is False
+        assert result[0]["unavailable_reasons"] == ["model_unavailable"]
+
+
+async def test_list_all_agent_info_impl_duplicate_names():
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Duplicated",
+            "create_time": "2024-01-01T00:00:00",
+            "display_name": "Agent Display 1",
+            "description": "First agent",
+            "enabled": True
+        },
+        {
+            "agent_id": 2,
+            "name": "Duplicated",
+            "create_time": "2024-02-01T00:00:00",
+            "display_name": "Agent Display 2",
+            "description": "Second agent",
+            "enabled": True
+        }
+    ]
+
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+            patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools:
+        mock_query_agents.return_value = mock_agents
+        mock_search_tools.return_value = []
+
+        result = await list_all_agent_info_impl(tenant_id="test_tenant")
+
+        assert len(result) == 2
+
+        # The earliest created agent (agent_id=1) should remain available
+        agent1 = next(a for a in result if a["agent_id"] == 1)
+        assert agent1["is_available"] is True
+        assert "duplicate_name" not in agent1["unavailable_reasons"]
+
+        # The later created agent (agent_id=2) should be unavailable due to duplication
+        agent2 = next(a for a in result if a["agent_id"] == 2)
+        assert agent2["is_available"] is False
+        assert "duplicate_name" in agent2["unavailable_reasons"]
 
 
 @patch('backend.services.agent_service.query_sub_agents_id_list')
