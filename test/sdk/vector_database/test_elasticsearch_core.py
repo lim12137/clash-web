@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import time
 from typing import List, Dict, Any
+from elasticsearch import exceptions
 
 # Import the class under test
 from sdk.nexent.vector_database.elasticsearch_core import ElasticSearchCore
@@ -445,8 +446,6 @@ def test_delete_index_success(elasticsearch_core_instance):
 
 def test_delete_index_not_found(elasticsearch_core_instance):
     """Test deleting an index that doesn't exist."""
-    from elasticsearch import exceptions
-
     with patch.object(elasticsearch_core_instance.client.indices, 'delete') as mock_delete:
         mock_delete.side_effect = exceptions.NotFoundError(
             "Index not found", {}, {})
@@ -572,6 +571,69 @@ def test_delete_documents_success(elasticsearch_core_instance):
 
         assert result == 5
         mock_delete.assert_called_once()
+
+
+def test_get_index_chunks_success(elasticsearch_core_instance):
+    """Test fetching chunks via scroll API."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.search.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {
+            "hits": [
+                {"_id": "doc-1", "_source": {"id": "chunk-1", "content": "A"}},
+                {"_id": "doc-2", "_source": {"content": "B"}}
+            ]
+        }
+    }
+    elasticsearch_core_instance.client.scroll.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {"hits": []}
+    }
+
+    chunks = elasticsearch_core_instance.get_index_chunks("kb-index", batch_size=2)
+
+    assert chunks == [
+        {"id": "chunk-1", "content": "A"},
+        {"content": "B", "id": "doc-2"}
+    ]
+    elasticsearch_core_instance.client.search.assert_called_once()
+    elasticsearch_core_instance.client.scroll.assert_called_once_with(scroll_id="scroll123", scroll="2m")
+    elasticsearch_core_instance.client.clear_scroll.assert_called_once_with(scroll_id="scroll123")
+
+
+def test_get_index_chunks_not_found(elasticsearch_core_instance):
+    """Test fetching chunks when index does not exist."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.search.side_effect = exceptions.NotFoundError(404, "not found", {})
+
+    chunks = elasticsearch_core_instance.get_index_chunks("missing-index")
+
+    assert chunks == []
+    elasticsearch_core_instance.client.clear_scroll.assert_not_called()
+
+
+def test_get_index_chunks_cleanup_failure(elasticsearch_core_instance):
+    """Test cleanup warning path when clear_scroll raises."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.search.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {
+            "hits": [
+                {"_id": "doc-1", "_source": {"content": "A"}}
+            ]
+        }
+    }
+    elasticsearch_core_instance.client.scroll.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {"hits": []}
+    }
+    elasticsearch_core_instance.client.clear_scroll.side_effect = Exception("cleanup error")
+
+    chunks = elasticsearch_core_instance.get_index_chunks("kb-index")
+
+    assert len(chunks) == 1
+    assert chunks[0]["id"] == "doc-1"
+    elasticsearch_core_instance.client.clear_scroll.assert_called_once_with(scroll_id="scroll123")
 
 
 # ----------------------------------------------------------------------------
