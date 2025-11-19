@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Agent, SubAgentPoolProps } from "@/types/agentConfig";
 
-import AgentCallRelationshipModal from "./AgentCallRelationshipModal";
+import AgentCallRelationshipModal from "@/components/ui/AgentCallRelationshipModal";
 
 /**
  * Sub Agent Pool Component

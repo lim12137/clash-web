@@ -2,16 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Dropdown, Badge, Modal, Button } from "antd";
-import { DownOutlined } from "@ant-design/icons";
+import { Modal, Button } from "antd";
 import { WarningFilled } from "@ant-design/icons";
-import { BrainCircuit, Globe } from "lucide-react";
 
-import { Button as ButtonUI } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { languageOptions } from "@/const/constants";
-import { useLanguageSwitch } from "@/lib/language";
-import { useMemoryIndicator } from "@/hooks/useMemory";
 import { loadMemoryConfig, setMemorySwitch } from "@/services/memoryService";
 import { configStore } from "@/lib/config";
 import log from "@/lib/logger";
@@ -20,18 +14,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { USER_ROLES } from "@/const/modelConfig";
 
 import MemoryManageModal from "../internal/memory/memoryManageModal";
-
-// Gradient definition for BrainCircuit icon
-const GradientDefs = () => (
-  <svg width="0" height="0" className="absolute">
-    <defs>
-      <linearGradient id="brainCogGradient" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#3b82f6" />
-        <stop offset="100%" stopColor="#9333ea" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
 
 interface ChatHeaderProps {
   title: string;
@@ -46,15 +28,13 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
   const [embeddingConfigured, setEmbeddingConfigured] = useState<boolean>(true);
   const [showConfigPrompt, setShowConfigPrompt] = useState(false);
   const [showAutoOffPrompt, setShowAutoOffPrompt] = useState(false);
-  const hasNewMemory = useMemoryIndicator(memoryModalVisible);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { t } = useTranslation("common");
-  const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
+  const { t, i18n } = useTranslation("common");
   const { user, isSpeedMode } = useAuth();
   const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
   const goToModelSetup = () => {
-    router.push(`/${currentLanguage}/setup/models`);
+    router.push(`/${i18n.language}/setup/models`);
   };
 
   // Update editTitle when the title attribute changes
@@ -131,7 +111,6 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
 
   return (
     <>
-      <GradientDefs />
       <header className="border-b border-transparent bg-background z-10">
         <div className="p-3 pb-1">
           <div className="relative flex flex-1">
@@ -164,47 +143,7 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
             </div>
 
             <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center space-x-1 gap-1">
-              {/* Language Switch */}
-              <Dropdown
-                menu={{
-                  items: languageOptions.map((opt) => ({
-                    key: opt.value,
-                    label: opt.label,
-                  })),
-                  onClick: ({ key }) => handleLanguageChange(key as string),
-                }}
-              >
-                <a className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[100px] border-0 shadow-none bg-transparent text-left">
-                  <Globe className="h-4 w-4" />
-                  {languageOptions.find((o) => o.value === currentLanguage)
-                    ?.label || currentLanguage}
-                  <DownOutlined className="text-[10px]" />
-                </a>
-              </Dropdown>
-              {/* Memory Setting */}
-              <Badge dot={embeddingConfigured && hasNewMemory} offset={[-4, 4]}>
-                <ButtonUI
-                  variant="ghost"
-                  className={`mr-4 rounded-full px-2 py-1 h-7 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                    !embeddingConfigured ? "opacity-50" : ""
-                  }`}
-                  onClick={() => {
-                    if (!embeddingConfigured) {
-                      setShowConfigPrompt(true);
-                      return;
-                    }
-                    setMemoryModalVisible(true);
-                  }}
-                >
-                  <BrainCircuit
-                    className="size-5"
-                    stroke="url(#brainCogGradient)"
-                  />
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                    {t("memoryManageModal.title")}
-                  </span>
-                </ButtonUI>
-              </Badge>
+              {/* Right side controls - now handled by navigation bar */}
             </div>
           </div>
         </div>

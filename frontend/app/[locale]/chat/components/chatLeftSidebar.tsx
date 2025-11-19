@@ -1,18 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Clock,
-  Settings,
   Plus,
   Pencil,
   Trash2,
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  User,
-  Database,
-  Box,
-  Bot,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,13 +34,6 @@ import {
 } from "@/components/ui/tooltip";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
 import { USER_ROLES } from "@/const/modelConfig";
-import { useConfig } from "@/hooks/useConfig";
-import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize";
-import { Spin, Tag, ConfigProvider, Dropdown, Menu } from "antd";
-import type { MenuProps } from "antd";
-import { getRoleColor } from "@/lib/auth";
-import { useAuth } from "@/hooks/useAuth";
-import { extractColorsFromUri } from "@/lib/avatar";
 import { useTranslation } from "react-i18next";
 import { ConversationListItem, ChatSidebarProps } from "@/types/chat";
 
@@ -133,32 +122,15 @@ export function ChatSidebar({
   userRole = USER_ROLES.USER,
 }: ChatSidebarProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { today, week, older } = categorizeDialogs(conversationList);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get user authentication status
-  const { isLoading: userAuthLoading, isSpeedMode } = useAuth();
-
   // Add delete dialog status
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [dialogToDelete, setDialogToDelete] = useState<number | null>(null);
-
-  // Use the configuration system to get the avatar content
-  const { appConfig, getAppAvatarUrl } = useConfig();
-
-  const sidebarAvatarUrl = getAppAvatarUrl(16); // The avatar size of the sidebar is 16
-  const collapsedAvatarUrl = getAppAvatarUrl(16); // The avatar size of the collapsed state is 16
-
-  // Calculate the container width (300px - icon width - button width - padding)
-  const containerWidth = 300 - 40 - 40 - 40; // Approximately 180px available space
-
-  // Use the responsive text size hook
-  const { textRef, fontSize } = useResponsiveTextSize(
-    appConfig.appName,
-    containerWidth
-  );
 
   const [animationComplete, setAnimationComplete] = useState(false);
 
@@ -227,113 +199,6 @@ export function ChatSidebar({
       setIsDeleteDialogOpen(false);
       setDialogToDelete(null);
     }
-  };
-
-  // Render application icon
-  const renderAppIcon = () => {
-    return (
-      <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
-        <img
-          src={sidebarAvatarUrl}
-          alt={appConfig.appName}
-          className="h-full w-full object-cover"
-        />
-      </div>
-    );
-  };
-
-  // Get icon for menu item based on key
-  const getMenuIcon = (key: string) => {
-    switch (key) {
-      case "models":
-        return <Box className="h-4 w-4" />;
-      case "knowledges":
-        return <Database className="h-4 w-4" />;
-      case "agents":
-        return <Bot className="h-4 w-4" />;
-    }
-  };
-
-  // Render settings button (with dropdown for admin, plain button for regular users)
-  const renderSettingsButton = (isCollapsed: boolean = false) => {
-    const buttonContent = (
-      <Button
-        variant="ghost"
-        size="icon"
-        className={isCollapsed ? "h-10 w-10 rounded-full hover:bg-slate-100" : "size-10 rounded-full hover:bg-slate-100"}
-        onClick={settingsMenuItems ? undefined : onSettingsClick}
-      >
-        <Settings className={isCollapsed ? "h-6 w-6" : "size-5"} />
-      </Button>
-    );
-
-    // If settingsMenuItems is provided, show dropdown with icons
-    if (settingsMenuItems && settingsMenuItems.length > 0) {
-      const menuProps: MenuProps = {
-        items: settingsMenuItems.map((item, index) => ({
-          key: item.key,
-          label: (
-            <div className="flex items-center gap-3 py-1">
-              <span className="text-gray-600">{getMenuIcon(item.key)}</span>
-              <span className="text-sm font-medium">{item.label}</span>
-            </div>
-          ),
-          onClick: item.onClick,
-          style: {
-            padding: "8px 16px",
-          },
-        })),
-        style: {
-          minWidth: "240px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-        },
-      };
-
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <ConfigProvider
-                getPopupContainer={() => document.body}
-                theme={{
-                  components: {
-                    Dropdown: {
-                      paddingBlock: 4,
-                    },
-                  },
-                }}
-              >
-                <Dropdown menu={menuProps} placement="topRight" trigger={["click"]}>
-                  <div className={isCollapsed ? "flex justify-center" : ""}>
-                    {buttonContent}
-                  </div>
-                </Dropdown>
-              </ConfigProvider>
-            </TooltipTrigger>
-            <TooltipContent side={isCollapsed ? "right" : "top"}>
-              {t("chatLeftSidebar.settings")}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    }
-
-    // Otherwise, show plain button for regular users (shouldn't reach here anymore)
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={isCollapsed ? "flex justify-center" : ""}>
-              {buttonContent}
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side={isCollapsed ? "right" : "top"}>
-            {t("chatLeftSidebar.settings")}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
   };
 
   // Render dialog list items
@@ -457,41 +322,18 @@ export function ChatSidebar({
   const renderCollapsedSidebar = () => {
     return (
       <>
-        {/* Application icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className="flex justify-start p-4 cursor-pointer"
-                onClick={onToggleSidebar}
-              >
-                <div className="h-8 w-8 rounded-full overflow-hidden">
-                  <img
-                    src={collapsedAvatarUrl}
-                    alt={appConfig.appName}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">{appConfig.appName}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <div className="flex flex-col flex-1 items-center">
+        {/* Expand/Collapse button */}
+        <div className="py-3 flex justify-center">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-14 w-14 rounded-full hover:bg-slate-100"
+                  className="h-10 w-10 rounded-full hover:bg-slate-100"
                   onClick={onToggleSidebar}
                 >
-                  <ChevronRight
-                    className="h-6 w-6"
-                    style={{ height: "28px", width: "28px" }}
-                  />
+                  <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -499,20 +341,20 @@ export function ChatSidebar({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        </div>
 
+        {/* New conversation button */}
+        <div className="py-3 flex justify-center">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-14 w-14 rounded-full hover:bg-slate-100"
+                  className="h-10 w-10 rounded-full hover:bg-slate-100"
                   onClick={onNewConversation}
                 >
-                  <Plus
-                    className="h-6 w-6"
-                    style={{ height: "20px", width: "20px" }}
-                  />
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -522,52 +364,11 @@ export function ChatSidebar({
           </TooltipProvider>
         </div>
 
-        {/* Bottom area */}
-        {userAuthLoading ? (
-          <div className="py-2 flex justify-center">
-            <div className="h-8 w-8 flex items-center justify-center">
-              <Spin size="default" />
-            </div>
-          </div>
-        ) : !isSpeedMode ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="py-2 flex justify-center cursor-pointer">
-                  <div
-                    className="h-8 w-8 rounded-full overflow-hidden"
-                    style={{ backgroundColor: "#f0f2f5" }}
-                  >
-                    {userAvatarUrl ? (
-                      <img
-                        src={userAvatarUrl}
-                        alt={userEmail || t("chatLeftSidebar.user")}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-                        <User className="h-5 w-5" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TooltipTrigger>
-              {userEmail && (
-                <TooltipContent side="right">{userEmail}</TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        ) : null}
-
-        {/* Settings button */}
-        {renderSettingsButton(true)}
+        {/* Spacer */}
+        <div className="flex-1" />
       </>
     );
   };
-
-  const colors = extractColorsFromUri(appConfig.avatarUri || "");
-  const mainColor = colors.mainColor || "273746";
-  const secondaryColor = colors.secondaryColor || mainColor;
 
   return (
     <>
@@ -577,37 +378,31 @@ export function ChatSidebar({
       >
         {expanded || !animationComplete ? (
           <div className="hidden md:flex flex-col h-full overflow-hidden">
-            <div className="p-2 border-b border-transparent">
-              <div className="flex items-center p-2">
-                <div
-                  className="flex-1 min-w-0 flex items-center justify-start cursor-pointer"
-                  onClick={onToggleSidebar}
+            <div className="m-4 mt-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-start text-base overflow-hidden"
+                  onClick={onNewConversation}
                 >
-                  <div>{renderAppIcon()}</div>
-                  <h1
-                    ref={textRef}
-                    className="font-semibold truncate bg-clip-text text-transparent"
-                    style={{
-                      fontSize: `${fontSize}px`,
-                      backgroundImage: `linear-gradient(180deg, #${mainColor} 0%, #${secondaryColor} 100%)`,
-                    }}
-                  >
-                    {appConfig.appName}
-                  </h1>
-                </div>
+                  <Plus
+                    className="mr-2 flex-shrink-0"
+                    style={{ height: "20px", width: "20px" }}
+                  />
+                  <span className="truncate">
+                    {t("chatLeftSidebar.newConversation")}
+                  </span>
+                </Button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 flex-shrink-0 hover:bg-slate-100"
+                        className="h-10 w-10 flex-shrink-0 hover:bg-slate-100"
                         onClick={onToggleSidebar}
                       >
-                        <ChevronLeft
-                          className="h-7 w-7"
-                          style={{ height: "28px", width: "28px" }}
-                        />
+                        <ChevronLeft className="h-5 w-5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -616,22 +411,6 @@ export function ChatSidebar({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-            </div>
-
-            <div className="m-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-base overflow-hidden"
-                onClick={onNewConversation}
-              >
-                <Plus
-                  className="mr-2 flex-shrink-0"
-                  style={{ height: "20px", width: "20px" }}
-                />
-                <span className="truncate">
-                  {t("chatLeftSidebar.newConversation")}
-                </span>
-              </Button>
             </div>
 
             <StaticScrollArea className="flex-1 m-2">
@@ -655,62 +434,6 @@ export function ChatSidebar({
                 )}
               </div>
             </StaticScrollArea>
-
-            <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
-              {userAuthLoading ? (
-                <div className="flex items-center">
-                  <div className="h-8 w-8 mr-2 flex items-center justify-center">
-                    <Spin size="default" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                    {t("common.loading")}
-                  </span>
-                </div>
-              ) : !isSpeedMode ? (
-                <ConfigProvider getPopupContainer={() => document.body}>
-                  <div className="flex items-center py-1 px-2">
-                    <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
-                      {userAvatarUrl ? (
-                        <img
-                          src={userAvatarUrl}
-                          alt={userEmail || t("chatLeftSidebar.user")}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-                          <User className="h-5 w-5" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
-                              {userEmail || ""}
-                            </div>
-                          </TooltipTrigger>
-                          {userEmail && (
-                            <TooltipContent side="top">
-                              {userEmail}
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
-                      {userRole && (
-                        <Tag
-                          color={getRoleColor(userRole)}
-                          className="mt-1 cursor-auto w-fit"
-                        >
-                          {t(userRole === "admin" ? "auth.admin" : "auth.user")}
-                        </Tag>
-                      )}
-                    </div>
-                  </div>
-                </ConfigProvider>
-              ) : null}
-              {renderSettingsButton(false)}
-            </div>
           </div>
         ) : (
           renderCollapsedSidebar()

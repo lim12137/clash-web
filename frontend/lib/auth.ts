@@ -2,12 +2,10 @@
  * Authentication utilities
  */
 
-import { createAvatar } from '@dicebear/core';
-import * as initialsStyle from '@dicebear/initials';
-
 import { fetchWithErrorHandling } from "@/services/api";
 import { STORAGE_KEYS } from "@/const/auth";
 import { Session } from "@/types/auth";
+import { generateAvatarUrl as generateAvatar } from "@/lib/avatar";
 import log from "@/lib/logger";
 
 // Get color corresponding to user role
@@ -21,17 +19,10 @@ export function getRoleColor(role: string): string {
   }
 }
 
-// Generate avatar based on email
+// Generate avatar based on email (re-export from avatar.tsx for backward compatibility)
 export function generateAvatarUrl(email: string): string {
-    // Use local dicebear package to generate avatar
-    const avatar = createAvatar(initialsStyle, {
-      seed: email,
-      backgroundType: ['gradientLinear']
-    });
-
-    // Return SVG data URI
-    return avatar.toDataUri();
-  }
+  return generateAvatar(email);
+}
 
 /**
  * Request with authorization headers
@@ -64,7 +55,7 @@ export const saveSessionToStorage = (session: Session) => {
 };
 
 /**
- * 从本地存储删除会话
+ * Remove session from local storage
  */
 export const removeSessionFromStorage = () => {
   if (typeof window !== "undefined") {
@@ -73,7 +64,7 @@ export const removeSessionFromStorage = () => {
 };
 
 /**
- * 从本地存储获取会话
+ * Get session from local storage
  */
 export const getSessionFromStorage = (): Session | null => {
   try {
@@ -82,7 +73,7 @@ export const getSessionFromStorage = (): Session | null => {
 
     return JSON.parse(storedSession);
   } catch (error) {
-    log.error("解析会话信息失败:", error);
+    log.error("Failed to parse session info:", error);
     return null;
   }
 };
