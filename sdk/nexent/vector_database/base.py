@@ -110,6 +110,20 @@ class VectorDatabaseCore(ABC):
         pass
 
     @abstractmethod
+    def get_index_chunks(self, index_name: str, batch_size: int = 1000) -> List[Dict[str, Any]]:
+        """
+        Retrieve all chunk records for the specified index.
+
+        Args:
+            index_name: Name of the index to query
+            batch_size: Number of records to fetch per request
+
+        Returns:
+            List containing the chunk dictionaries
+        """
+        pass
+
+    @abstractmethod
     def count_documents(self, index_name: str) -> int:
         """
         Count the total number of documents in an index.

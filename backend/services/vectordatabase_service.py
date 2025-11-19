@@ -35,6 +35,9 @@ from services.redis_service import get_redis_service
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 
+ALLOWED_CHUNK_FIELDS = {"filename",
+                        "path_or_url", "content", "create_time", "id"}
+
 # Configure logging
 logger = logging.getLogger("vectordatabase_service")
 
@@ -918,4 +921,48 @@ class ElasticSearchService:
             raise Exception(error_detail)
         except Exception as e:
             error_msg = f"Failed to get summary: {str(e)}"
+            raise Exception(error_msg)
+
+    @staticmethod
+    def get_index_chunks(
+            index_name: str = Path(...,
+                                   description="Name of the index to get chunks from"),
+            batch_size: int = Query(
+                1000, description="Number of records to fetch per request"),
+            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
+    ):
+        """
+        Retrieve all chunk records for the specified index.
+
+        Args:
+            index_name: Name of the index to query
+            batch_size: Number of records to fetch per request
+            vdb_core: VectorDatabaseCore instance
+
+        Returns:
+            Dictionary containing status and list of chunks
+        """
+        try:
+            chunks = vdb_core.get_index_chunks(index_name, batch_size)
+            filtered_chunks = []
+            for chunk in chunks:
+                if isinstance(chunk, dict):
+                    filtered_chunks.append(
+                        {
+                            field: chunk.get(field)
+                            for field in ALLOWED_CHUNK_FIELDS
+                            if field in chunk
+                        }
+                    )
+                else:
+                    filtered_chunks.append(chunk)
+            return {
+                "status": "success",
+                "message": f"Successfully retrieved {len(filtered_chunks)} chunks from index {index_name}",
+                "chunks": filtered_chunks,
+                "total": len(filtered_chunks)
+            }
+        except Exception as e:
+            error_msg = f"Error retrieving chunks from index {index_name}: {str(e)}"
+            logger.error(error_msg)
             raise Exception(error_msg)

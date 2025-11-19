@@ -104,6 +104,8 @@ export const API_ENDPOINTS = {
     listFiles: (indexName: string) =>
       `${API_BASE_URL}/indices/${indexName}/files`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
+    chunks: (indexName: string) =>
+      `${API_BASE_URL}/indices/${indexName}/chunks`,
     summary: (indexName: string) =>
       `${API_BASE_URL}/summary/${indexName}/auto_summary`,
     changeSummary: (indexName: string) =>

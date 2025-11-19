@@ -570,6 +570,47 @@ class KnowledgeBaseService {
       throw new Error("Failed to get summary");
     }
   }
+
+  // Preview chunks from a knowledge base
+  async previewChunks(
+    indexName: string,
+    batchSize: number = 1000
+  ): Promise<any[]> {
+    try {
+      const url = new URL(
+        API_ENDPOINTS.knowledgeBase.chunks(indexName),
+        window.location.origin
+      );
+      url.searchParams.set("batch_size", batchSize.toString());
+
+      const response = await fetch(url.toString(), {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            `HTTP error! status: ${response.status}`
+        );
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to get chunks");
+      }
+
+      return data.chunks || [];
+    } catch (error) {
+      log.error("Error getting chunks:", error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Failed to get chunks");
+    }
+  }
 }
 
 // Export a singleton instance
