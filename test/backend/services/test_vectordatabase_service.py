@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 # Mock MinioClient before importing modules that use it
 from unittest.mock import patch
 import numpy as np
+from types import ModuleType, SimpleNamespace
 
 from fastapi.responses import StreamingResponse
 
@@ -22,20 +23,37 @@ boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
 # Mock nexent modules before importing modules that use them
-nexent_mock = MagicMock()
+def _create_package_mock(name: str) -> MagicMock:
+    pkg = MagicMock()
+    pkg.__path__ = []  # Mark as package for importlib
+    pkg.__spec__ = SimpleNamespace(name=name, submodule_search_locations=[])
+    return pkg
+
+
+nexent_mock = _create_package_mock('nexent')
 sys.modules['nexent'] = nexent_mock
-sys.modules['nexent.core'] = MagicMock()
-sys.modules['nexent.core.agents'] = MagicMock()
+sys.modules['nexent.core'] = _create_package_mock('nexent.core')
+sys.modules['nexent.core.agents'] = _create_package_mock('nexent.core.agents')
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
-sys.modules['nexent.core.models'] = MagicMock()
+sys.modules['nexent.core.models'] = _create_package_mock('nexent.core.models')
 sys.modules['nexent.core.models.embedding_model'] = MagicMock()
 sys.modules['nexent.core.models.stt_model'] = MagicMock()
-sys.modules['nexent.core.nlp'] = MagicMock()
+sys.modules['nexent.core.nlp'] = _create_package_mock('nexent.core.nlp')
 sys.modules['nexent.core.nlp.tokenizer'] = MagicMock()
-sys.modules['nexent.vector_database'] = MagicMock()
+sys.modules['nexent.vector_database'] = _create_package_mock('nexent.vector_database')
+vector_db_base_module = ModuleType('nexent.vector_database.base')
+
+
+class _VectorDatabaseCore:
+    """Lightweight stand-in for the real VectorDatabaseCore for import-time typing."""
+    pass
+
+
+vector_db_base_module.VectorDatabaseCore = _VectorDatabaseCore
+sys.modules['nexent.vector_database.base'] = vector_db_base_module
 sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
 # Mock nexent.storage module and its submodules before any imports
-sys.modules['nexent.storage'] = MagicMock()
+sys.modules['nexent.storage'] = _create_package_mock('nexent.storage')
 storage_factory_module = MagicMock()
 storage_config_module = MagicMock()
 # Create mock classes/functions that will be imported
@@ -78,17 +96,17 @@ patch('backend.database.attachment_db.minio_client', minio_client_mock).start()
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
         patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
-    from backend.services.elasticsearch_service import ElasticSearchService, check_knowledge_base_exist_impl
+    from backend.services.vectordatabase_service import ElasticSearchService, check_knowledge_base_exist_impl
 
 
-def _accurate_search_impl(request, es_core):
+def _accurate_search_impl(request, vdb_core):
     start_time = time.time()
     if not request.query or not request.query.strip():
         raise Exception("Search query cannot be empty")
     if not request.index_names:
         raise Exception("At least one index name is required")
 
-    results = es_core.accurate_search(
+    results = vdb_core.accurate_search(
         index_names=request.index_names,
         query=request.query,
         top_k=request.top_k
@@ -103,9 +121,9 @@ def _accurate_search_impl(request, es_core):
     }
 
 
-def _semantic_search_impl(request, es_core):
+def _semantic_search_impl(request, vdb_core):
     start_time = time.time()
-    results = es_core.semantic_search(
+    results = vdb_core.semantic_search(
         index_names=request.index_names,
         query=request.query,
         top_k=request.top_k
@@ -120,9 +138,9 @@ def _semantic_search_impl(request, es_core):
     }
 
 
-def _hybrid_search_impl(request, es_core):
+def _hybrid_search_impl(request, vdb_core):
     start_time = time.time()
-    results = es_core.hybrid_search(
+    results = vdb_core.hybrid_search(
         index_names=request.index_names,
         query=request.query,
         top_k=request.top_k,
@@ -152,13 +170,13 @@ class TestElasticSearchService(unittest.TestCase):
         that will be used across test cases.
         """
         self.es_service = ElasticSearchService()
-        self.mock_es_core = MagicMock()
-        self.mock_es_core.embedding_model = MagicMock()
-        self.mock_es_core.embedding_dim = 768
+        self.mock_vdb_core = MagicMock()
+        self.mock_vdb_core.embedding_model = MagicMock()
+        self.mock_vdb_core.embedding_dim = 768
 
         # Patch get_embedding_model for all tests
         self.get_embedding_model_patcher = patch(
-            'backend.services.elasticsearch_service.get_embedding_model')
+            'backend.services.vectordatabase_service.get_embedding_model')
         self.mock_get_embedding = self.get_embedding_model_patcher.start()
         self.mock_embedding = MagicMock()
         self.mock_embedding.embedding_dim = 768
@@ -178,7 +196,7 @@ class TestElasticSearchService(unittest.TestCase):
         del ElasticSearchService.semantic_search
         del ElasticSearchService.hybrid_search
 
-    @patch('backend.services.elasticsearch_service.create_knowledge_record')
+    @patch('backend.services.vectordatabase_service.create_knowledge_record')
     def test_create_index_success(self, mock_create_knowledge):
         """
         Test successful index creation.
@@ -190,28 +208,28 @@ class TestElasticSearchService(unittest.TestCase):
         4. The method returns a success status
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = False
-        self.mock_es_core.create_vector_index.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = False
+        self.mock_vdb_core.create_index.return_value = True
         mock_create_knowledge.return_value = True
 
         # Execute
         result = ElasticSearchService.create_index(
             index_name="test_index",
             embedding_dim=768,
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="test_tenant"  # Added explicit tenant_id
         )
 
         # Assert
         self.assertEqual(result["status"], "success")
-        self.mock_es_core.client.indices.exists.assert_called_once_with(
-            index="test_index")
-        self.mock_es_core.create_vector_index.assert_called_once_with(
+        self.mock_vdb_core.check_index_exists.assert_called_once_with(
+            "test_index")
+        self.mock_vdb_core.create_index.assert_called_once_with(
             "test_index", embedding_dim=768)
         mock_create_knowledge.assert_called_once()
 
-    @patch('backend.services.elasticsearch_service.create_knowledge_record')
+    @patch('backend.services.vectordatabase_service.create_knowledge_record')
     def test_create_index_already_exists(self, mock_create_knowledge):
         """
         Test index creation when the index already exists.
@@ -222,14 +240,14 @@ class TestElasticSearchService(unittest.TestCase):
         3. No knowledge record is created
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
 
         # Execute and Assert
         with self.assertRaises(Exception) as context:
             ElasticSearchService.create_index(
                 index_name="test_index",
                 embedding_dim=768,
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 user_id="test_user"
             )
 
@@ -237,7 +255,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("already exists", str(context.exception))
         mock_create_knowledge.assert_not_called()
 
-    @patch('backend.services.elasticsearch_service.create_knowledge_record')
+    @patch('backend.services.vectordatabase_service.create_knowledge_record')
     def test_create_index_failure(self, mock_create_knowledge):
         """
         Test index creation failure.
@@ -248,15 +266,15 @@ class TestElasticSearchService(unittest.TestCase):
         3. No knowledge record is created
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = False
-        self.mock_es_core.create_vector_index.return_value = False
+        self.mock_vdb_core.check_index_exists.return_value = False
+        self.mock_vdb_core.create_index.return_value = False
 
         # Execute and Assert
         with self.assertRaises(Exception) as context:
             ElasticSearchService.create_index(
                 index_name="test_index",
                 embedding_dim=768,
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 user_id="test_user",
                 tenant_id="test_tenant"  # Added explicit tenant_id
             )
@@ -264,7 +282,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("Failed to create index", str(context.exception))
         mock_create_knowledge.assert_not_called()
 
-    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
     def test_delete_index_success(self, mock_delete_knowledge):
         """
         Test successful index deletion.
@@ -275,26 +293,26 @@ class TestElasticSearchService(unittest.TestCase):
         3. The method returns a success status
         """
         # Setup
-        self.mock_es_core.delete_index.return_value = True
+        self.mock_vdb_core.delete_index.return_value = True
         mock_delete_knowledge.return_value = True
 
         # Execute
         async def run_test():
             result = await ElasticSearchService.delete_index(
                 index_name="test_index",
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 user_id="test_user"
             )
 
             # Assert
             self.assertEqual(result["status"], "success")
-            self.mock_es_core.delete_index.assert_called_once_with(
+            self.mock_vdb_core.delete_index.assert_called_once_with(
                 "test_index")
             mock_delete_knowledge.assert_called_once()
 
         asyncio.run(run_test())
 
-    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
     def test_delete_index_failure(self, mock_delete_knowledge):
         """
         Test index deletion failure.
@@ -304,26 +322,26 @@ class TestElasticSearchService(unittest.TestCase):
         2. The method returns success status if knowledge record deletion succeeds
         """
         # Setup
-        self.mock_es_core.delete_index.return_value = False
+        self.mock_vdb_core.delete_index.return_value = False
         mock_delete_knowledge.return_value = True
 
         # Execute
         async def run_test():
             result = await ElasticSearchService.delete_index(
                 index_name="test_index",
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 user_id="test_user"
             )
 
             # Assert
             self.assertEqual(result["status"], "success")
-            self.mock_es_core.delete_index.assert_called_once_with(
+            self.mock_vdb_core.delete_index.assert_called_once_with(
                 "test_index")
             mock_delete_knowledge.assert_called_once()
 
         asyncio.run(run_test())
 
-    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
     def test_delete_index_knowledge_record_failure(self, mock_delete_knowledge):
         """
         Test deletion when the index is deleted but knowledge record deletion fails.
@@ -334,7 +352,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. The exception message contains "Error deleting knowledge record"
         """
         # Setup
-        self.mock_es_core.delete_index.return_value = True
+        self.mock_vdb_core.delete_index.return_value = True
         mock_delete_knowledge.return_value = False
 
         # Execute and Assert
@@ -342,7 +360,7 @@ class TestElasticSearchService(unittest.TestCase):
             with self.assertRaises(Exception) as context:
                 await ElasticSearchService.delete_index(
                     index_name="test_index",
-                    es_core=self.mock_es_core,
+                    vdb_core=self.mock_vdb_core,
                     user_id="test_user"
                 )
 
@@ -351,7 +369,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         asyncio.run(run_test())
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
     def test_list_indices_without_stats(self, mock_get_knowledge):
         """
         Test listing indices without including statistics.
@@ -362,7 +380,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. No statistics are requested when include_stats is False
         """
         # Setup
-        self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
+        self.mock_vdb_core.get_user_indices.return_value = ["index1", "index2"]
         mock_get_knowledge.return_value = [
             {"index_name": "index1", "embedding_model_name": "test-model"},
             {"index_name": "index2", "embedding_model_name": "test-model"}
@@ -374,16 +392,16 @@ class TestElasticSearchService(unittest.TestCase):
             include_stats=False,
             tenant_id="test_tenant",  # Now required parameter
             user_id="test_user",      # New required parameter
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(len(result["indices"]), 2)
         self.assertEqual(result["count"], 2)
-        self.mock_es_core.get_user_indices.assert_called_once_with("*")
+        self.mock_vdb_core.get_user_indices.assert_called_once_with("*")
         mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
     def test_list_indices_with_stats(self, mock_get_knowledge):
         """
         Test listing indices with statistics included.
@@ -394,8 +412,8 @@ class TestElasticSearchService(unittest.TestCase):
         3. Both indices and their stats are included in the response
         """
         # Setup
-        self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
-        self.mock_es_core.get_index_stats.return_value = {
+        self.mock_vdb_core.get_user_indices.return_value = ["index1", "index2"]
+        self.mock_vdb_core.get_indices_detail.return_value = {
             "index1": {"base_info": {"doc_count": 10, "embedding_model": "test-model"}},
             "index2": {"base_info": {"doc_count": 20, "embedding_model": "test-model"}}
         }
@@ -410,282 +428,151 @@ class TestElasticSearchService(unittest.TestCase):
             include_stats=True,
             tenant_id="test_tenant",  # Now required parameter
             user_id="test_user",      # New required parameter
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(len(result["indices"]), 2)
         self.assertEqual(result["count"], 2)
         self.assertEqual(len(result["indices_info"]), 2)
-        self.mock_es_core.get_user_indices.assert_called_once_with("*")
-        self.mock_es_core.get_index_stats.assert_called_once_with(
+        self.mock_vdb_core.get_user_indices.assert_called_once_with("*")
+        self.mock_vdb_core.get_indices_detail.assert_called_once_with(
             ["index1", "index2"])
         mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
-    def test_get_index_name_success(self):
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
+    def test_list_indices_removes_stale_pg_records(self, mock_delete_knowledge, mock_get_info):
         """
-        Test successful retrieval of index information.
+        Test that list_indices deletes PostgreSQL records whose indices are missing in Elasticsearch.
+        """
+        self.mock_vdb_core.get_user_indices.return_value = ["es_index"]
+        mock_get_info.return_value = [
+            {"index_name": "dangling_index", "embedding_model_name": "model-A"}
+        ]
 
-        This test verifies that:
-        1. Index statistics are correctly retrieved
-        2. Index mapping details are correctly retrieved
-        3. The response contains both base information and field details
-        4. All expected information is present in the response
+        result = ElasticSearchService.list_indices(
+            pattern="*",
+            include_stats=False,
+            tenant_id="tenant-1",
+            user_id="user-1",
+            vdb_core=self.mock_vdb_core
+        )
+
+        mock_delete_knowledge.assert_called_once_with(
+            {"index_name": "dangling_index", "user_id": "user-1"}
+        )
+        self.assertEqual(result["indices"], [])
+        self.assertEqual(result["count"], 0)
+
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
+    def test_list_indices_stats_defaults_when_missing(self, mock_get_info):
         """
-        # Setup
-        self.mock_es_core.get_index_stats.return_value = {
-            "test_index": {
+        Test list_indices include_stats path when Elasticsearch returns no stats for an index.
+        """
+        self.mock_vdb_core.get_user_indices.return_value = ["index1"]
+        mock_get_info.return_value = [
+            {"index_name": "index1", "embedding_model_name": "model-A"}
+        ]
+        self.mock_vdb_core.get_indices_detail.return_value = {}
+
+        result = ElasticSearchService.list_indices(
+            pattern="*",
+            include_stats=True,
+            tenant_id="tenant-1",
+            user_id="user-1",
+            vdb_core=self.mock_vdb_core
+        )
+
+        self.assertEqual(result["indices"], ["index1"])
+        self.assertEqual(result["indices_info"][0]["name"], "index1")
+        self.assertEqual(result["indices_info"][0]["stats"], {})
+
+    @patch('backend.services.vectordatabase_service.update_model_name_by_index_name')
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
+    def test_list_indices_backfills_missing_model_names(self, mock_get_info, mock_update_model):
+        """
+        Test that list_indices updates database records when embedding_model_name is missing.
+        """
+        self.mock_vdb_core.get_user_indices.return_value = ["index1"]
+        mock_get_info.return_value = [
+            {"index_name": "index1", "embedding_model_name": None}
+        ]
+        self.mock_vdb_core.get_indices_detail.return_value = {
+            "index1": {"base_info": {"embedding_model": "text-embedding-ada-002"}}
+        }
+
+        result = ElasticSearchService.list_indices(
+            pattern="*",
+            include_stats=True,
+            tenant_id="tenant-1",
+            user_id="user-1",
+            vdb_core=self.mock_vdb_core
+        )
+
+        mock_update_model.assert_called_once_with(
+            "index1", "text-embedding-ada-002", "tenant-1", "user-1"
+        )
+        self.assertEqual(result["count"], 1)
+        self.assertEqual(result["indices"][0], "index1")
+
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
+    def test_list_indices_stats_surfaces_elasticsearch_errors(self, mock_get_info):
+        """
+        Test that list_indices propagates Elasticsearch errors while fetching stats.
+        """
+        self.mock_vdb_core.get_user_indices.return_value = ["index1"]
+        mock_get_info.return_value = [
+            {"index_name": "index1", "embedding_model_name": "model-A"}
+        ]
+        self.mock_vdb_core.get_indices_detail.side_effect = Exception(
+            "503 Service Unavailable"
+        )
+
+        with self.assertRaises(Exception) as context:
+            ElasticSearchService.list_indices(
+                pattern="*",
+                include_stats=True,
+                tenant_id="tenant-1",
+                user_id="user-1",
+                vdb_core=self.mock_vdb_core
+            )
+
+        self.assertIn("503 Service Unavailable", str(context.exception))
+
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
+    def test_list_indices_stats_keeps_non_stat_fields(self, mock_get_info):
+        """
+        Test that list_indices preserves all stats fields returned by ElasticSearchCore.
+        """
+        self.mock_vdb_core.get_user_indices.return_value = ["index1"]
+        mock_get_info.return_value = [
+            {"index_name": "index1", "embedding_model_name": "model-A"}
+        ]
+        detailed_stats = {
+            "index1": {
                 "base_info": {
-                    "doc_count": 10,
-                    "unique_sources_count": 5,
-                    "store_size": "1MB",
-                    "process_source": "Test",
-                    "embedding_model": "Test"
-                },
-                "search_performance": {"avg_time": 10}
-            }
-        }
-        self.mock_es_core.get_index_mapping.return_value = {
-            "test_index": ["field1", "field2"]
-        }
-
-        # Execute
-        result = ElasticSearchService.get_index_name(
-            index_name="test_index",
-            es_core=self.mock_es_core
-        )
-
-        # Assert
-        self.assertEqual(result["base_info"]["doc_count"], 10)
-        self.assertEqual(len(result["fields"]), 2)
-        self.mock_es_core.get_index_stats.assert_called_once_with([
-                                                                  "test_index"])
-        self.mock_es_core.get_index_mapping.assert_called_once_with([
-                                                                    "test_index"])
-
-    def test_get_index_name_stats_not_found(self):
-        """
-        Test get_index_name when index stats are not found.
-
-        This test verifies that:
-        1. When index stats are not found, appropriate error logging occurs
-        2. The method continues execution with empty stats
-        3. The response contains default values for missing stats
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.return_value = {}
-        self.mock_es_core.get_index_mapping.return_value = {
-            "test_index": ["field1", "field2"]
-        }
-
-        # Execute
-        result = ElasticSearchService.get_index_name(
-            index_name="test_index",
-            es_core=self.mock_es_core
-        )
-
-        # Assert
-        self.assertEqual(result["base_info"]["doc_count"], 0)
-        self.assertEqual(result["base_info"]["process_source"], "Unknown")
-        self.assertEqual(result["base_info"]["embedding_model"], "Unknown")
-        self.assertEqual(len(result["fields"]), 2)
-
-    def test_get_index_name_mappings_not_found(self):
-        """
-        Test get_index_name when index mappings are not found.
-
-        This test verifies that:
-        1. When index mappings are not found, appropriate error logging occurs
-        2. The method continues execution with empty fields
-        3. The response contains empty fields list
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.return_value = {
-            "test_index": {
-                "base_info": {
-                    "doc_count": 10,
-                    "unique_sources_count": 5,
-                    "store_size": "1MB",
-                    "process_source": "Test",
-                    "embedding_model": "Test"
-                }
-            }
-        }
-        self.mock_es_core.get_index_mapping.return_value = {}
-
-        # Execute
-        result = ElasticSearchService.get_index_name(
-            index_name="test_index",
-            es_core=self.mock_es_core
-        )
-
-        # Assert
-        self.assertEqual(result["base_info"]["doc_count"], 10)
-        self.assertEqual(result["fields"], [])
-
-    def test_get_index_name_no_base_info(self):
-        """
-        Test get_index_name when base_info is missing from stats.
-
-        This test verifies that:
-        1. When base_info is missing, appropriate error logging occurs
-        2. The method provides default values for missing base_info
-        3. The response contains reasonable defaults
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.return_value = {
-            "test_index": {
-                "search_performance": {"avg_time": 10}
-            }
-        }
-        self.mock_es_core.get_index_mapping.return_value = {
-            "test_index": ["field1"]
-        }
-
-        # Execute
-        result = ElasticSearchService.get_index_name(
-            index_name="test_index",
-            es_core=self.mock_es_core
-        )
-
-        # Assert
-        self.assertEqual(result["base_info"]["doc_count"], 0)
-        self.assertEqual(result["base_info"]["process_source"], "Unknown")
-        self.assertEqual(result["base_info"]["embedding_model"], "Unknown")
-        # Fix: search_performance should still be preserved even when base_info is missing
-        self.assertEqual(result["search_performance"], {})
-
-    def test_get_index_name_elasticsearch_connection_error(self):
-        """
-        Test get_index_name when Elasticsearch connection fails.
-
-        This test verifies that:
-        1. When Elasticsearch connection fails (503 error), appropriate exception is raised
-        2. The exception message contains "ElasticSearch service unavailable"
-        3. The error is properly categorized as a connection issue
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.side_effect = Exception(
-            "503 Service Unavailable")
-
-        # Execute and Assert
-        with self.assertRaises(Exception) as context:
-            ElasticSearchService.get_index_name(
-                index_name="test_index",
-                es_core=self.mock_es_core
-            )
-
-        self.assertIn("ElasticSearch service unavailable",
-                      str(context.exception))
-
-    def test_get_index_name_api_error(self):
-        """
-        Test get_index_name when Elasticsearch API returns an error.
-
-        This test verifies that:
-        1. When Elasticsearch API error occurs, appropriate exception is raised
-        2. The exception message contains "ElasticSearch API error"
-        3. The error is properly categorized as an API issue
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.side_effect = Exception(
-            "ApiError: Invalid request")
-
-        # Execute and Assert
-        with self.assertRaises(Exception) as context:
-            ElasticSearchService.get_index_name(
-                index_name="test_index",
-                es_core=self.mock_es_core
-            )
-
-        self.assertIn("ElasticSearch API error", str(context.exception))
-
-    def test_get_index_name_generic_error(self):
-        """
-        Test get_index_name when a generic error occurs.
-
-        This test verifies that:
-        1. When a generic error occurs, appropriate exception is raised
-        2. The exception message contains "Error getting info for index"
-        3. The error is properly categorized as a generic issue
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.side_effect = Exception(
-            "Generic error message")
-
-        # Execute and Assert
-        with self.assertRaises(Exception) as context:
-            ElasticSearchService.get_index_name(
-                index_name="test_index",
-                es_core=self.mock_es_core
-            )
-
-        self.assertIn("Error getting info for index", str(context.exception))
-
-    def test_get_index_name_search_phase_execution_exception(self):
-        """
-        Test get_index_name when search_phase_execution_exception occurs.
-
-        This test verifies that:
-        1. When search_phase_execution_exception occurs, appropriate exception is raised
-        2. The exception message contains "ElasticSearch service unavailable"
-        3. The error is properly categorized as a connection issue
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.side_effect = Exception(
-            "search_phase_execution_exception: No shard available")
-
-        # Execute and Assert
-        with self.assertRaises(Exception) as context:
-            ElasticSearchService.get_index_name(
-                index_name="test_index",
-                es_core=self.mock_es_core
-            )
-
-        self.assertIn("ElasticSearch service unavailable",
-                      str(context.exception))
-
-    def test_get_index_name_success_status_200(self):
-        """
-        Test get_index_name method returns status code 200 on success.
-
-        This test verifies that:
-        1. The get_index_name method successfully retrieves index information
-        2. The response contains the expected data structure
-        3. The method completes without raising exceptions, implying a 200 status code
-        """
-        # Setup
-        self.mock_es_core.get_index_stats.return_value = {
-            "test_index": {
-                "base_info": {
-                    "doc_count": 15,
-                    "unique_sources_count": 8,
-                    "store_size": "2MB",
+                    "doc_count": 42,
                     "process_source": "Unstructured",
-                    "embedding_model": "text-embedding-ada-002"
+                    "embedding_model": "text-embedding-3-large"
                 },
-                "search_performance": {"avg_query_time": 25.5}
+                "search_performance": {"avg_time": 12.3}
             }
         }
-        self.mock_es_core.get_index_mapping.return_value = {
-            "test_index": ["title", "content", "path_or_url", "create_time"]
-        }
+        self.mock_vdb_core.get_indices_detail.return_value = detailed_stats
 
-        # Execute
-        result = ElasticSearchService.get_index_name(
-            index_name="test_index",
-            es_core=self.mock_es_core
+        result = ElasticSearchService.list_indices(
+            pattern="*",
+            include_stats=True,
+            tenant_id="tenant-1",
+            user_id="user-1",
+            vdb_core=self.mock_vdb_core
         )
 
-        # Assert
-        self.assertIsInstance(result, dict)  # Success response is a dictionary
-        self.assertIn("base_info", result)
-        self.assertIn("search_performance", result)
-        self.assertIn("fields", result)
-        self.assertEqual(result["base_info"]["doc_count"], 15)
-        self.assertEqual(len(result["fields"]), 4)
+        self.assertEqual(len(result["indices_info"]), 1)
+        self.assertEqual(result["indices_info"][0]["stats"], detailed_stats["index1"])
 
-    def test_index_documents_success(self):
+    def test_vectorize_documents_success(self):
         """
         Test successful document indexing.
 
@@ -696,8 +583,8 @@ class TestElasticSearchService(unittest.TestCase):
         4. Documents with various metadata fields are handled correctly
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = True
-        self.mock_es_core.index_documents.return_value = 2
+        self.mock_vdb_core.check_index_exists.return_value = True
+        self.mock_vdb_core.vectorize_documents.return_value = 2
         mock_embedding_model = MagicMock()
         mock_embedding_model.model = "test-model"
 
@@ -729,7 +616,7 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             embedding_model=mock_embedding_model
         )
 
@@ -737,9 +624,9 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["total_indexed"], 2)
         self.assertEqual(result["total_submitted"], 2)
-        self.mock_es_core.index_documents.assert_called_once()
+        self.mock_vdb_core.vectorize_documents.assert_called_once()
 
-    def test_index_documents_empty_data(self):
+    def test_vectorize_documents_empty_data(self):
         """
         Test document indexing with empty data.
 
@@ -756,7 +643,7 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             embedding_model=mock_embedding_model
         )
 
@@ -764,9 +651,9 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["total_indexed"], 0)
         self.assertEqual(result["total_submitted"], 0)
-        self.mock_es_core.index_documents.assert_not_called()
+        self.mock_vdb_core.vectorize_documents.assert_not_called()
 
-    def test_index_documents_create_index(self):
+    def test_vectorize_documents_create_index(self):
         """
         Test document indexing when the index doesn't exist.
 
@@ -776,9 +663,9 @@ class TestElasticSearchService(unittest.TestCase):
         3. The response contains the correct status and document counts
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = False
-        self.mock_es_core.create_vector_index.return_value = True
-        self.mock_es_core.index_documents.return_value = 1
+        self.mock_vdb_core.check_index_exists.return_value = False
+        self.mock_vdb_core.create_index.return_value = True
+        self.mock_vdb_core.vectorize_documents.return_value = 1
         mock_embedding_model = MagicMock()
         test_data = [
             {
@@ -789,12 +676,12 @@ class TestElasticSearchService(unittest.TestCase):
         ]
 
         # Execute
-        with patch('backend.services.elasticsearch_service.ElasticSearchService.create_index') as mock_create_index:
+        with patch('backend.services.vectordatabase_service.ElasticSearchService.create_index') as mock_create_index:
             mock_create_index.return_value = {"status": "success"}
             result = ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 embedding_model=mock_embedding_model
             )
 
@@ -803,7 +690,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["total_indexed"], 1)
         mock_create_index.assert_called_once()
 
-    def test_index_documents_indexing_error(self):
+    def test_vectorize_documents_indexing_error(self):
         """
         Test document indexing when an error occurs during indexing.
 
@@ -813,8 +700,8 @@ class TestElasticSearchService(unittest.TestCase):
         3. The exception message contains "Error during indexing"
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = True
-        self.mock_es_core.index_documents.side_effect = Exception(
+        self.mock_vdb_core.check_index_exists.return_value = True
+        self.mock_vdb_core.vectorize_documents.side_effect = Exception(
             "Indexing error")
         mock_embedding_model = MagicMock()
         test_data = [
@@ -830,13 +717,13 @@ class TestElasticSearchService(unittest.TestCase):
             ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core,
+                vdb_core=self.mock_vdb_core,
                 embedding_model=mock_embedding_model
             )
 
         self.assertIn("Error during indexing", str(context.exception))
 
-    @patch('backend.services.elasticsearch_service.get_all_files_status')
+    @patch('backend.services.vectordatabase_service.get_all_files_status')
     def test_list_files_without_chunks(self, mock_get_files_status):
         """
         Test listing files without including document chunks.
@@ -848,7 +735,7 @@ class TestElasticSearchService(unittest.TestCase):
         4. The status of each file is correctly set (COMPLETED or PROCESSING)
         """
         # Setup
-        self.mock_es_core.get_file_list_with_details.return_value = [
+        self.mock_vdb_core.get_documents_detail.return_value = [
             {
                 "path_or_url": "file1",
                 "filename": "file1.txt",
@@ -864,7 +751,7 @@ class TestElasticSearchService(unittest.TestCase):
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=False,
-                es_core=self.mock_es_core
+                vdb_core=self.mock_vdb_core
             )
 
         result = asyncio.run(run_test())
@@ -873,10 +760,10 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(len(result["files"]), 2)
         self.assertEqual(result["files"][0]["status"], "COMPLETED")
         self.assertEqual(result["files"][1]["status"], "PROCESSING")
-        self.mock_es_core.get_file_list_with_details.assert_called_once_with(
+        self.mock_vdb_core.get_documents_detail.assert_called_once_with(
             "test_index")
 
-    @patch('backend.services.elasticsearch_service.get_all_files_status')
+    @patch('backend.services.vectordatabase_service.get_all_files_status')
     def test_list_files_with_chunks(self, mock_get_files_status):
         """
         Test listing files with document chunks included.
@@ -888,7 +775,7 @@ class TestElasticSearchService(unittest.TestCase):
         4. The chunk count is correctly calculated
         """
         # Setup
-        self.mock_es_core.get_file_list_with_details.return_value = [
+        self.mock_vdb_core.get_documents_detail.return_value = [
             {
                 "path_or_url": "file1",
                 "filename": "file1.txt",
@@ -898,7 +785,7 @@ class TestElasticSearchService(unittest.TestCase):
         ]
         mock_get_files_status.return_value = {}
 
-        # Mock msearch response
+        # Mock multi_search response
         msearch_response = {
             'responses': [
                 {
@@ -917,14 +804,14 @@ class TestElasticSearchService(unittest.TestCase):
                 }
             ]
         }
-        self.mock_es_core.client.msearch.return_value = msearch_response
+        self.mock_vdb_core.multi_search.return_value = msearch_response
 
         # Execute
         async def run_test():
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=True,
-                es_core=self.mock_es_core
+                vdb_core=self.mock_vdb_core
             )
 
         result = asyncio.run(run_test())
@@ -933,9 +820,9 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(len(result["files"]), 1)
         self.assertEqual(len(result["files"][0]["chunks"]), 1)
         self.assertEqual(result["files"][0]["chunk_count"], 1)
-        self.mock_es_core.client.msearch.assert_called_once()
+        self.mock_vdb_core.multi_search.assert_called_once()
 
-    @patch('backend.services.elasticsearch_service.get_all_files_status')
+    @patch('backend.services.vectordatabase_service.get_all_files_status')
     def test_list_files_msearch_error(self, mock_get_files_status):
         """
         Test listing files when msearch encounters an error.
@@ -947,7 +834,7 @@ class TestElasticSearchService(unittest.TestCase):
         4. The overall operation doesn't fail due to msearch errors
         """
         # Setup
-        self.mock_es_core.get_file_list_with_details.return_value = [
+        self.mock_vdb_core.get_documents_detail.return_value = [
             {
                 "path_or_url": "file1",
                 "filename": "file1.txt",
@@ -958,7 +845,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_get_files_status.return_value = {}
 
         # Mock msearch error
-        self.mock_es_core.client.msearch.side_effect = Exception(
+        self.mock_vdb_core.client.msearch.side_effect = Exception(
             "MSSearch Error")
 
         # Execute
@@ -966,7 +853,7 @@ class TestElasticSearchService(unittest.TestCase):
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=True,
-                es_core=self.mock_es_core
+                vdb_core=self.mock_vdb_core
             )
 
         result = asyncio.run(run_test())
@@ -976,7 +863,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(len(result["files"][0]["chunks"]), 0)
         self.assertEqual(result["files"][0]["chunk_count"], 0)
 
-    @patch('backend.services.elasticsearch_service.delete_file')
+    @patch('backend.services.vectordatabase_service.delete_file')
     def test_delete_documents(self, mock_delete_file):
         """
         Test document deletion by path or URL.
@@ -986,7 +873,7 @@ class TestElasticSearchService(unittest.TestCase):
         2. The response contains a success status
         """
         # Setup
-        self.mock_es_core.delete_documents_by_path_or_url.return_value = 5
+        self.mock_vdb_core.delete_documents.return_value = 5
         # Configure delete_file to return a success response
         mock_delete_file.return_value = {"success": True, "object_name": "test_path"}
 
@@ -994,14 +881,14 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.delete_documents(
             index_name="test_index",
             path_or_url="test_path",
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["deleted_minio"], True)
-        # Verify that delete_documents_by_path_or_url was called with correct parameters
-        self.mock_es_core.delete_documents_by_path_or_url.assert_called_once_with(
+        # Verify that delete_documents was called with correct parameters
+        self.mock_vdb_core.delete_documents.assert_called_once_with(
             "test_index", "test_path")
         # Verify that delete_file was called with the correct path
         mock_delete_file.assert_called_once_with("test_path")
@@ -1022,7 +909,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.query = "test query"
         search_request.top_k = 10
 
-        self.mock_es_core.accurate_search.return_value = [
+        self.mock_vdb_core.accurate_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
                 "score": 0.95,
@@ -1033,14 +920,14 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = ElasticSearchService.accurate_search(
             request=search_request,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(len(result["results"]), 1)
         self.assertEqual(result["total"], 1)
         self.assertTrue("query_time_ms" in result)
-        self.mock_es_core.accurate_search.assert_called_once_with(
+        self.mock_vdb_core.accurate_search.assert_called_once_with(
             index_names=["test_index"], query="test query", top_k=10
         )
 
@@ -1063,7 +950,7 @@ class TestElasticSearchService(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             ElasticSearchService.accurate_search(
                 request=search_request,
-                es_core=self.mock_es_core
+                vdb_core=self.mock_vdb_core
             )
 
         self.assertIn("Search query cannot be empty", str(context.exception))
@@ -1087,7 +974,7 @@ class TestElasticSearchService(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             ElasticSearchService.accurate_search(
                 request=search_request,
-                es_core=self.mock_es_core
+                vdb_core=self.mock_vdb_core
             )
 
         self.assertIn("At least one index name is required",
@@ -1109,8 +996,8 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.query = "test query"
         search_request.top_k = 10
 
-        # Create a mock response directly on the es_core instance
-        self.mock_es_core.semantic_search.return_value = [
+        # Create a mock response directly on the vdb_core instance
+        self.mock_vdb_core.semantic_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
                 "score": 0.85,
@@ -1121,14 +1008,14 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = ElasticSearchService.semantic_search(
             request=search_request,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(len(result["results"]), 1)
         self.assertEqual(result["total"], 1)
         self.assertTrue("query_time_ms" in result)
-        self.mock_es_core.semantic_search.assert_called_once_with(
+        self.mock_vdb_core.semantic_search.assert_called_once_with(
             index_names=["test_index"], query="test query", top_k=10
         )
 
@@ -1149,8 +1036,8 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.top_k = 10
         search_request.weight_accurate = 0.5
 
-        # Create a mock response directly on the es_core instance
-        self.mock_es_core.hybrid_search.return_value = [
+        # Create a mock response directly on the vdb_core instance
+        self.mock_vdb_core.hybrid_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
                 "score": 0.90,
@@ -1162,7 +1049,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = ElasticSearchService.hybrid_search(
             request=search_request,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
@@ -1173,7 +1060,7 @@ class TestElasticSearchService(unittest.TestCase):
                          ["score_details"]["accurate"], 0.85)
         self.assertEqual(result["results"][0]
                          ["score_details"]["semantic"], 0.95)
-        self.mock_es_core.hybrid_search.assert_called_once_with(
+        self.mock_vdb_core.hybrid_search.assert_called_once_with(
             index_names=["test_index"], query="test query", top_k=10, weight_accurate=0.5
         )
 
@@ -1187,10 +1074,10 @@ class TestElasticSearchService(unittest.TestCase):
         3. The health_check method returns without raising exceptions
         """
         # Setup
-        self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
+        self.mock_vdb_core.get_user_indices.return_value = ["index1", "index2"]
 
         # Execute
-        result = ElasticSearchService.health_check(es_core=self.mock_es_core)
+        result = ElasticSearchService.health_check(vdb_core=self.mock_vdb_core)
 
         # Assert
         self.assertEqual(result["status"], "healthy")
@@ -1207,17 +1094,17 @@ class TestElasticSearchService(unittest.TestCase):
         3. The exception message contains "Health check failed"
         """
         # Setup
-        self.mock_es_core.get_user_indices.side_effect = Exception(
+        self.mock_vdb_core.get_user_indices.side_effect = Exception(
             "Connection error")
 
         # Execute and Assert
         with self.assertRaises(Exception) as context:
-            ElasticSearchService.health_check(es_core=self.mock_es_core)
+            ElasticSearchService.health_check(vdb_core=self.mock_vdb_core)
 
         self.assertIn("Health check failed", str(context.exception))
 
 
-    @patch('backend.services.elasticsearch_service.calculate_term_weights')
+    @patch('backend.services.vectordatabase_service.calculate_term_weights')
     @patch('database.model_management_db.get_model_by_model_id')
     def test_summary_index_name(self, mock_get_model_by_model_id, mock_calculate_weights):
         """
@@ -1265,7 +1152,7 @@ class TestElasticSearchService(unittest.TestCase):
                 result = await self.es_service.summary_index_name(
                     index_name="test_index",
                     batch_size=1000,
-                    es_core=self.mock_es_core,
+                    vdb_core=self.mock_vdb_core,
                     language='en',
                     model_id=1,
                     tenant_id="test_tenant"
@@ -1299,8 +1186,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. The response contains both the total count and the sampled documents
         """
         # Setup
-        count_response = {'count': 100}
-        self.mock_es_core.client.count.return_value = count_response
+        self.mock_vdb_core.count_documents.return_value = 100
 
         search_response = {
             'hits': {
@@ -1316,23 +1202,22 @@ class TestElasticSearchService(unittest.TestCase):
                 ]
             }
         }
-        self.mock_es_core.client.search.return_value = search_response
+        self.mock_vdb_core.search.return_value = search_response
 
         # Execute
         result = ElasticSearchService.get_random_documents(
             index_name="test_index",
             batch_size=10,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
         self.assertEqual(result["total"], 100)
         self.assertEqual(len(result["documents"]), 2)
-        self.mock_es_core.client.count.assert_called_once_with(
-            index="test_index")
-        self.mock_es_core.client.search.assert_called_once()
+        self.mock_vdb_core.count_documents.assert_called_once_with("test_index")
+        self.mock_vdb_core.search.assert_called_once()
 
-    @patch('backend.services.elasticsearch_service.update_knowledge_record')
+    @patch('backend.services.vectordatabase_service.update_knowledge_record')
     def test_change_summary(self, mock_update_record):
         """
         Test changing the summary of a knowledge base.
@@ -1357,7 +1242,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["summary"], "Test summary")
         mock_update_record.assert_called_once()
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_get_summary(self, mock_get_record):
         """
         Test retrieving the summary of a knowledge base.
@@ -1380,7 +1265,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["summary"], "Test summary")
         mock_get_record.assert_called_once_with({'index_name': 'test_index'})
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_get_summary_not_found(self, mock_get_record):
         """
         Test retrieving a summary when the knowledge record doesn't exist.
@@ -1399,7 +1284,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         self.assertIn("Unable to get summary", str(context.exception))
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
+    @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
     @patch('fastapi.Response')
     def test_list_indices_success_status_200(self, mock_response, mock_get_knowledge):
         """
@@ -1411,7 +1296,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
-        self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
+        self.mock_vdb_core.get_user_indices.return_value = ["index1", "index2"]
         mock_response.status_code = 200
         mock_get_knowledge.return_value = [
             {"index_name": "index1", "embedding_model_name": "test-model"},
@@ -1424,7 +1309,7 @@ class TestElasticSearchService(unittest.TestCase):
             include_stats=False,
             tenant_id="test_tenant",  # Now required parameter
             user_id="test_user",      # New required parameter
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
@@ -1432,7 +1317,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["count"], 2)
         # Verify no exception is raised, implying 200 status code
         self.assertIsInstance(result, dict)  # Success response is a dictionary
-        self.mock_es_core.get_user_indices.assert_called_once_with("*")
+        self.mock_vdb_core.get_user_indices.assert_called_once_with("*")
         mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
     def test_health_check_success_status_200(self):
@@ -1445,10 +1330,10 @@ class TestElasticSearchService(unittest.TestCase):
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
-        self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
+        self.mock_vdb_core.get_user_indices.return_value = ["index1", "index2"]
 
         # Execute
-        result = ElasticSearchService.health_check(es_core=self.mock_es_core)
+        result = ElasticSearchService.health_check(vdb_core=self.mock_vdb_core)
 
         # Assert
         self.assertEqual(result["status"], "healthy")
@@ -1466,8 +1351,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
-        count_response = {'count': 100}
-        self.mock_es_core.client.count.return_value = count_response
+        self.mock_vdb_core.count_documents.return_value = 100
 
         search_response = {
             'hits': {
@@ -1479,13 +1363,13 @@ class TestElasticSearchService(unittest.TestCase):
                 ]
             }
         }
-        self.mock_es_core.client.search.return_value = search_response
+        self.mock_vdb_core.search.return_value = search_response
 
         # Execute
         result = ElasticSearchService.get_random_documents(
             index_name="test_index",
             batch_size=10,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
@@ -1511,7 +1395,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.query = "valid query"
         search_request.top_k = 10
 
-        self.mock_es_core.semantic_search.return_value = [
+        self.mock_vdb_core.semantic_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
                 "score": 0.85,
@@ -1522,7 +1406,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = ElasticSearchService.semantic_search(
             request=search_request,
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
@@ -1532,22 +1416,22 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("results", result)
         self.assertIn("total", result)
         self.assertIn("query_time_ms", result)
-        self.mock_es_core.semantic_search.assert_called_once_with(
+        self.mock_vdb_core.semantic_search.assert_called_once_with(
             index_names=["test_index"], query="valid query", top_k=10
         )
 
-    def test_index_documents_success_status_200(self):
+    def test_vectorize_documents_success_status_200(self):
         """
-        Test index_documents method returns status code 200 on success.
+        Test vectorize_documents method returns status code 200 on success.
 
         This test verifies that:
-        1. The index_documents method successfully indexes multiple documents
+        1. The vectorize_documents method successfully indexes multiple documents
         2. The response indicates success and correct document counts
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
-        self.mock_es_core.client.indices.exists.return_value = True
-        self.mock_es_core.index_documents.return_value = 3
+        self.mock_vdb_core.check_index_exists.return_value = True
+        self.mock_vdb_core.vectorize_documents.return_value = 3
         mock_embedding_model = MagicMock()
         mock_embedding_model.model = "test-model"
 
@@ -1573,7 +1457,7 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             embedding_model=mock_embedding_model
         )
 
@@ -1586,7 +1470,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("success", result)
         self.assertTrue(result["success"])
 
-    @patch('backend.services.elasticsearch_service.delete_file')
+    @patch('backend.services.vectordatabase_service.delete_file')
     def test_delete_documents_success_status_200(self, mock_delete_file):
         """
         Test delete_documents method returns status code 200 on success.
@@ -1597,7 +1481,7 @@ class TestElasticSearchService(unittest.TestCase):
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
-        self.mock_es_core.delete_documents_by_path_or_url.return_value = 5
+        self.mock_vdb_core.delete_documents.return_value = 5
         # Configure delete_file to return a success response
         mock_delete_file.return_value = {"success": True, "object_name": "test_path"}
 
@@ -1605,7 +1489,7 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.delete_documents(
             index_name="test_index",
             path_or_url="test_path",
-            es_core=self.mock_es_core
+            vdb_core=self.mock_vdb_core
         )
 
         # Assert
@@ -1613,13 +1497,13 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["deleted_minio"], True)
-        # Verify that delete_documents_by_path_or_url was called with correct parameters
-        self.mock_es_core.delete_documents_by_path_or_url.assert_called_once_with(
+        # Verify that delete_documents was called with correct parameters
+        self.mock_vdb_core.delete_documents.assert_called_once_with(
             "test_index", "test_path")
         # Verify that delete_file was called with the correct path
         mock_delete_file.assert_called_once_with("test_path")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_get_summary_success_status_200(self, mock_get_record):
         """
         Test get_summary method returns status code 200 on success.
@@ -1646,12 +1530,12 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         mock_get_record.assert_called_once_with({'index_name': 'test_index'})
 
-    @patch('backend.services.elasticsearch_service.get_redis_service')
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_redis_service')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_orphan_in_es(self, mock_get_knowledge, mock_get_redis_service):
         """Test handling of orphaned knowledge base existing only in Elasticsearch."""
         # Setup: ES index exists, PG record missing
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
         mock_get_knowledge.return_value = None
 
         # Mock Redis service
@@ -1663,24 +1547,24 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
 
         # Assert
-        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        self.mock_vdb_core.delete_index.assert_called_once_with("test_index")
         mock_redis_service.delete_knowledgebase_records.assert_called_once_with(
             "test_index")
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertEqual(result["action"], "cleaned_es")
 
-    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_orphan_in_pg(self, mock_get_knowledge, mock_delete_record):
         """Test handling of orphaned knowledge base existing only in PostgreSQL."""
         # Setup: ES index missing, PG record exists
-        self.mock_es_core.client.indices.exists.return_value = False
+        self.mock_vdb_core.check_index_exists.return_value = False
         mock_get_knowledge.return_value = {
             "index_name": "test_index", "tenant_id": "tenant1"}
         mock_delete_record.return_value = True
@@ -1688,7 +1572,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
@@ -1698,17 +1582,17 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertEqual(result["action"], "cleaned_pg")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_available(self, mock_get_knowledge):
         """Test knowledge base name availability when neither ES nor PG has the record."""
         # Setup: ES index missing, PG record missing
-        self.mock_es_core.client.indices.exists.return_value = False
+        self.mock_vdb_core.check_index_exists.return_value = False
         mock_get_knowledge.return_value = None
 
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
@@ -1716,18 +1600,18 @@ class TestElasticSearchService(unittest.TestCase):
         # Assert
         self.assertEqual(result["status"], "available")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_exists_in_tenant(self, mock_get_knowledge):
         """Test detection when knowledge base exists within the same tenant."""
         # Setup: ES index exists, PG record exists with same tenant_id
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
         mock_get_knowledge.return_value = {
             "index_name": "test_index", "tenant_id": "tenant1"}
 
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
@@ -1735,18 +1619,18 @@ class TestElasticSearchService(unittest.TestCase):
         # Assert
         self.assertEqual(result["status"], "exists_in_tenant")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_exists_in_other_tenant(self, mock_get_knowledge):
         """Test detection when knowledge base exists in a different tenant."""
         # Setup: ES index exists, PG record exists with different tenant_id
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
         mock_get_knowledge.return_value = {
             "index_name": "test_index", "tenant_id": "other_tenant"}
 
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
@@ -1754,12 +1638,12 @@ class TestElasticSearchService(unittest.TestCase):
         # Assert
         self.assertEqual(result["status"], "exists_in_other_tenant")
 
-    @patch('backend.services.elasticsearch_service.get_redis_service')
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_redis_service')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_orphan_in_es_redis_failure(self, mock_get_knowledge, mock_get_redis_service):
         """Test orphan ES case when Redis cleanup raises an exception."""
         # Setup: ES index exists, PG record missing
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
         mock_get_knowledge.return_value = None
 
         # Mock Redis service that raises an exception
@@ -1771,46 +1655,46 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
 
         # Assert: ES index deletion attempted, Redis cleanup attempted and exception handled
-        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        self.mock_vdb_core.delete_index.assert_called_once_with("test_index")
         mock_redis_service.delete_knowledgebase_records.assert_called_once_with(
             "test_index")
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertEqual(result["action"], "cleaned_es")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_orphan_in_es_delete_failure(self, mock_get_knowledge):
         """Test failure when deleting orphan ES index raises an exception."""
         # Setup: ES index exists, PG record missing, delete_index raises
-        self.mock_es_core.client.indices.exists.return_value = True
+        self.mock_vdb_core.check_index_exists.return_value = True
         mock_get_knowledge.return_value = None
-        self.mock_es_core.delete_index.side_effect = Exception(
+        self.mock_vdb_core.delete_index.side_effect = Exception(
             "Delete index failed")
 
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
 
         # Assert
-        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        self.mock_vdb_core.delete_index.assert_called_once_with("test_index")
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertTrue(result.get("error"))
 
-    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.vectordatabase_service.delete_knowledge_record')
+    @patch('backend.services.vectordatabase_service.get_knowledge_record')
     def test_check_kb_exist_orphan_in_pg_delete_failure(self, mock_get_knowledge, mock_delete_record):
         """Test failure when deleting orphan PG record raises an exception."""
         # Setup: ES index missing, PG record exists, deletion raises
-        self.mock_es_core.client.indices.exists.return_value = False
+        self.mock_vdb_core.check_index_exists.return_value = False
         mock_get_knowledge.return_value = {
             "index_name": "test_index", "tenant_id": "tenant1"}
         mock_delete_record.side_effect = Exception("Delete PG record failed")
@@ -1818,7 +1702,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Execute
         result = check_knowledge_base_exist_impl(
             index_name="test_index",
-            es_core=self.mock_es_core,
+            vdb_core=self.mock_vdb_core,
             user_id="test_user",
             tenant_id="tenant1"
         )
@@ -1831,25 +1715,25 @@ class TestElasticSearchService(unittest.TestCase):
     # Note: generate_knowledge_summary_stream function has been removed
     # These tests are no longer relevant as the function was replaced with summary_index_name
 
-    def test_get_es_core(self):
+    def test_get_vdb_core(self):
         """
-        Test get_es_core function returns the elastic_core instance.
+        Test get_vdb_core function returns the elastic_core instance.
 
         This test verifies that:
-        1. The get_es_core function returns the correct elastic_core instance
+        1. The get_vdb_core function returns the correct elastic_core instance
         2. The function is properly imported and accessible
         """
-        from backend.services.elasticsearch_service import get_es_core
+        from backend.services.vectordatabase_service import get_vector_db_core
 
         # Execute
-        result = get_es_core()
+        result = get_vector_db_core()
 
         # Assert
         self.assertIsNotNone(result)
         # The result should be the elastic_core instance
         self.assertTrue(hasattr(result, 'client'))
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('backend.services.vectordatabase_service.tenant_config_manager')
     def test_get_embedding_model_embedding_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with embedding model type.
@@ -1872,32 +1756,31 @@ class TestElasticSearchService(unittest.TestCase):
         self.get_embedding_model_patcher.stop()
 
         try:
-            with patch('backend.services.elasticsearch_service.OpenAICompatibleEmbedding') as mock_embedding_class:
+            with patch('backend.services.vectordatabase_service.OpenAICompatibleEmbedding') as mock_embedding_class, \
+                    patch('backend.services.vectordatabase_service.get_model_name_from_config') as mock_get_model_name:
                 mock_embedding_instance = MagicMock()
                 mock_embedding_class.return_value = mock_embedding_instance
+                mock_get_model_name.return_value = "test-model"
 
-                with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
-                    mock_get_model_name.return_value = "test-model"
+                # Execute - now we can call the real function
+                from backend.services.vectordatabase_service import get_embedding_model
+                result = get_embedding_model("test_tenant")
 
-                    # Execute - now we can call the real function
-                    from backend.services.elasticsearch_service import get_embedding_model
-                    result = get_embedding_model("test_tenant")
-
-                    # Assert
-                    self.assertEqual(result, mock_embedding_instance)
-                    mock_tenant_config_manager.get_model_config.assert_called_once_with(
-                        key="EMBEDDING_ID", tenant_id="test_tenant")
-                    mock_embedding_class.assert_called_once_with(
-                        api_key="test_api_key",
-                        base_url="https://test.api.com",
-                        model_name="test-model",
-                        embedding_dim=1024
-                    )
+                # Assert
+                self.assertEqual(result, mock_embedding_instance)
+                mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                    key="EMBEDDING_ID", tenant_id="test_tenant")
+                mock_embedding_class.assert_called_once_with(
+                    api_key="test_api_key",
+                    base_url="https://test.api.com",
+                    model_name="test-model",
+                    embedding_dim=1024
+                )
         finally:
             # Restart the mock for other tests
             self.get_embedding_model_patcher.start()
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('backend.services.vectordatabase_service.tenant_config_manager')
     def test_get_embedding_model_multi_embedding_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with multi_embedding model type.
@@ -1920,32 +1803,31 @@ class TestElasticSearchService(unittest.TestCase):
         self.get_embedding_model_patcher.stop()
 
         try:
-            with patch('backend.services.elasticsearch_service.JinaEmbedding') as mock_embedding_class:
+            with patch('backend.services.vectordatabase_service.JinaEmbedding') as mock_embedding_class, \
+                    patch('backend.services.vectordatabase_service.get_model_name_from_config') as mock_get_model_name:
                 mock_embedding_instance = MagicMock()
                 mock_embedding_class.return_value = mock_embedding_instance
+                mock_get_model_name.return_value = "test-model"
 
-                with patch('backend.services.elasticsearch_service.get_model_name_from_config') as mock_get_model_name:
-                    mock_get_model_name.return_value = "test-model"
+                # Execute - now we can call the real function
+                from backend.services.vectordatabase_service import get_embedding_model
+                result = get_embedding_model("test_tenant")
 
-                    # Execute - now we can call the real function
-                    from backend.services.elasticsearch_service import get_embedding_model
-                    result = get_embedding_model("test_tenant")
-
-                    # Assert
-                    self.assertEqual(result, mock_embedding_instance)
-                    mock_tenant_config_manager.get_model_config.assert_called_once_with(
-                        key="EMBEDDING_ID", tenant_id="test_tenant")
-                    mock_embedding_class.assert_called_once_with(
-                        api_key="test_api_key",
-                        base_url="https://test.api.com",
-                        model_name="test-model",
-                        embedding_dim=2048
-                    )
+                # Assert
+                self.assertEqual(result, mock_embedding_instance)
+                mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                    key="EMBEDDING_ID", tenant_id="test_tenant")
+                mock_embedding_class.assert_called_once_with(
+                    api_key="test_api_key",
+                    base_url="https://test.api.com",
+                    model_name="test-model",
+                    embedding_dim=2048
+                )
         finally:
             # Restart the mock for other tests
             self.get_embedding_model_patcher.start()
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('backend.services.vectordatabase_service.tenant_config_manager')
     def test_get_embedding_model_unknown_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with unknown model type.
@@ -1969,7 +1851,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         try:
             # Execute - now we can call the real function
-            from backend.services.elasticsearch_service import get_embedding_model
+            from backend.services.vectordatabase_service import get_embedding_model
             result = get_embedding_model("test_tenant")
 
             # Assert
@@ -1980,7 +1862,7 @@ class TestElasticSearchService(unittest.TestCase):
             # Restart the mock for other tests
             self.get_embedding_model_patcher.start()
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('backend.services.vectordatabase_service.tenant_config_manager')
     def test_get_embedding_model_empty_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with empty model type.
@@ -2004,7 +1886,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         try:
             # Execute - now we can call the real function
-            from backend.services.elasticsearch_service import get_embedding_model
+            from backend.services.vectordatabase_service import get_embedding_model
             result = get_embedding_model("test_tenant")
 
             # Assert
@@ -2015,7 +1897,7 @@ class TestElasticSearchService(unittest.TestCase):
             # Restart the mock for other tests
             self.get_embedding_model_patcher.start()
 
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('backend.services.vectordatabase_service.tenant_config_manager')
     def test_get_embedding_model_missing_type(self, mock_tenant_config_manager):
         """
         Test get_embedding_model with missing model type.
@@ -2038,7 +1920,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         try:
             # Execute - now we can call the real function
-            from backend.services.elasticsearch_service import get_embedding_model
+            from backend.services.vectordatabase_service import get_embedding_model
             result = get_embedding_model("test_tenant")
 
             # Assert
@@ -2052,3 +1934,4 @@ class TestElasticSearchService(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

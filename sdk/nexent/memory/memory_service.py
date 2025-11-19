@@ -293,7 +293,7 @@ async def reset_all_memory(memory_config: Dict[str, Any]) -> bool:
 
 
 async def clear_model_memories(
-    es_core: Any,
+    vdb_core: Any,
     model_repo: str,
     model_name: str,
     embedding_dims: int,
@@ -305,7 +305,7 @@ async def clear_model_memories(
     memory utilities, while remaining SDK-only and transport-agnostic.
 
     Args:
-        es_core: An initialized Elasticsearch core instance (must expose ``client.indices`` and ``delete_index``).
+        vdb_core: An initialized Elasticsearch core instance (must expose ``client.indices`` and ``delete_index``).
         model_repo: Optional repository/namespace of the embedding model (e.g., "jina-ai"). Empty if none.
         model_name: The embedding model name (e.g., "jina-embeddings-v2-base-en").
         embedding_dims: The embedding vector dimension for this model configuration.
@@ -329,7 +329,7 @@ async def clear_model_memories(
 
         # 1) If index does not exist in ES, nothing to do
         try:
-            es_exists = es_core.client.indices.exists(index=index_name)
+            es_exists = vdb_core.client.indices.exists(index=index_name)
         except Exception:
             # If existence check fails, proceed defensively to attempt cleanup via mem0 then ES delete
             es_exists = True
@@ -371,7 +371,7 @@ async def clear_model_memories(
 
         # 4) Drop ES index
         try:
-            es_core.delete_index(index_name)
+            vdb_core.delete_index(index_name)
         except Exception:
             # Swallow delete errors and report as best-effort
             pass

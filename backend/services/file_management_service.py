@@ -20,7 +20,7 @@ from database.attachment_db import (
     list_files
 )
 from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
-from services.elasticsearch_service import ElasticSearchService, get_es_core
+from services.vectordatabase_service import ElasticSearchService, get_vector_db_core
 from utils.prompt_template_utils import get_file_processing_messages_template
 from utils.file_management_utils import save_upload_file
 
@@ -79,8 +79,8 @@ async def upload_files_impl(destination: str, file: List[UploadFile], folder: st
         # Resolve filename conflicts against existing KB documents by renaming (e.g., name -> name_1)
         if index_name:
             try:
-                es_core = get_es_core()
-                existing = await ElasticSearchService.list_files(index_name, include_chunks=False, es_core=es_core)
+                vdb_core = get_vector_db_core()
+                existing = await ElasticSearchService.list_files(index_name, include_chunks=False, vdb_core=vdb_core)
                 existing_files = existing.get(
                     "files", []) if isinstance(existing, dict) else []
                 # Prefer 'file' field; fall back to 'filename' if present

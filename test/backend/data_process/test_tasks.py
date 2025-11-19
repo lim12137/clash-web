@@ -595,7 +595,7 @@ def test_forward_skips_empty_chunk_without_preprocess(monkeypatch):
     # We asserted path executed; exact stored count depends on implementation but should not error
 
 
-def test_forward_index_documents_client_connector_error(monkeypatch):
+def test_forward_vectorize_documents_client_connector_error(monkeypatch):
     tasks, _ = import_tasks_with_fake_ray(monkeypatch)
     monkeypatch.setattr(tasks, "ELASTICSEARCH_SERVICE", "http://api")
     # Speed up retries
@@ -649,7 +649,7 @@ def test_forward_index_documents_client_connector_error(monkeypatch):
     json.loads(str(ei.value))
 
 
-def test_forward_index_documents_client_response_503(monkeypatch):
+def test_forward_vectorize_documents_client_response_503(monkeypatch):
     tasks, _ = import_tasks_with_fake_ray(monkeypatch)
     monkeypatch.setattr(tasks, "ELASTICSEARCH_SERVICE", "http://api")
 
@@ -731,7 +731,7 @@ def test_forward_api_returns_error_and_unexpected_format(monkeypatch):
     json.loads(str(ei2.value))
 
 
-def test_forward_index_documents_timeout_error(monkeypatch):
+def test_forward_vectorize_documents_timeout_error(monkeypatch):
     tasks, _ = import_tasks_with_fake_ray(monkeypatch)
     monkeypatch.setattr(tasks, "ELASTICSEARCH_SERVICE", "http://api")
 
@@ -789,7 +789,7 @@ def test_forward_index_documents_timeout_error(monkeypatch):
     json.loads(str(ei.value))
 
 
-def test_forward_index_documents_unexpected_error(monkeypatch):
+def test_forward_vectorize_documents_unexpected_error(monkeypatch):
     tasks, _ = import_tasks_with_fake_ray(monkeypatch)
     monkeypatch.setattr(tasks, "ELASTICSEARCH_SERVICE", "http://api")
 

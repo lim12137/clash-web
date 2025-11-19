@@ -339,9 +339,9 @@ class TestGetDocumentsFromEs:
     """Test ES document retrieval"""
 
     def test_get_documents_from_es_mock(self):
-        """Test ES document retrieval with mocked client"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.return_value = {
+        """Test ES document retrieval with mocked VectorDatabaseCore search"""
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.return_value = {
             'hits': {
                 'hits': [
                     {
@@ -367,17 +367,17 @@ class TestGetDocumentsFromEs:
             }
         }
 
-        result = get_documents_from_es('test_index', mock_es_core, sample_doc_count=10)
+        result = get_documents_from_es(
+            'test_index', mock_vdb_core, sample_doc_count=10)
 
         assert isinstance(result, dict)
-        # The function returns a dict with document IDs as keys, not 'documents' key
         assert len(result) > 0
         # Check that we have document data
         first_doc = list(result.values())[0]
         assert 'chunks' in first_doc
         
         # Verify that sort parameter is included in the query
-        call_args = mock_es_core.client.search.call_args
+        call_args = mock_vdb_core.search.call_args
         if call_args:
             query_body = call_args[1].get('body') or call_args[0][1] if len(call_args[0]) > 1 else None
             if query_body and 'sort' in query_body:
@@ -392,8 +392,8 @@ class TestProcessDocumentsForClustering:
 
     def test_process_documents_for_clustering_mock(self):
         """Test document processing with mocked functions"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.return_value = {
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.client.search.return_value = {
             'hits': {
                 'hits': [
                     {
@@ -422,7 +422,7 @@ class TestProcessDocumentsForClustering:
             mock_calc_embedding.return_value = np.array([1.0, 2.0, 3.0])
 
             documents, embeddings = process_documents_for_clustering(
-                'test_index', mock_es_core, sample_doc_count=10
+                'test_index', mock_vdb_core, sample_doc_count=10
             )
 
             assert isinstance(documents, dict)

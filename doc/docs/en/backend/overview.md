@@ -28,7 +28,7 @@ backend/
 ├── services/                     # Business service layer
 │   ├── agent_service.py         # Agent business logic
 │   ├── conversation_management_service.py # Conversation management
-│   ├── elasticsearch_service.py # Search engine service
+│   ├── vectordatabase_service.py # Search engine service
 │   ├── model_health_service.py  # Model health checks
 │   ├── prompt_service.py        # Prompt service
 │   └── tenant_config_service.py # Tenant configuration service

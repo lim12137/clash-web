@@ -45,23 +45,23 @@ services_stub = types.ModuleType('services')
 services_stub.__path__ = []  # Mark as package
 sys.modules.setdefault('services', services_stub)
 
-es_stub = types.ModuleType('services.elasticsearch_service')
+vdb_stub = types.ModuleType('services.vectordatabase_service')
 
 
 class _StubElasticSearchService:
     @staticmethod
-    async def list_files(index_name, include_chunks=False, es_core=None):
+    async def list_files(index_name, include_chunks=False, vdb_core=None):
         return {"files": []}
 
 
-def _stub_get_es_core():
+def _stub_get_vector_db_core():
     return None
 
 
-es_stub.ElasticSearchService = _StubElasticSearchService
-es_stub.get_es_core = _stub_get_es_core
-sys.modules['services.elasticsearch_service'] = es_stub
-setattr(services_stub, 'elasticsearch_service', es_stub)
+vdb_stub.ElasticSearchService = _StubElasticSearchService
+vdb_stub.get_vector_db_core = _stub_get_vector_db_core
+sys.modules['services.vectordatabase_service'] = vdb_stub
+setattr(services_stub, 'vectordatabase_service', vdb_stub)
 
 # Import the service module after mocking external dependencies
 file_management_service = importlib.import_module(
@@ -311,7 +311,7 @@ class TestUploadFilesImpl:
         }
 
         with patch('backend.services.file_management_service.upload_to_minio', AsyncMock(return_value=minio_return)) as mock_upload, \
-                patch('backend.services.file_management_service.get_es_core', MagicMock()) as mock_es_core, \
+                patch('backend.services.file_management_service.get_vector_db_core', MagicMock()) as mock_vdb_core, \
                 patch('backend.services.file_management_service.ElasticSearchService.list_files', AsyncMock(return_value=existing)) as mock_list:
 
             errors, uploaded_paths, uploaded_names = await upload_files_impl(
@@ -342,7 +342,7 @@ class TestUploadFilesImpl:
         existing = {"files": [{"file": "doc.pdf"}]}
 
         with patch('backend.services.file_management_service.upload_to_minio', AsyncMock(return_value=minio_return)), \
-                patch('backend.services.file_management_service.get_es_core', MagicMock()), \
+                patch('backend.services.file_management_service.get_vector_db_core', MagicMock()), \
                 patch('backend.services.file_management_service.ElasticSearchService.list_files', AsyncMock(return_value=existing)):
 
             errors, uploaded_paths, uploaded_names = await upload_files_impl(
@@ -364,7 +364,7 @@ class TestUploadFilesImpl:
         ]
 
         with patch('backend.services.file_management_service.upload_to_minio', AsyncMock(return_value=minio_return)), \
-                patch('backend.services.file_management_service.get_es_core', MagicMock()), \
+                patch('backend.services.file_management_service.get_vector_db_core', MagicMock()), \
                 patch('backend.services.file_management_service.ElasticSearchService.list_files', AsyncMock(side_effect=Exception("boom"))), \
                 patch('backend.services.file_management_service.logger') as mock_logger:
 
