@@ -111,7 +111,7 @@ export function ChatHeader({ title, onRename }: ChatHeaderProps) {
 
   return (
     <>
-      <header className="border-b border-transparent bg-background z-10">
+      <header className="border-b border-transparent bg-background">
         <div className="p-3 pb-1">
           <div className="relative flex flex-1">
             <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
