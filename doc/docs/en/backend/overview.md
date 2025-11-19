@@ -64,7 +64,8 @@ backend/
 │   └── utils/                   # Prompt utilities
 ├── sql/                         # SQL scripts
 ├── assets/                      # Backend resource files
-├── main_service.py              # Main service entry point
+├── config_service.py            # Config service entry point
+├── runtime_service.py           # Runtime service entry point
 ├── data_process_service.py      # Data processing service entry point
 └── requirements.txt             # Python dependencies
 ```
