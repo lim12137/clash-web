@@ -117,6 +117,7 @@ export const fetchAgentList = async () => {
       display_name: agent.display_name || agent.name,
       description: agent.description,
       is_available: agent.is_available,
+      unavailable_reasons: agent.unavailable_reasons || [],
     }));
 
     return {
@@ -517,6 +518,7 @@ export const searchAgentInfo = async (agentId: number) => {
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,
       is_available: data.is_available,
+      unavailable_reasons: data.unavailable_reasons || [],
       sub_agent_id_list: data.sub_agent_id_list || [], // Add sub_agent_id_list
       tools: data.tools
         ? data.tools.map((tool: any) => {

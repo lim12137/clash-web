@@ -323,11 +323,12 @@ CREATE TABLE mcp_servers (
 ```bash
 # 启动主服务
 cd backend
-python main_service.py
+python config_service.py
+python runtime_service.py
 
 # 启动本地MCP服务
 cd backend
-python nexent_mcp_service.py
+python mcp_service.py
 ```
 
 ### 2. 添加远程MCP服务器

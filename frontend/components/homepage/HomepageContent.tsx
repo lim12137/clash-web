@@ -76,9 +76,9 @@ export function HomepageContent({
               onClick={onChatNavigate}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
-              <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-              {t("page.startChat")}
-            </Button>
+                <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.startChat")}
+              </Button>
           ) : (
             <Button 
               onClick={onAuthRequired}
@@ -95,9 +95,9 @@ export function HomepageContent({
               onClick={onSetupNavigate}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
-              <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-              {t("page.quickConfig")}
-            </Button>
+                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.quickConfig")}
+              </Button>
           ) : (
             <Button 
               onClick={onAdminRequired}
@@ -114,9 +114,9 @@ export function HomepageContent({
               onClick={onSpaceNavigate}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
-              <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-              {t("page.agentSpace")}
-            </Button>
+                <Globe className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                {t("page.agentSpace")}
+              </Button>
           ) : (
             <Button 
               onClick={onAuthRequired}
