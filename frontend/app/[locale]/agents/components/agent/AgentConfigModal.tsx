@@ -542,12 +542,20 @@ export default function AgentConfigModal({
   const shouldCheckNameStatus = isCreatingNewAgent || currentAgentName !== originalAgentName;
   const shouldCheckDisplayNameStatus = isCreatingNewAgent || currentDisplayName !== originalDisplayName;
   
+  // Disable save if there are any error indicators from backend (unavailable_reasons)
+  // These errors should block saving even if names haven't changed
+  const hasBackendErrors = 
+    shouldShowDuplicateNameReason || 
+    shouldShowDuplicateDisplayNameReason || 
+    shouldShowModelUnavailableReason;
+  
   const canActuallySave =
     canSaveAgent &&
     !agentNameError &&
     (shouldCheckNameStatus ? agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT : true) &&
     !agentDisplayNameError &&
-    (shouldCheckDisplayNameStatus ? agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT : true);
+    (shouldCheckDisplayNameStatus ? agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT : true) &&
+    !hasBackendErrors;
 
   // Render individual content sections
   const renderAgentInfo = () => (

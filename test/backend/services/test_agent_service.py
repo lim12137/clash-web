@@ -82,6 +82,8 @@ with patch('sqlalchemy.create_engine', return_value=mock_engine), \
         run_agent_stream,
         stop_agent_tasks,
         _resolve_user_tenant_language,
+        _apply_duplicate_name_availability_rules,
+        _check_single_model_availability,
     )
     from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
@@ -3968,6 +3970,67 @@ async def test_list_all_agent_info_impl_all_disabled_agents():
         mock_check_tools.assert_not_called()
 
 
+def test_apply_duplicate_name_availability_rules_handles_missing_fields():
+    """
+    Ensure duplicate detection gracefully handles agents without name/display_name.
+    """
+    enriched_agents = [
+        {
+            "raw_agent": {
+                "agent_id": 1,
+                "name": None,
+                "display_name": None,
+                "create_time": "2024-01-01T00:00:00",
+            },
+            "unavailable_reasons": [],
+        },
+        {
+            "raw_agent": {
+                "agent_id": 2,
+                "name": "dup",
+                "display_name": None,
+                "create_time": "2024-01-01T00:00:00",
+            },
+            "unavailable_reasons": [],
+        },
+        {
+            "raw_agent": {
+                "agent_id": 3,
+                "name": "dup",
+                "display_name": None,
+                "create_time": "2024-02-01T00:00:00",
+            },
+            "unavailable_reasons": [],
+        },
+        {
+            "raw_agent": {
+                "agent_id": 4,
+                "name": None,
+                "display_name": "display-dup",
+                "create_time": "2024-01-01T00:00:00",
+            },
+            "unavailable_reasons": [],
+        },
+        {
+            "raw_agent": {
+                "agent_id": 5,
+                "name": None,
+                "display_name": "display-dup",
+                "create_time": "2024-02-01T00:00:00",
+            },
+            "unavailable_reasons": [],
+        },
+    ]
+
+    _apply_duplicate_name_availability_rules(enriched_agents)
+
+    assert enriched_agents[0]["unavailable_reasons"] == []
+    assert "duplicate_name" not in enriched_agents[1]["unavailable_reasons"]
+    assert "duplicate_name" in enriched_agents[2]["unavailable_reasons"]
+    assert "duplicate_display_name" not in enriched_agents[3]["unavailable_reasons"]
+    assert "duplicate_display_name" in enriched_agents[4]["unavailable_reasons"]
+
+
 # ============================================================================
 # Tests for Agent Export/Import Integration with model_name fields
 # ============================================================================
@@ -5420,3 +5483,60 @@ class TestResolveModelWithFallback:
                 model_label="Model",
                 tenant_id="tenant_011"
             )
+
+
+def test_check_single_model_availability_no_model_id():
+    reasons = _check_single_model_availability(
+        model_id=None,
+        tenant_id="tenant",
+        model_cache={},
+        reason_key="model_unavailable",
+    )
+    assert reasons == []
+
+
+@patch("backend.services.agent_service.get_model_by_model_id")
+def test_check_single_model_availability_fetches_and_handles_missing_model(mock_get_model):
+    model_cache = {}
+    mock_get_model.return_value = None
+
+    reasons = _check_single_model_availability(
+        model_id=123,
+        tenant_id="tenant",
+        model_cache=model_cache,
+        reason_key="model_unavailable",
+    )
+
+    assert reasons == ["model_unavailable"]
+    assert 123 in model_cache
+    mock_get_model.assert_called_once_with(123, "tenant")
+
+
+def test_check_single_model_availability_uses_cached_unavailable_model():
+    model_cache = {
+        456: {"connect_status": agent_service.ModelConnectStatusEnum.UNAVAILABLE.value}
+    }
+
+    reasons = _check_single_model_availability(
+        model_id=456,
+        tenant_id="tenant",
+        model_cache=model_cache,
+        reason_key="model_unavailable",
+    )
+
+    assert reasons == ["model_unavailable"]
+
+
+def test_check_single_model_availability_returns_empty_for_available_model():
+    model_cache = {
+        789: {"connect_status": agent_service.ModelConnectStatusEnum.AVAILABLE.value}
+    }
+
+    reasons = _check_single_model_availability(
+        model_id=789,
+        tenant_id="tenant",
+        model_cache=model_cache,
+        reason_key="model_unavailable",
+    )
+
+    assert reasons == []
