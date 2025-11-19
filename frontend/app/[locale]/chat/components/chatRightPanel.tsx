@@ -5,7 +5,7 @@ import { ExternalLink, Database, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
-import { ChatMessageType, ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
+import { ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
 import { API_ENDPOINTS } from "@/services/api";
 import { formatDate, formatUrl } from "@/lib/utils";
 import log from "@/lib/logger";

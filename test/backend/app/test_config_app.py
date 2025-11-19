@@ -67,7 +67,7 @@ except ImportError:
 # Now safe to import app modules
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from apps.base_app import app
+from apps.config_app import app
 
 
 # Stop all patches at the end of the module

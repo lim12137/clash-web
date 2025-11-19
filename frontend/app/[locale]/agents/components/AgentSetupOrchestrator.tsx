@@ -113,6 +113,38 @@ export default function AgentSetupOrchestrator({
   // Edit agent related status
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const activeEditingAgent = editingAgentFromParent || editingAgent;
+  const isAgentUnavailable = activeEditingAgent?.is_available === false;
+  const agentUnavailableReasons =
+    isAgentUnavailable && Array.isArray(activeEditingAgent?.unavailable_reasons)
+      ? (activeEditingAgent?.unavailable_reasons as string[])
+      : [];
+  const mergeAgentAvailabilityMetadata = useCallback(
+    (detail: Agent, fallback?: Agent | null): Agent => {
+      const detailReasons = Array.isArray(detail?.unavailable_reasons)
+        ? detail.unavailable_reasons
+        : [];
+      const fallbackReasons = Array.isArray(fallback?.unavailable_reasons)
+        ? fallback!.unavailable_reasons!
+        : [];
+      const normalizedReasons =
+        detailReasons.length > 0 ? detailReasons : fallbackReasons;
+
+      const normalizedAvailability =
+        typeof detail?.is_available === "boolean"
+          ? detail.is_available
+          : typeof fallback?.is_available === "boolean"
+          ? fallback.is_available
+          : detail?.is_available;
+
+      return {
+        ...detail,
+        unavailable_reasons: normalizedReasons,
+        is_available: normalizedAvailability,
+      };
+    },
+    []
+  );
 
   // Add a flag to track if it has been initialized to avoid duplicate calls
   const hasInitialized = useRef(false);
@@ -287,7 +319,11 @@ export default function AgentSetupOrchestrator({
         return;
       }
 
-      const agentDetail = result.data;
+      const agentDetail = mergeAgentAvailabilityMetadata(
+        result.data as Agent,
+        editingAgent
+      );
+      setEditingAgent(agentDetail);
 
       // Reload all agent data to match backend state
       setAgentName?.(agentDetail.name || "");
@@ -296,7 +332,7 @@ export default function AgentSetupOrchestrator({
 
       // Load Agent data to interface
       setMainAgentModel(agentDetail.model);
-      setMainAgentModelId(agentDetail.model_id);
+      setMainAgentModelId(agentDetail.model_id ?? null);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || "");
       setBusinessLogicModel(agentDetail.business_logic_model_name || null);
@@ -971,7 +1007,9 @@ export default function AgentSetupOrchestrator({
             try {
               const detail = await searchAgentInfo(newId);
               if (detail.success && detail.data) {
-                const agentDetail = detail.data;
+                const agentDetail = mergeAgentAvailabilityMetadata(
+                  detail.data as Agent
+                );
                 setIsEditingAgent(true);
                 setEditingAgent(agentDetail);
                 setMainAgentId(agentDetail.id);
@@ -982,7 +1020,7 @@ export default function AgentSetupOrchestrator({
                 setAgentDisplayName?.(agentDetail.display_name || "");
                 onEditingStateChange?.(true, agentDetail);
                 setMainAgentModel(agentDetail.model);
-                setMainAgentModelId(agentDetail.model_id);
+                setMainAgentModelId(agentDetail.model_id ?? null);
                 setMainAgentMaxStep(agentDetail.max_step);
                 setBusinessLogic(agentDetail.business_description || "");
                 setBusinessLogicModel(
@@ -1146,7 +1184,10 @@ export default function AgentSetupOrchestrator({
         return;
       }
 
-      const agentDetail = result.data;
+      const agentDetail = mergeAgentAvailabilityMetadata(
+        result.data as Agent,
+        agent
+      );
 
       // Set editing state and highlight after successfully getting information
       setIsEditingAgent(true);
@@ -1170,7 +1211,7 @@ export default function AgentSetupOrchestrator({
 
       // Load Agent data to interface
       setMainAgentModel(agentDetail.model);
-      setMainAgentModelId(agentDetail.model_id);
+      setMainAgentModelId(agentDetail.model_id ?? null);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || "");
       setBusinessLogicModel(agentDetail.business_logic_model_name || null);
@@ -1595,7 +1636,6 @@ export default function AgentSetupOrchestrator({
               isGeneratingAgent={isGeneratingAgent}
               editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
-              editingAgentName={agentName || null}
               onExportAgent={handleExportAgentFromList}
               onDeleteAgent={handleDeleteAgentFromList}
               unsavedAgentId={
@@ -1682,6 +1722,7 @@ export default function AgentSetupOrchestrator({
                     isEditingMode={isEditingAgent || isCreatingNewAgent}
                     isGeneratingAgent={isGeneratingAgent}
                     isEmbeddingConfigured={isEmbeddingConfigured}
+                    agentUnavailableReasons={agentUnavailableReasons}
                   />
                 </div>
               </div>
