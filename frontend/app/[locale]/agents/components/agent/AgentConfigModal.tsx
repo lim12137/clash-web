@@ -10,6 +10,7 @@ import { Bug, Save, Maximize2 } from "lucide-react";
 
 import log from "@/lib/logger";
 import { ModelOption } from "@/types/modelConfig";
+import { Agent } from "@/types/agentConfig";
 import { modelService } from "@/services/modelService";
 import {
   checkAgentName,
@@ -49,7 +50,7 @@ export interface AgentConfigModalProps {
   onDeleteSuccess?: () => void; // New prop for handling delete success
   onSaveAgent?: () => void;
   isCreatingNewAgent?: boolean;
-  editingAgent?: any;
+  editingAgent?: Agent | null;
   canSaveAgent?: boolean;
   getButtonTitle?: () => string;
   onViewCallRelationship?: () => void; // New prop for viewing call relationship
@@ -84,7 +85,7 @@ export default function AgentConfigModal({
   onDeleteSuccess,
   onSaveAgent,
   isCreatingNewAgent = false,
-  editingAgent,
+  editingAgent = null,
   canSaveAgent = false,
   getButtonTitle,
 }: AgentConfigModalProps) {
@@ -125,6 +126,49 @@ export default function AgentConfigModal({
   const [llmModels, setLlmModels] = useState<ModelOption[]>([]);
   // Local fallback for selected main model display name (used when parent has not yet propagated)
   const [localMainAgentModel, setLocalMainAgentModel] = useState<string>("");
+
+  const isAgentUnavailable = editingAgent?.is_available === false;
+  const normalizedUnavailableReasons =
+    isAgentUnavailable && Array.isArray(editingAgent?.unavailable_reasons)
+      ? (editingAgent?.unavailable_reasons as string[])
+      : [];
+  const hasDuplicateDisplayNameReason = normalizedUnavailableReasons.some(
+    (reason) =>
+      ["duplicate_display_name", "duplicate_disaplay_name"].includes(reason)
+  );
+  const hasDuplicateNameReason =
+    normalizedUnavailableReasons.includes("duplicate_name");
+  const hasModelUnavailableReason =
+    normalizedUnavailableReasons.includes("model_unavailable");
+  const currentDisplayName = (agentDisplayName || "").trim();
+  const originalDisplayName = (editingAgent?.display_name || "").trim();
+  const currentAgentName = (agentName || "").trim();
+  const originalAgentName = (editingAgent?.name || "").trim();
+  const shouldShowDuplicateDisplayNameReason =
+    hasDuplicateDisplayNameReason &&
+    !!currentDisplayName &&
+    currentDisplayName === originalDisplayName;
+  const shouldShowDuplicateNameReason =
+    hasDuplicateNameReason &&
+    !!currentAgentName &&
+    currentAgentName === originalAgentName;
+  const originalModelId =
+    typeof editingAgent?.model_id === "number"
+      ? editingAgent.model_id
+      : null;
+  const selectedModelId =
+    typeof mainAgentModelId === "number"
+      ? mainAgentModelId
+      : originalModelId;
+  const effectiveModelName =
+    mainAgentModel ||
+    localMainAgentModel ||
+    editingAgent?.model ||
+    "";
+  const shouldShowModelUnavailableReason =
+    hasModelUnavailableReason &&
+    originalModelId !== null &&
+    selectedModelId === originalModelId;
 
   // Load LLM models on component mount
   useEffect(() => {
@@ -272,8 +316,18 @@ export default function AgentConfigModal({
     [validateAgentDisplayName, onAgentDisplayNameChange]
   );
 
-  // Check agent name existence - only when user is actively typing
+  // Check agent name existence - when creating new agent or when editing and name changed
   useEffect(() => {
+    // Perform real-time check when:
+    // 1. Creating new agent, OR
+    // 2. Editing existing agent and the name has changed
+    const shouldCheck = isCreatingNewAgent || 
+      (!isCreatingNewAgent && currentAgentName !== originalAgentName);
+    
+    if (!shouldCheck) {
+      return;
+    }
+
     if (!agentName) {
       return;
     }
@@ -306,7 +360,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, agentName, agentNameError, agentId, agentNameStatus, t]);
+  }, [isCreatingNewAgent, agentName, agentNameError, agentId, agentNameStatus, currentAgentName, originalAgentName, t]);
 
   // Reset user typing state after user stops typing
   useEffect(() => {
@@ -328,12 +382,26 @@ export default function AgentConfigModal({
     }
   }, [agentName]);
 
-  // Check agent display name existence - only when user is actively typing
+  // Clear name status when editing and name hasn't changed (should only use backend markers)
   useEffect(() => {
-    if (
-      (!isEditingMode && !isCreatingNewAgent) ||
-      !agentDisplayName
-    ) {
+    if (!isCreatingNewAgent && currentAgentName === originalAgentName) {
+      setAgentNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+    }
+  }, [isCreatingNewAgent, currentAgentName, originalAgentName]);
+
+  // Check agent display name existence - when creating new agent or when editing and display name changed
+  useEffect(() => {
+    // Perform real-time check when:
+    // 1. Creating new agent, OR
+    // 2. Editing existing agent and the display name has changed
+    const shouldCheck = isCreatingNewAgent || 
+      (!isCreatingNewAgent && currentDisplayName !== originalDisplayName);
+    
+    if (!shouldCheck) {
+      return;
+    }
+
+    if (!agentDisplayName) {
       return;
     }
 
@@ -365,7 +433,7 @@ export default function AgentConfigModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [isEditingMode, isCreatingNewAgent, agentDisplayName, agentDisplayNameError, agentId, agentDisplayNameStatus, t]);
+  }, [isCreatingNewAgent, agentDisplayName, agentDisplayNameError, agentId, agentDisplayNameStatus, currentDisplayName, originalDisplayName, t]);
 
   // Reset user typing state for display name after user stops typing
   useEffect(() => {
@@ -386,6 +454,13 @@ export default function AgentConfigModal({
       setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
     }
   }, [agentDisplayName]);
+
+  // Clear display name status when editing and display name hasn't changed (should only use backend markers)
+  useEffect(() => {
+    if (!isCreatingNewAgent && currentDisplayName === originalDisplayName) {
+      setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
+    }
+  }, [isCreatingNewAgent, currentDisplayName, originalDisplayName]);
 
   // Handle delete confirmation
   const handleDeleteConfirm = useCallback(() => {
@@ -461,12 +536,26 @@ export default function AgentConfigModal({
   }, [agentDisplayName, isEditingMode, validateAgentDisplayName]);
 
   // Calculate whether save buttons should be enabled
+  // Check real-time status when:
+  // 1. Creating new agent, OR
+  // 2. Editing and name/display name has changed
+  const shouldCheckNameStatus = isCreatingNewAgent || currentAgentName !== originalAgentName;
+  const shouldCheckDisplayNameStatus = isCreatingNewAgent || currentDisplayName !== originalDisplayName;
+  
+  // Disable save if there are any error indicators from backend (unavailable_reasons)
+  // These errors should block saving even if names haven't changed
+  const hasBackendErrors = 
+    shouldShowDuplicateNameReason || 
+    shouldShowDuplicateDisplayNameReason || 
+    shouldShowModelUnavailableReason;
+  
   const canActuallySave =
     canSaveAgent &&
     !agentNameError &&
-    agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT &&
+    (shouldCheckNameStatus ? agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT : true) &&
     !agentDisplayNameError &&
-    agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT;
+    (shouldCheckDisplayNameStatus ? agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT : true) &&
+    !hasBackendErrors;
 
   // Render individual content sections
   const renderAgentInfo = () => (
@@ -488,7 +577,9 @@ export default function AgentConfigModal({
           disabled={!isEditingMode}
           status={
             agentDisplayNameError ||
-            agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
+            ((isCreatingNewAgent || currentDisplayName !== originalDisplayName) && 
+             agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) ||
+            shouldShowDuplicateDisplayNameReason
               ? "error"
               : ""
           }
@@ -497,10 +588,20 @@ export default function AgentConfigModal({
           <p className="mt-1 text-sm text-red-600">{agentDisplayNameError}</p>
         )}
         {!agentDisplayNameError &&
+          (isCreatingNewAgent || currentDisplayName !== originalDisplayName) &&
           agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
             <p className="mt-1 text-sm text-red-600">
               {t("agent.error.displayNameExists", {
                 displayName: agentDisplayName,
+              })}
+            </p>
+          )}
+        {!agentDisplayNameError &&
+          agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT &&
+          shouldShowDuplicateDisplayNameReason && (
+            <p className="mt-1 text-sm text-red-600">
+              {t("agent.error.displayNameExists", {
+                displayName: agentDisplayName || editingAgent?.display_name || "",
               })}
             </p>
           )}
@@ -521,7 +622,9 @@ export default function AgentConfigModal({
           disabled={!isEditingMode}
           status={
             agentNameError ||
-            agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
+            ((isCreatingNewAgent || currentAgentName !== originalAgentName) && 
+             agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) ||
+            shouldShowDuplicateNameReason
               ? "error"
               : ""
           }
@@ -530,9 +633,19 @@ export default function AgentConfigModal({
           <p className="mt-1 text-sm text-red-600">{agentNameError}</p>
         )}
         {!agentNameError &&
+          (isCreatingNewAgent || currentAgentName !== originalAgentName) &&
           agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
             <p className="mt-1 text-sm text-red-600">
               {t("agent.error.nameExists", { name: agentName })}
+            </p>
+          )}
+        {!agentNameError &&
+          agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT &&
+          shouldShowDuplicateNameReason && (
+            <p className="mt-1 text-sm text-red-600">
+              {t("agent.error.nameExists", {
+                name: agentName || editingAgent?.name || "",
+              })}
             </p>
           )}
       </div>
@@ -543,6 +656,7 @@ export default function AgentConfigModal({
           {t("businessLogic.config.model")}:
         </label>
         <Select
+          status={shouldShowModelUnavailableReason ? "error" : undefined}
           value={
             isCreatingNewAgent
               ? (localMainAgentModel || mainAgentModel || undefined)
@@ -570,6 +684,13 @@ export default function AgentConfigModal({
             </Select.Option>
           ))}
         </Select>
+        {shouldShowModelUnavailableReason && (
+          <p className="mt-1 text-sm text-red-600">
+            {t("agent.error.modelUnavailable", {
+              modelName: effectiveModelName,
+            })}
+          </p>
+        )}
         {llmModels.length === 0 && (
           <p className="mt-1 text-sm text-gray-500">
             {t("businessLogic.config.error.noAvailableModels")}

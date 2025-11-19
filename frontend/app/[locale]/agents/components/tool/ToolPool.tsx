@@ -39,6 +39,7 @@ function ToolPool({
   isEditingMode = false, // New: Default not in editing mode
   isGeneratingAgent = false, // New: Default not in generating state
   isEmbeddingConfigured = true,
+  agentUnavailableReasons = [],
 }: ToolPoolProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -371,6 +372,9 @@ function ToolPool({
     };
   }, [onToolsRefresh]);
 
+  const showUnavailableToolAlert =
+    agentUnavailableReasons.includes("tool_unavailable");
+
   // Use memo to optimize the rendering of tool items
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
     const isSelected = selectedToolIds.has(tool.id);
@@ -627,6 +631,11 @@ function ToolPool({
           )}
         </div>
       </div>
+      {showUnavailableToolAlert && (
+        <div className="mb-2 text-sm text-red-600" role="alert">
+          {t("toolPool.error.unavailableSelected")}
+        </div>
+      )}
       <div className="flex-1 min-h-0 border-t pt-2 pb-2 overflow-hidden">
         {loadingTools ? (
           <div className="flex items-center justify-center h-full">
