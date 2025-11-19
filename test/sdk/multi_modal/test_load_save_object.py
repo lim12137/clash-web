@@ -37,7 +37,10 @@ def test_download_file_from_http(monkeypatch):
             return None
 
     monkeypatch.setattr(lso.requests, "get", lambda url, timeout: _Response())
-    data = manager.download_file_from_url("https://example.com/file.png")
+    data = manager.download_file_from_url(
+        "https://example.com/file.png",
+        url_type="https",
+    )
     assert data == b"binary"
 
 
@@ -49,7 +52,7 @@ def test_download_file_from_s3(monkeypatch):
             return True, io.BytesIO(b"payload")
 
     manager = make_manager(_FakeClient())
-    data = manager.download_file_from_url("s3://bucket/path/to/object")
+    data = manager.download_file_from_url("s3://bucket/path/to/object", url_type="s3")
     assert data == b"payload"
 
 
@@ -59,7 +62,7 @@ def test_download_file_from_s3_failure_returns_none():
             return False, "boom"
 
     manager = make_manager(_FailingClient())
-    assert manager.download_file_from_url("s3://bucket/object") is None
+    assert manager.download_file_from_url("s3://bucket/object", url_type="s3") is None
 
 
 def test_download_file_from_s3_missing_method_returns_none():
@@ -67,17 +70,18 @@ def test_download_file_from_s3_missing_method_returns_none():
         pass
 
     manager = make_manager(_InvalidClient())
-    assert manager.download_file_from_url("s3://bucket/object") is None
+    assert manager.download_file_from_url("s3://bucket/object", url_type="s3") is None
 
 
-def test_download_file_with_unsupported_scheme_returns_none():
+def test_download_file_requires_url_type():
     manager = make_manager()
-    assert manager.download_file_from_url("ftp://unsupported/path") is None
+    with pytest.raises(ValueError):
+        manager.download_file_from_url("https://example.com/file.png", url_type=None)  # type: ignore[arg-type]
 
 
 def test_download_file_empty_url_returns_none():
     manager = make_manager()
-    assert manager.download_file_from_url("") is None
+    assert manager.download_file_from_url("", url_type="https") is None
 
 
 def test_download_file_stream_read_failure(monkeypatch):
@@ -93,7 +97,7 @@ def test_download_file_stream_read_failure(monkeypatch):
             return True, _FailingStream()
 
     manager = make_manager(_Client())
-    assert manager.download_file_from_url("s3://bucket/object") is None
+    assert manager.download_file_from_url("s3://bucket/object", url_type="s3") is None
 
 
 def test_upload_bytes_to_minio_generates_object_name(monkeypatch):
@@ -195,7 +199,7 @@ def test_load_object_transforms_single_argument(monkeypatch):
 
     result = handler("https://example.com/img.png")
 
-    download_mock.assert_called_once_with("https://example.com/img.png")
+    download_mock.assert_called_once_with("https://example.com/img.png", url_type="https")
     assert result == b"file-bytes"
 
 
@@ -242,7 +246,7 @@ def test_load_object_skips_missing_arguments(monkeypatch):
         return image, other
 
     result = handler("https://example.com/a.png")
-    download_mock.assert_called_once_with("https://example.com/a.png")
+    download_mock.assert_called_once_with("https://example.com/a.png", url_type="https")
     assert result == (b"bytes", None)
 
 

@@ -6,16 +6,18 @@ from sdk.nexent.multi_modal import utils
 
 
 def test_is_url_variants():
-    assert utils.is_url("https://example.com/image.png")
-    assert utils.is_url("s3://bucket/key")
-    assert utils.is_url("/bucket/key")
-    assert not utils.is_url("not-a-url")
-    assert not utils.is_url(123)  # type: ignore[arg-type]
+    assert utils.is_url("https://example.com/image.png") == "https"
+    assert utils.is_url("http://example.com/image.png") == "http"
+    assert utils.is_url("s3://bucket/key") == "s3"
+    assert utils.is_url("/bucket/key") == "s3"
+    assert utils.is_url("not-a-url") is None
+    assert utils.is_url(123) is None  # type: ignore[arg-type]
 
 
 def test_is_url_requires_bucket_and_key():
-    assert not utils.is_url("/bucket")
-    assert not utils.is_url("")
+    assert utils.is_url("/bucket") is None
+    assert utils.is_url("s3://bucket/") is None
+    assert utils.is_url("") is None
 
 
 def test_bytes_to_base64_and_back():
@@ -165,5 +167,39 @@ def test_parse_s3_url_requires_object_name():
 
     with pytest.raises(ValueError):
         utils.parse_s3_url("/bucket")
+
+
+def test_base64_to_bytes_header_without_base64_flag():
+    payload = base64.b64encode(b"json-bytes").decode("utf-8")
+    decoded, content_type = utils.base64_to_bytes(
+        f"data:application/json,{payload}"
+    )
+    assert decoded == b"json-bytes"
+    assert content_type == "application/json"
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        (b"\x00\x00\x00 qt  " + b"\x00" * 6, "video/quicktime"),
+        (b"OggS" + b"\x00" * 8, "audio/ogg"),
+        (b"fLaC" + b"\x00" * 8, "audio/flac"),
+        (b"\x1a\x45\xdf\xa3" + b"\x00" * 8, "video/webm"),
+        (b"RIFF" + b"\x00" * 4 + b"AVI ", "video/x-msvideo"),
+    ],
+)
+def test_detect_content_type_expanded_signatures(payload: bytes, expected: str):
+    assert utils.detect_content_type_from_bytes(payload) == expected
+
+
+def test_detect_content_type_mp3_frame_sync():
+    payload = b"\xff\xfb" + b"\x00" * 4
+    assert utils.detect_content_type_from_bytes(payload) == "audio/mpeg"
+
+
+@pytest.mark.parametrize("value", ["", None])
+def test_parse_s3_url_rejects_empty(value):
+    with pytest.raises(ValueError):
+        utils.parse_s3_url(value)  # type: ignore[arg-type]
 
 
