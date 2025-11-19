@@ -24,7 +24,7 @@ export function Navbar() {
   return (
     <header
       className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10"
-      style={{ height: HEADER_CONFIG.HEIGHT }}
+      style={{ height: HEADER_CONFIG.DISPLAY_HEIGHT }}
     >
       {/* Left section - Logo */}
       <Link href="/" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
