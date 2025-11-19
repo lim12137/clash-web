@@ -107,13 +107,13 @@ update_env_file() {
   fi
 
   # Main Services
-  # EDIT_TIME_SERVICE_URL
-  if grep -q "^EDIT_TIME_SERVICE_URL=" ../.env; then
-    sed -i.bak "s~^EDIT_TIME_SERVICE_URL=.*~EDIT_TIME_SERVICE_URL=http://localhost:5010~" ../.env
+  # CONFIG_SERVICE_URL
+  if grep -q "^CONFIG_SERVICE_URL=" ../.env; then
+    sed -i.bak "s~^CONFIG_SERVICE_URL=.*~CONFIG_SERVICE_URL=http://localhost:5010~" ../.env
   else
     echo "" >> ../.env
     echo "# Main Services" >> ../.env
-    echo "EDIT_TIME_SERVICE_URL=http://localhost:5010" >> ../.env
+    echo "CONFIG_SERVICE_URL=http://localhost:5010" >> ../.env
   fi
 
   # RUNTIME_SERVICE_URL

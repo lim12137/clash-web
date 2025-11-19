@@ -145,7 +145,7 @@ runtime_client = TestClient(runtime_app)
 
 config_app = FastAPI()
 config_app.include_router(agent_config_router)
-edit_time_client = TestClient(config_app)
+config_client = TestClient(config_app)
 
 
 @pytest.fixture
@@ -248,7 +248,7 @@ def test_search_agent_info_api_success(mocker, mock_auth_header):
     mock_get_agent_info.return_value = {"agent_id": 123, "name": "Test Agent"}
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/search_info",
         json=123,  # agent_id as body parameter
         headers=mock_auth_header
@@ -270,7 +270,7 @@ def test_search_agent_info_api_exception(mocker, mock_auth_header):
     mock_get_agent_info.side_effect = Exception("Test error")
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/search_info",
         json=123,
         headers=mock_auth_header
@@ -288,7 +288,7 @@ def test_get_creating_sub_agent_info_api_success(mocker, mock_auth_header):
     mock_get_creating_agent.return_value = {"agent_id": 456}
 
     # Test the endpoint - this is a GET request
-    response = edit_time_client.get(
+    response = config_client.get(
         "/agent/get_creating_sub_agent_id",
         headers=mock_auth_header
     )
@@ -307,7 +307,7 @@ def test_get_creating_sub_agent_info_api_exception(mocker, mock_auth_header):
     mock_get_creating_agent.side_effect = Exception("Test error")
 
     # Test the endpoint - this is a GET request
-    response = edit_time_client.get(
+    response = config_client.get(
         "/agent/get_creating_sub_agent_id",
         headers=mock_auth_header
     )
@@ -324,7 +324,7 @@ def test_update_agent_info_api_success(mocker, mock_auth_header):
     mock_update_agent.return_value = None
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/update",
         json={"agent_id": 123, "name": "Updated Agent",
               "display_name": "Updated Display Name"},
@@ -344,7 +344,7 @@ def test_update_agent_info_api_exception(mocker, mock_auth_header):
     mock_update_agent.side_effect = Exception("Test error")
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/update",
         json={"agent_id": 123, "name": "Updated Agent",
               "display_name": "Updated Display Name"},
@@ -363,7 +363,7 @@ def test_delete_agent_api_success(mocker, mock_auth_header):
     mock_delete_agent.return_value = None
 
     # Test the endpoint
-    response = edit_time_client.request(
+    response = config_client.request(
         "DELETE",
         "/agent",
         json={"agent_id": 123},
@@ -384,7 +384,7 @@ def test_delete_agent_api_exception(mocker, mock_auth_header):
     mock_delete_agent.side_effect = Exception("Test error")
 
     # Test the endpoint
-    response = edit_time_client.request(
+    response = config_client.request(
         "DELETE",
         "/agent",
         json={"agent_id": 123},
@@ -404,7 +404,7 @@ async def test_export_agent_api_success(mocker, mock_auth_header):
     mock_export_agent.return_value = '{"agent_id": 123, "name": "Test Agent"}'
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/export",
         json={"agent_id": 123},
         headers=mock_auth_header
@@ -426,7 +426,7 @@ async def test_export_agent_api_exception(mocker, mock_auth_header):
     mock_export_agent.side_effect = Exception("Test error")
 
     # Test the endpoint
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/export",
         json={"agent_id": 123},
         headers=mock_auth_header
@@ -444,7 +444,7 @@ def test_import_agent_api_success(mocker, mock_auth_header):
     mock_import_agent.return_value = None
 
     # Test the endpoint - following the ExportAndImportDataFormat structure
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/import",
         json={
             "agent_info": {
@@ -488,7 +488,7 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
     mock_import_agent.side_effect = Exception("Test error")
 
     # Test the endpoint - following the ExportAndImportDataFormat structure
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/import",
         json={
             "agent_info": {
@@ -534,7 +534,7 @@ def test_list_all_agent_info_api_success(mocker, mock_auth_header):
     ]
 
     # Test the endpoint
-    response = edit_time_client.get(
+    response = config_client.get(
         "/agent/list",
         headers=mock_auth_header
     )
@@ -560,7 +560,7 @@ def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
     mock_list_all_agent.side_effect = Exception("Test error")
 
     # Test the endpoint
-    response = edit_time_client.get(
+    response = config_client.get(
         "/agent/list",
         headers=mock_auth_header
     )
@@ -591,7 +591,7 @@ async def test_export_agent_api_detailed(mocker, mock_auth_header):
     mock_export_agent.return_value = agent_data
 
     # Test with complex data
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/export",
         json={"agent_id": 456},
         headers=mock_auth_header
@@ -620,7 +620,7 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     mock_export_agent.return_value = {}
 
     # Send request
-    response = edit_time_client.post(
+    response = config_client.post(
         "/agent/export",
         json={"agent_id": 789},
         headers=mock_auth_header
@@ -667,7 +667,7 @@ def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
         "tree": {"tools": [], "sub_agents": []}
     }
 
-    resp = edit_time_client.get("/agent/call_relationship/1", headers=mock_auth_header)
+    resp = config_client.get("/agent/call_relationship/1", headers=mock_auth_header)
 
     assert resp.status_code == 200
     mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
@@ -685,7 +685,7 @@ def test_get_agent_call_relationship_api_exception(mocker, mock_auth_header):
     mock_impl = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
     mock_impl.side_effect = Exception("boom")
 
-    resp = edit_time_client.get("/agent/call_relationship/999", headers=mock_auth_header)
+    resp = config_client.get("/agent/call_relationship/999", headers=mock_auth_header)
 
     assert resp.status_code == 500
     assert "Failed to get agent call relationship" in resp.json()["detail"]
