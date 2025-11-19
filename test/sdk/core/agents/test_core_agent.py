@@ -392,8 +392,8 @@ And some more text."""
     assert result == expected
 
 
-def test_parse_code_blobs_display_format_ignored():
-    """Test parse_code_blobs ignores ```<DISPLAY:python>\ncontent\n```<END_CODE> pattern."""
+def test_parse_code_blobs_display_format_raises_display_code_only_error():
+    """Test parse_code_blobs raises DisplayCodeOnlyError when only DISPLAY code blocks are present."""
     text = """Here is some code:
 ```<DISPLAY:python>
 def hello():
@@ -401,11 +401,9 @@ def hello():
 ```<END_CODE>
 And some more text."""
 
-    # This should raise ValueError because parse_code_blobs only handles <RUN> format
-    with pytest.raises(ValueError) as exc_info:
+    # This should raise DisplayCodeOnlyError when only DISPLAY code blocks are found
+    with pytest.raises(core_agent_module.DisplayCodeOnlyError):
         core_agent_module.parse_code_blobs(text)
-
-    assert "executable code block pattern" in str(exc_info.value)
 
 
 def test_parse_code_blobs_py_match():
@@ -597,6 +595,41 @@ def test_step_stream_parse_success(core_agent_instance):
         # Check that tool_calls was set (we can't easily test the exact content due to mock behavior)
         assert hasattr(mock_memory_step.tool_calls[0], 'name')
         assert hasattr(mock_memory_step.tool_calls[0], 'arguments')
+
+
+def test_step_stream_skips_execution_for_display_only(core_agent_instance):
+    """Test that _step_stream skips execution when only DISPLAY code blocks are present."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>"
+
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+
+    # Mock parse_code_blobs to raise DisplayCodeOnlyError
+    with patch.object(core_agent_module, 'parse_code_blobs', side_effect=core_agent_module.DisplayCodeOnlyError()):
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+
+        # Execute
+        results = list(core_agent_instance._step_stream(mock_memory_step))
+
+        # Assertions
+        # Should yield None and return early (not execute code)
+        assert len(results) == 1
+        assert results[0] is None
+        # Verify observation was set
+        assert "Display code was provided" in mock_memory_step.observations
+        assert mock_memory_step.action_output is None
+        # Verify that tool_calls was NOT set (execution was skipped)
+        assert not hasattr(mock_memory_step, 'tool_calls') or mock_memory_step.tool_calls is None
 
 
 def test_step_stream_parse_failure_raises_final_answer_error(core_agent_instance):
