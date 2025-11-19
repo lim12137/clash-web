@@ -4,7 +4,7 @@ import logging
 import os
 import uuid
 from collections import deque
-from typing import Optional
+from typing import Optional, Dict
 
 from fastapi import Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -23,7 +23,7 @@ from consts.model import (
     ExportAndImportDataFormat,
     MCPInfo,
     ToolInstanceInfoRequest,
-    ToolSourceEnum
+    ToolSourceEnum, ModelConnectStatusEnum
 )
 from database.agent_db import (
     create_agent,
@@ -801,27 +801,138 @@ async def list_all_agent_info_impl(tenant_id: str) -> list[dict]:
     try:
         agent_list = query_all_agent_info_by_tenant_id(tenant_id=tenant_id)
 
-        simple_agent_list = []
+        model_cache: Dict[int, Optional[dict]] = {}
+        enriched_agents: list[dict] = []
+
         for agent in agent_list:
-            # check agent is available
             if not agent["enabled"]:
                 continue
+
+            unavailable_reasons: list[str] = []
+
             tool_info = search_tools_for_sub_agent(
                 agent_id=agent["agent_id"], tenant_id=tenant_id)
-            tool_id_list = [tool["tool_id"] for tool in tool_info]
-            is_available = all(check_tool_is_available(tool_id_list))
+            tool_id_list = [tool["tool_id"]
+                            for tool in tool_info if tool.get("tool_id") is not None]
+            if tool_id_list:
+                tool_statuses = check_tool_is_available(tool_id_list)
+                if not all(tool_statuses):
+                    unavailable_reasons.append("tool_unavailable")
+
+            model_reasons = _collect_model_availability_reasons(
+                agent=agent,
+                tenant_id=tenant_id,
+                model_cache=model_cache
+            )
+            unavailable_reasons.extend(model_reasons)
+
+            # Preserve the raw data so we can adjust availability for duplicates
+            enriched_agents.append({
+                "raw_agent": agent,
+                "unavailable_reasons": unavailable_reasons,
+            })
+
+        # Handle duplicate name/display_name: keep the earliest created agent available,
+        # mark later ones as unavailable due to duplication.
+        _apply_duplicate_name_availability_rules(enriched_agents)
+
+        simple_agent_list: list[dict] = []
+        for entry in enriched_agents:
+            agent = entry["raw_agent"]
+            unavailable_reasons = list(dict.fromkeys(entry["unavailable_reasons"]))
 
             simple_agent_list.append({
                 "agent_id": agent["agent_id"],
                 "name": agent["name"] if agent["name"] else agent["display_name"],
                 "display_name": agent["display_name"] if agent["display_name"] else agent["name"],
                 "description": agent["description"],
-                "is_available": is_available
+                "is_available": len(unavailable_reasons) == 0,
+                "unavailable_reasons": unavailable_reasons
             })
+
         return simple_agent_list
     except Exception as e:
         logger.error(f"Failed to query all agent info: {str(e)}")
         raise ValueError(f"Failed to query all agent info: {str(e)}")
+
+
+def _apply_duplicate_name_availability_rules(enriched_agents: list[dict]) -> None:
+    """
+    For agents that share the same name or display_name, only the earliest created
+    agent should remain available (if it has no other unavailable reasons).
+    All later-created agents in the same group become unavailable due to duplication.
+    """
+    # Group by name and display_name
+    name_groups: dict[str, list[dict]] = {}
+    display_name_groups: dict[str, list[dict]] = {}
+
+    for entry in enriched_agents:
+        agent = entry["raw_agent"]
+        name = agent.get("name")
+        if name:
+            name_groups.setdefault(name, []).append(entry)
+
+        display_name = agent.get("display_name")
+        if display_name:
+            display_name_groups.setdefault(display_name, []).append(entry)
+
+    def _mark_duplicates(groups: dict[str, list[dict]], reason_key: str) -> None:
+        for entries in groups.values():
+            if len(entries) <= 1:
+                continue
+
+            # Sort by create_time ascending so the earliest created agent comes first
+            sorted_entries = sorted(
+                entries,
+                key=lambda e: e["raw_agent"].get("create_time"),
+            )
+
+            # The first (earliest) agent keeps its current availability;
+            # subsequent agents are marked as duplicates.
+            for duplicate_entry in sorted_entries[1:]:
+                duplicate_entry["unavailable_reasons"].append(reason_key)
+
+    _mark_duplicates(name_groups, "duplicate_name")
+    _mark_duplicates(display_name_groups, "duplicate_display_name")
+
+
+def _collect_model_availability_reasons(agent: dict, tenant_id: str, model_cache: Dict[int, Optional[dict]]) -> list[str]:
+    """
+    Build a list of reasons related to model availability issues for a given agent.
+    """
+    reasons: list[str] = []
+    reasons.extend(_check_single_model_availability(
+        model_id=agent.get("model_id"),
+        tenant_id=tenant_id,
+        model_cache=model_cache,
+        reason_key="model_unavailable"
+    ))
+
+    return reasons
+
+
+def _check_single_model_availability(
+    model_id: int | None,
+    tenant_id: str,
+    model_cache: Dict[int, Optional[dict]],
+    reason_key: str,
+) -> list[str]:
+    if not model_id:
+        return []
+
+    if model_id not in model_cache:
+        model_cache[model_id] = get_model_by_model_id(model_id, tenant_id)
+
+    model_info = model_cache.get(model_id)
+    if not model_info:
+        return [reason_key]
+
+    connect_status = ModelConnectStatusEnum.get_value(
+        model_info.get("connect_status"))
+    if connect_status != ModelConnectStatusEnum.AVAILABLE.value:
+        return [reason_key]
+
+    return []
 
 
 def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
