@@ -55,7 +55,7 @@ export function NavigationLayout({
     : `calc(100vh - ${headerReservedHeight}px)`;
 
   return (
-    <div className={`min-h-screen flex flex-col ${contentMode === "fullscreen" ? "bg-white dark:bg-slate-900" : "bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800"}`}>
+    <div className={`${contentMode === "fullscreen" ? "h-screen" : "min-h-screen"} flex flex-col ${contentMode === "fullscreen" ? "bg-white dark:bg-slate-900" : "bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800"} overflow-hidden`}>
       {/* Top navigation bar */}
       <TopNavbar 
         additionalTitle={topNavbarAdditionalTitle}
@@ -68,7 +68,10 @@ export function NavigationLayout({
         style={{
           marginTop: 0,
           marginBottom: 0,
-          minHeight: contentMinHeight,
+          ...(contentMode === "fullscreen" 
+            ? { height: contentMinHeight } 
+            : { minHeight: contentMinHeight }
+          ),
         }}
       >
         {/* Side navigation */}
