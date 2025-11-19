@@ -1616,7 +1616,7 @@ export function ChatInterface() {
 
   return (
     <>
-      <div className="flex h-screen">
+      <div className="flex h-full">
         <ChatSidebar
           conversationList={conversationManagement.conversationList}
           selectedConversationId={conversationManagement.selectedConversationId}

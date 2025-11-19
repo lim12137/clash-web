@@ -5,8 +5,11 @@
 
 // Header configuration
 export const HEADER_CONFIG = {
-  // Header height (including padding)
-  HEIGHT: "64px",
+  // Actual displayed height (including padding)
+  DISPLAY_HEIGHT: "55px",
+  
+  // Space reserved for layout calculation (may be larger than display height)
+  RESERVED_HEIGHT: "55px",
   
   // Vertical padding
   VERTICAL_PADDING: "16px", // py-4
@@ -17,11 +20,14 @@ export const HEADER_CONFIG = {
 
 // Footer configuration
 export const FOOTER_CONFIG = {
-  // Footer height (including padding)
-  HEIGHT: "64px",
+  // Actual displayed height (including padding)
+  DISPLAY_HEIGHT: "40px",
+  
+  // Space reserved for layout calculation (smaller than header, no extra space)
+  RESERVED_HEIGHT: "40px",
   
   // Vertical padding
-  VERTICAL_PADDING: "16px", // py-4
+  VERTICAL_PADDING: "12px", // py-3
   
   // Horizontal padding
   HORIZONTAL_PADDING: "16px", // px-4
