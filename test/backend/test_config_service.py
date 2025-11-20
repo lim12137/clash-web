@@ -44,6 +44,31 @@ patch('nexent.storage.storage_client_factory.create_storage_client_from_config',
 patch('nexent.storage.minio_config.MinIOStorageConfig.validate', lambda self: None).start()
 patch('backend.database.client.MinioClient', return_value=minio_client_mock).start()
 
+# Create stub vector database modules to satisfy imports
+vector_db_module = types.ModuleType("nexent.vector_database")
+vector_db_module.__path__ = []  # Mark as package
+vector_db_base_module = types.ModuleType("nexent.vector_database.base")
+
+class MockVectorDatabaseCore:
+    def __init__(self, *args, **kwargs):
+        pass
+
+vector_db_base_module.VectorDatabaseCore = MockVectorDatabaseCore
+
+vector_db_es_module = types.ModuleType("nexent.vector_database.elasticsearch_core")
+
+class MockElasticSearchCore:
+    def __init__(self, *args, **kwargs):
+        pass
+
+vector_db_es_module.ElasticSearchCore = MockElasticSearchCore
+
+sys.modules['nexent.vector_database'] = vector_db_module
+sys.modules['nexent.vector_database.base'] = vector_db_base_module
+sys.modules['nexent.vector_database.elasticsearch_core'] = vector_db_es_module
+setattr(vector_db_module, "base", vector_db_base_module)
+setattr(vector_db_module, "elasticsearch_core", vector_db_es_module)
+
 # Pre-inject a stubbed base_app to avoid import side effects
 backend_pkg = types.ModuleType("backend")
 apps_pkg = types.ModuleType("backend.apps")

@@ -48,15 +48,15 @@ graph TD
 
 This system implements a **dual-service proxy architecture** consisting of two independent services:
 
-### 1. Main Service (FastAPI) - Port 5010
+### 1. Main Service (FastAPI) - Port 5010 5014
 - **Purpose**: Provides web management interface and RESTful API, serving as the single entry point for frontend
 - **Features**: User-oriented management with authentication, multi-tenant support, and proxy calls to MCP service
-- **Startup File**: `main_service.py`
+- **Startup File**: `config_service.py, runtime_service.py`
 
 ### 2. MCP Service (FastMCP) - Port 5011  
 - **Purpose**: Provides MCP protocol services and proxy management (internal service)
 - **Features**: MCP protocol standard, supports local services and remote proxies, primarily called by main service
-- **Startup File**: `nexent_mcp_service.py`
+- **Startup File**: `mcp_service.py`
 
 **Important Note**: Frontend clients only directly access the main service (5010). All MCP-related operations are completed by the main service proxying calls to the MCP service (5011).
 
@@ -190,12 +190,12 @@ curl -X POST http://localhost:5011/add-remote-proxies \
 
 ## Code Structure
 
-### Main Service Components (main_service.py)
+### Main Service Components (config_service.py, runtime_service.py)
 - **FastAPI Application**: Provides Web API and management interface
 - **Multi-tenant Support**: Multi-tenant management based on authentication
 - **Router Management**: Contains routers for multiple functional modules
 
-### MCP Service Components (nexent_mcp_service.py)
+### MCP Service Components (mcp_service.py)
 
 #### RemoteProxyManager Class
 Responsible for managing the lifecycle of all remote proxies:

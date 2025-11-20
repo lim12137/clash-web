@@ -10,7 +10,7 @@ hierarchical proxy architecture:
 """
 
 configure_logging(logging.INFO)
-logger = logging.getLogger("nexent_mcp_service")
+logger = logging.getLogger("mcp_service")
 
 # initialize main mcp service
 nexent_mcp = FastMCP(name="nexent_mcp")

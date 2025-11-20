@@ -4,15 +4,15 @@
 
 Nexent采用**本地MCP服务 + 直接远程连接**的架构，通过MCP（Model Context Protocol）协议实现本地服务与远程服务的统一管理。系统包含两个核心服务：
 
-### 1. 主服务 (FastAPI) - 端口 5010
+### 1. 主服务 (FastAPI) - 端口 5010 5014
 - **用途**：提供Web管理界面和RESTful API，作为前端唯一入口
 - **特点**：面向用户管理，包含认证、多租户支持，管理MCP服务器配置
-- **启动文件**：`main_service.py`
+- **启动文件**：`config_service.py, runtime_service.py`
 
 ### 2. 本地MCP服务 (FastMCP) - 端口 5011  
 - **用途**：提供本地MCP协议服务，挂载本地工具
 - **特点**：MCP协议标准，仅提供本地服务，不代理远程服务
-- **启动文件**：`nexent_mcp_service.py`
+- **启动文件**：`mcp_service.py`
 
 ### 3. 远程MCP服务
 - **用途**：外部MCP服务，提供远程工具
@@ -54,7 +54,7 @@ graph TD
 
 ## 核心功能模块
 
-### 1. 本地MCP服务管理 (nexent_mcp_service.py)
+### 1. 本地MCP服务管理 (mcp_service.py)
 
 **本地MCP服务实现**：
 ```python
