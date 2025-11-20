@@ -575,7 +575,8 @@ class ElasticSearchService:
                     'file_size': file_info.get('file_size', 0),
                     'create_time': int(utc_create_timestamp * 1000),
                     'status': "COMPLETED",
-                    'latest_task_id': ''
+                    'latest_task_id': '',
+                    'chunk_count': file_info.get('chunk_count', 0)
                 }
                 files.append(file_data)
 
@@ -633,7 +634,7 @@ class ElasticSearchService:
                 # Initialize chunks for all files
                 for file_data in files:
                     file_data['chunks'] = []
-                    file_data['chunk_count'] = 0
+                    file_data['chunk_count'] = file_data.get('chunk_count', 0)
 
                 if msearch_body:
                     try:
@@ -670,7 +671,7 @@ class ElasticSearchService:
             else:
                 for file_data in files:
                     file_data['chunks'] = []
-                    file_data['chunk_count'] = 0
+                    file_data['chunk_count'] = file_data.get('chunk_count', 0)
 
             return {"files": files}
 
@@ -925,27 +926,39 @@ class ElasticSearchService:
 
     @staticmethod
     def get_index_chunks(
-            index_name: str = Path(...,
-                                   description="Name of the index to get chunks from"),
-            batch_size: int = Query(
-                1000, description="Number of records to fetch per request"),
-            vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
+        index_name: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        path_or_url: Optional[str] = None,
+        vdb_core: VectorDatabaseCore = Depends(get_vector_db_core),
     ):
         """
-        Retrieve all chunk records for the specified index.
+        Retrieve chunk records for the specified index with optional pagination.
 
         Args:
             index_name: Name of the index to query
-            batch_size: Number of records to fetch per request
+            page: Page number (1-based) when paginating
+            page_size: Page size when paginating
+            path_or_url: Optional document filter
             vdb_core: VectorDatabaseCore instance
 
         Returns:
-            Dictionary containing status and list of chunks
+            Dictionary containing status, chunk list, total, and pagination metadata
         """
         try:
-            chunks = vdb_core.get_index_chunks(index_name, batch_size)
-            filtered_chunks = []
-            for chunk in chunks:
+            result = vdb_core.get_index_chunks(
+                index_name,
+                page=page,
+                page_size=page_size,
+                path_or_url=path_or_url,
+            )
+            raw_chunks = result.get("chunks", [])
+            total = result.get("total", len(raw_chunks))
+            result_page = result.get("page", page)
+            result_page_size = result.get("page_size", page_size)
+
+            filtered_chunks: List[Any] = []
+            for chunk in raw_chunks:
                 if isinstance(chunk, dict):
                     filtered_chunks.append(
                         {
@@ -956,11 +969,14 @@ class ElasticSearchService:
                     )
                 else:
                     filtered_chunks.append(chunk)
+
             return {
                 "status": "success",
                 "message": f"Successfully retrieved {len(filtered_chunks)} chunks from index {index_name}",
                 "chunks": filtered_chunks,
-                "total": len(filtered_chunks)
+                "total": total,
+                "page": result_page,
+                "page_size": result_page_size
             }
         except Exception as e:
             error_msg = f"Error retrieving chunks from index {index_name}: {str(e)}"

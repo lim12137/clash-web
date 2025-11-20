@@ -223,6 +223,30 @@
   line-height: 1.2 !important;
 }
 
+/* Document chunks tabs layout */
+.document-chunk-tabs {
+  height: 100%;
+}
+
+.document-chunk-tabs .ant-tabs {
+  height: 100%;
+}
+
+.document-chunk-tabs .ant-tabs-content-holder,
+.document-chunk-tabs .ant-tabs-content,
+.document-chunk-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.document-chunk-tabs .ant-tabs-nav {
+  height: 100%;
+}
+
+.document-chunk-tabs .ant-tabs-nav-list {
+  height: 100%;
+  overflow-y: auto;
+}
+
 /* Styles for Embedding warning modal */
 .kb-embedding-warning .ant-modal-wrap {
   position: absolute;
