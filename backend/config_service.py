@@ -16,7 +16,7 @@ from services.tool_configuration_service import initialize_tools_on_startup
 
 configure_logging(logging.INFO)
 configure_elasticsearch_logging()
-logger = logging.getLogger("main_service")
+logger = logging.getLogger("config_service")
 
 
 async def startup_initialization():

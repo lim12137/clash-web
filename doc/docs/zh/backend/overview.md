@@ -64,7 +64,8 @@ backend/
 │   └── utils/                   # 提示词工具
 ├── sql/                         # SQL脚本
 ├── assets/                      # 后端资源文件
-├── main_service.py              # 主服务入口
+├── config_service.py            # 编辑态服务入口
+├── runtime_service.py           # 运行态服务入口
 ├── data_process_service.py      # 数据处理服务入口
 └── requirements.txt             # Python依赖
 ```
