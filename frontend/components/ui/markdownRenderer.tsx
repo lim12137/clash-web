@@ -29,7 +29,30 @@ interface MarkdownRendererProps {
   searchResults?: SearchResult[];
   showDiagramToggle?: boolean;
   onCitationHover?: () => void;
+  enableMultimodal?: boolean;
 }
+
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".ogg", ".mov", ".m4v"];
+
+const extractExtension = (value: string): string => {
+  const normalized = value.split("?")[0].split("#")[0];
+  const match = normalized.toLowerCase().match(/\.[a-z0-9]+$/);
+  return match?.[0] ?? "";
+};
+
+const isVideoUrl = (url?: string): boolean => {
+  if (!url) {
+    return false;
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return false;
+  }
+
+  const extension = extractExtension(trimmed);
+  return VIDEO_EXTENSIONS.includes(extension);
+};
 
 // Get background color for different tool signs
 const getBackgroundColor = (toolSign: string) => {
@@ -364,6 +387,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   searchResults = [],
   showDiagramToggle = true,
   onCitationHover,
+  enableMultimodal = true,
 }) => {
   const { t } = useTranslation("common");
 
@@ -407,6 +431,71 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     },
   };
 
+  const renderCodeFallback = (text: string, key?: React.Key) => (
+    <code
+      key={key}
+      className="markdown-code block whitespace-pre-wrap break-words text-xs"
+      style={{ fontFamily: "var(--font-mono, monospace)" }}
+    >
+      {text}
+    </code>
+  );
+
+  const buildMediaFallbackText = (src?: string | null, alt?: string | null) => {
+    if (alt) {
+      return `${t("chatStreamMessage.imageTextFallbackTitle", {
+        defaultValue: "Media (text view)",
+      })}: ${alt}${src ? ` - ${src}` : ""}`;
+    }
+    return (
+      src ??
+      t("chatStreamMessage.imageTextFallbackTitle", {
+        defaultValue: "Media (text view)",
+      })
+    );
+  };
+
+  const renderMediaFallback = (src?: string | null, alt?: string | null) =>
+    renderCodeFallback(buildMediaFallbackText(src, alt));
+
+  const renderVideoElement = ({
+    src,
+    alt,
+    props = {},
+  }: {
+    src?: string | null;
+    alt?: string | null;
+    props?: React.VideoHTMLAttributes<HTMLVideoElement>;
+  }) => {
+    if (!src) {
+      return null;
+    }
+
+    if (!enableMultimodal) {
+      return renderMediaFallback(src, alt);
+    }
+
+    return (
+      <figure className="markdown-video-wrapper">
+        <video
+          className="markdown-video"
+          controls
+          preload="metadata"
+          playsInline
+          src={src}
+          {...props}
+        >
+          {t("chatStreamMessage.videoNotSupported", {
+            defaultValue: "Sorry, your browser does not support embedded videos.",
+          })}
+        </video>
+        {alt ? (
+          <figcaption className="markdown-video-caption">{alt}</figcaption>
+        ) : null}
+      </figure>
+    );
+  };
+
   // Modified processText function logic
   const processText = (text: string) => {
     if (typeof text !== "string") return text;
@@ -445,6 +534,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           const mmd = part.match(/^:mermaid\[([^\]]+)\]$/);
           if (mmd) {
             const code = mmd[1];
+            if (!enableMultimodal) {
+              return renderCodeFallback(code, `mmd-placeholder-${index}`);
+            }
             return <Diagram key={`mmd-${index}`} code={code} className="my-4" />;
           }
           // Handle line breaks in text content
@@ -627,11 +719,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 </del>
               ),
               // Link
-              a: ({ href, children, ...props }: any) => (
-                <a href={href} className="markdown-link" {...props}>
-                  <TextWrapper>{children}</TextWrapper>
-                </a>
-              ),
+              a: ({ href, children, ...props }: any) => {
+                return (
+                  <a href={href} className="markdown-link" {...props}>
+                    <TextWrapper>{children}</TextWrapper>
+                  </a>
+                );
+              },
               pre: ({ children }: any) => <>{children}</>,
               // Code blocks and inline code
               code({ node, inline, className, children, ...props }: any) {
@@ -644,6 +738,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   if (match && match[1]) {
                     // Check if it's a Mermaid diagram
                     if (match[1] === "mermaid") {
+                      if (!enableMultimodal) {
+                      return renderCodeFallback(codeContent);
+                      }
                       return <Diagram code={codeContent} className="my-4" showToggle={showDiagramToggle} />;
                     }
                     if (!inline) {
@@ -689,10 +786,40 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   </code>
                 );
               },
-              // Image
-              img: ({ src, alt }: any) => (
-                <img src={src} alt={alt} className="markdown-img" />
-              ),
+              // Image (also handles video previews emitted as image markdown)
+              img: ({ src, alt }: any) => {
+                if (!enableMultimodal) {
+                  return renderMediaFallback(src, alt);
+                }
+
+                if (isVideoUrl(src)) {
+                  return renderVideoElement({ src, alt });
+                }
+
+                return <img src={src} alt={alt} className="markdown-img" />;
+              },
+              video: ({ children, ...props }: any) => {
+                const directSrc = props?.src;
+                const childSource = React.Children.toArray(children)
+                  .map((child) =>
+                    React.isValidElement(child) ? child.props?.src : undefined
+                  )
+                  .find(Boolean);
+                const videoSrc = directSrc ?? childSource;
+                const caption =
+                  props?.["aria-label"] ??
+                  props?.title ??
+                  props?.["data-caption"] ??
+                  undefined;
+
+                const element = renderVideoElement({
+                  src: videoSrc,
+                  alt: caption,
+                  props,
+                });
+
+                return element ?? renderMediaFallback(undefined, caption);
+              },
             }}
           >
             {processedContent}
@@ -702,3 +829,5 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     </>
   );
 };
+
+    
