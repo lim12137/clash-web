@@ -161,12 +161,25 @@ export default forwardRef<AgentConfigHandle, AgentConfigProps>(function AgentCon
       const currentAgentName = agentName;
       const currentAgentDisplayName = agentDisplayName;
 
+      // Extract tool IDs from selected tools (convert string IDs to numbers)
+      // Always pass tool_ids array (empty array means no tools selected, undefined means use database)
+      // In edit mode, we want to use current selection, so pass the array even if empty
+      const toolIds = selectedTools.map((tool) => Number(tool.id));
+      
+      // Get sub-agent IDs from enabledAgentIds
+      // Always pass sub_agent_ids array (empty array means no sub-agents selected, undefined means use database)
+      // In edit mode, we want to use current selection, so pass the array even if empty
+      const subAgentIds = [...enabledAgentIds];
+
       // Call backend API to generate agent prompt
+      // Pass tool_ids and sub_agent_ids to use frontend selection instead of database query
       await generatePromptStream(
         {
           agent_id: agentIdToUse,
           task_description: businessLogic,
           model_id: selectedModel?.id?.toString() || "",
+          tool_ids: toolIds,
+          sub_agent_ids: subAgentIds,
         },
         (data) => {
           // Process streaming response data
