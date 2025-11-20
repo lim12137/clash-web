@@ -36,8 +36,6 @@ from backend.services.prompt_service import (
     call_llm_for_system_prompt,
     generate_and_save_system_prompt_impl,
     gen_system_prompt_streamable,
-    get_enabled_tool_description_for_generate_prompt,
-    get_enabled_sub_agent_description_for_generate_prompt,
     generate_system_prompt,
     join_info_for_generate_system_prompt,
     _process_thinking_tokens
@@ -91,21 +89,21 @@ class TestPromptService(unittest.TestCase):
         )
 
     @patch('backend.services.prompt_service.generate_system_prompt')
-    @patch('backend.services.prompt_service.get_enabled_sub_agent_description_for_generate_prompt')
-    @patch('backend.services.prompt_service.get_enabled_tool_description_for_generate_prompt')
+    @patch('backend.services.prompt_service.query_tools_by_ids')
+    @patch('backend.services.prompt_service.search_agent_info_by_agent_id')
     @patch('backend.services.prompt_service.update_agent')
-    def test_generate_and_save_system_prompt_impl(self, mock_update_agent, mock_get_tool_desc,
-                                                  mock_get_agent_desc, mock_generate_system_prompt):
+    def test_generate_and_save_system_prompt_impl(self, mock_update_agent, mock_search_agent_info,
+                                                  mock_query_tools, mock_generate_system_prompt):
         # Setup
         mock_tool1 = {"name": "tool1", "description": "Tool 1 desc",
                       "inputs": "input1", "output_type": "output1"}
         mock_tool2 = {"name": "tool2", "description": "Tool 2 desc",
                       "inputs": "input2", "output_type": "output2"}
-        mock_get_tool_desc.return_value = [mock_tool1, mock_tool2]
+        mock_query_tools.return_value = [mock_tool1, mock_tool2]
 
         mock_agent1 = {"name": "agent1", "description": "Agent 1 desc"}
         mock_agent2 = {"name": "agent2", "description": "Agent 2 desc"}
-        mock_get_agent_desc.return_value = [mock_agent1, mock_agent2]
+        mock_search_agent_info.side_effect = [mock_agent1, mock_agent2]
 
         # Mock the generator to return the expected data structure
         def mock_generator(*args, **kwargs):
@@ -121,33 +119,34 @@ class TestPromptService(unittest.TestCase):
 
         mock_generate_system_prompt.side_effect = mock_generator
 
-        # Execute - test as a generator
+        # Execute - test as a generator with frontend-provided IDs
         result_gen = generate_and_save_system_prompt_impl(
             agent_id=123,
             model_id=self.test_model_id,
             task_description="Test task",
             user_id="user123",
             tenant_id="tenant456",
-            language="zh"
+            language="zh",
+            tool_ids=[1, 2],
+            sub_agent_ids=[10, 20]
         )
         result = list(result_gen)  # Convert generator to list for assertion
 
         # Assert
         self.assertGreater(len(result), 0)
 
-        mock_get_tool_desc.assert_called_once_with(
-            agent_id=123, tenant_id="tenant456")
-        mock_get_agent_desc.assert_called_once_with(
-            agent_id=123, tenant_id="tenant456")
+        # Verify tools and agents were queried using frontend-provided IDs
+        mock_query_tools.assert_called_once_with([1, 2])
+        self.assertEqual(mock_search_agent_info.call_count, 2)
+        mock_search_agent_info.assert_any_call(agent_id=10, tenant_id="tenant456")
+        mock_search_agent_info.assert_any_call(agent_id=20, tenant_id="tenant456")
 
-        mock_generate_system_prompt.assert_called_once_with(
-            mock_get_agent_desc.return_value,
-            "Test task",
-            mock_get_tool_desc.return_value,
-            "tenant456",
-            self.test_model_id,
-            "zh"
-        )
+        # Verify generate_system_prompt was called with correct parameters
+        mock_generate_system_prompt.assert_called_once()
+        call_args = mock_generate_system_prompt.call_args
+        self.assertEqual(call_args[0][0], [mock_agent1, mock_agent2])  # sub_agent_info_list
+        self.assertEqual(call_args[0][1], "Test task")  # task_description
+        self.assertEqual(call_args[0][2], [mock_tool1, mock_tool2])  # tool_info_list
 
         # Verify update_agent was called with the correct parameters
         mock_update_agent.assert_called_once()
@@ -162,11 +161,8 @@ class TestPromptService(unittest.TestCase):
         self.assertEqual(agent_info.business_description, "Test task")
 
     @patch('backend.services.prompt_service.generate_system_prompt')
-    @patch('backend.services.prompt_service.get_enabled_sub_agent_description_for_generate_prompt')
-    @patch('backend.services.prompt_service.get_enabled_tool_description_for_generate_prompt')
     @patch('backend.services.prompt_service.update_agent')
-    def test_generate_and_save_system_prompt_impl_create_mode(self, mock_update_agent, mock_get_tool_desc,
-                                                               mock_get_agent_desc, mock_generate_system_prompt):
+    def test_generate_and_save_system_prompt_impl_create_mode(self, mock_update_agent, mock_generate_system_prompt):
         """Test generate_and_save_system_prompt_impl in create mode (agent_id=0)"""
         # Setup - Mock the generator to return the expected data structure
         def mock_generator(*args, **kwargs):
@@ -182,24 +178,21 @@ class TestPromptService(unittest.TestCase):
 
         mock_generate_system_prompt.side_effect = mock_generator
 
-        # Execute - test as a generator with agent_id=0 (create mode)
+        # Execute - test as a generator with agent_id=0 (create mode) and empty tool/sub-agent IDs
         result_gen = generate_and_save_system_prompt_impl(
             agent_id=0,
             model_id=self.test_model_id,
             task_description="Test task",
             user_id="user123",
             tenant_id="tenant456",
-            language="zh"
+            language="zh",
+            tool_ids=[],
+            sub_agent_ids=[]
         )
         result = list(result_gen)  # Convert generator to list for assertion
 
         # Assert
         self.assertGreater(len(result), 0)
-
-        # In create mode, should NOT call get_enabled_tool_description_for_generate_prompt
-        # and get_enabled_sub_agent_description_for_generate_prompt
-        mock_get_tool_desc.assert_not_called()
-        mock_get_agent_desc.assert_not_called()
 
         # Should call generate_system_prompt with empty lists for tools and sub-agents
         mock_generate_system_prompt.assert_called_once_with(
@@ -246,7 +239,9 @@ class TestPromptService(unittest.TestCase):
             task_description="Test task",
             user_id="user123",
             tenant_id="tenant456",
-            language="zh"
+            language="zh",
+            tool_ids=None,
+            sub_agent_ids=None,
         )
 
         # Verify output format - should be SSE format
@@ -473,68 +468,6 @@ class TestPromptService(unittest.TestCase):
         self.assertEqual(
             template_vars["task_description"], mock_task_description)
 
-    @patch('backend.services.prompt_service.get_enable_tool_id_by_agent_id')
-    @patch('backend.services.prompt_service.query_tools_by_ids')
-    def test_get_enabled_tool_description_for_generate_prompt(self, mock_query_tools, mock_get_tool_ids):
-        # Setup
-        mock_get_tool_ids.return_value = [1, 2, 3]
-        mock_tools = [{"id": 1, "name": "tool1"}, {
-            "id": 2, "name": "tool2"}, {"id": 3, "name": "tool3"}]
-        mock_query_tools.return_value = mock_tools
-
-        # Execute
-        result = get_enabled_tool_description_for_generate_prompt(
-            agent_id=123,
-            tenant_id="tenant456"
-        )
-
-        # Assert
-        self.assertEqual(result, mock_tools)
-        mock_get_tool_ids.assert_called_once_with(
-            agent_id=123, tenant_id="tenant456")
-        mock_query_tools.assert_called_once_with([1, 2, 3])
-
-    @patch('backend.services.prompt_service.search_agent_info_by_agent_id')
-    @patch('backend.services.prompt_service.query_sub_agents_id_list')
-    def test_get_enabled_sub_agent_description_for_generate_prompt(self, mock_query_sub_agents_id_list, mock_search_agent_info):
-        # Setup
-        mock_query_sub_agents_id_list.return_value = [1, 2, 3]
-
-        # Mock search_agent_info_by_agent_id to return different agent info for each ID
-        def mock_search_agent_info_side_effect(agent_id, tenant_id):
-            agent_info_map = {
-                1: {"id": 1, "name": "agent1", "enabled": True},
-                2: {"id": 2, "name": "agent2", "enabled": False},
-                3: {"id": 3, "name": "agent3", "enabled": True}
-            }
-            return agent_info_map.get(agent_id, {})
-
-        mock_search_agent_info.side_effect = mock_search_agent_info_side_effect
-
-        # Execute
-        result = get_enabled_sub_agent_description_for_generate_prompt(
-            agent_id=123,
-            tenant_id="tenant456"
-        )
-
-        # Assert
-        expected_result = [
-            {"id": 1, "name": "agent1", "enabled": True},
-            {"id": 2, "name": "agent2", "enabled": False},
-            {"id": 3, "name": "agent3", "enabled": True}
-        ]
-        self.assertEqual(result, expected_result)
-        mock_query_sub_agents_id_list.assert_called_once_with(
-            main_agent_id=123, tenant_id="tenant456")
-
-        # Verify search_agent_info_by_agent_id was called for each sub agent ID
-        self.assertEqual(mock_search_agent_info.call_count, 3)
-        mock_search_agent_info.assert_any_call(
-            agent_id=1, tenant_id="tenant456")
-        mock_search_agent_info.assert_any_call(
-            agent_id=2, tenant_id="tenant456")
-        mock_search_agent_info.assert_any_call(
-            agent_id=3, tenant_id="tenant456")
 
     @patch('backend.services.prompt_service.get_model_by_model_id')
     @patch('backend.services.prompt_service.OpenAIServerModel')
