@@ -598,7 +598,7 @@ def test_step_stream_parse_success(core_agent_instance):
 
 
 def test_step_stream_skips_execution_for_display_only(core_agent_instance):
-    """Test that _step_stream skips execution when only DISPLAY code blocks are present."""
+    """Test that _step_stream raises FinalAnswerError when only DISPLAY code blocks are present."""
     # Setup
     mock_memory_step = MagicMock()
     mock_chat_message = MagicMock()
@@ -618,18 +618,16 @@ def test_step_stream_skips_execution_for_display_only(core_agent_instance):
         core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
         core_agent_instance.model = MagicMock(return_value=mock_chat_message)
 
-        # Execute
-        results = list(core_agent_instance._step_stream(mock_memory_step))
+        # Execute and assert that FinalAnswerError is raised
+        with pytest.raises(core_agent_module.FinalAnswerError):
+            list(core_agent_instance._step_stream(mock_memory_step))
 
-        # Assertions
-        # Should yield None and return early (not execute code)
-        assert len(results) == 1
-        assert results[0] is None
-        # Verify observation was set
+        # Verify observation was set before the exception
         assert "Display code was provided" in mock_memory_step.observations
         assert mock_memory_step.action_output is None
         # Verify that tool_calls was NOT set (execution was skipped)
-        assert not hasattr(mock_memory_step, 'tool_calls') or mock_memory_step.tool_calls is None
+        # Check if tool_calls was explicitly set by checking __dict__ (MagicMock auto-creates attributes on access)
+        assert 'tool_calls' not in mock_memory_step.__dict__ or mock_memory_step.tool_calls is None
 
 
 def test_step_stream_parse_failure_raises_final_answer_error(core_agent_instance):
