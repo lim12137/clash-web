@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Modal, Button, Switch, App, Tooltip, Input } from "antd";
@@ -57,6 +57,7 @@ export const ModelDeleteDialog = ({
   const [selectedModelForSettings, setSelectedModelForSettings] =
     useState<any>(null);
   const [modelMaxTokens, setModelMaxTokens] = useState("4096");
+  const [providerModelSearchTerm, setProviderModelSearchTerm] = useState("");
 
   // Get model color scheme
   const getModelColorScheme = (
@@ -305,6 +306,7 @@ export const ModelDeleteDialog = ({
       return;
     }
     setSelectedSource(source);
+    setProviderModelSearchTerm("");
   };
 
   const handleEditModel = (model: ModelOption) => {
@@ -415,8 +417,28 @@ export const ModelDeleteDialog = ({
     setProviderModels([]);
     setPendingSelectedProviderIds(new Set());
     setMaxTokens(0);
+    setProviderModelSearchTerm("");
     onClose();
   };
+  const filteredProviderModels = useMemo(() => {
+    const keyword = providerModelSearchTerm.trim().toLowerCase();
+    if (!keyword) {
+      return providerModels;
+    }
+    return providerModels.filter((model) => {
+      const candidates = [
+        model?.id,
+        model?.model_name,
+        model?.model_tag,
+        model?.description,
+      ];
+      return candidates.some(
+        (text) =>
+          typeof text === "string" && text.toLowerCase().includes(keyword)
+      );
+    });
+  }, [providerModels, providerModelSearchTerm]);
+
 
   // Handle provider config save
   const handleProviderConfigSave = async ({
@@ -621,6 +643,7 @@ export const ModelDeleteDialog = ({
                   onClick={() => {
                     setDeletingModelType(type);
                     setSelectedSource(null);
+                    setProviderModelSearchTerm("");
                     // Initialize maxTokens with a value from existing models of this type
                     const existingModel = customModels.find(
                       (model) => model.type === type
@@ -768,6 +791,7 @@ export const ModelDeleteDialog = ({
               onClick={() => {
                 setSelectedSource(null);
                 setProviderModels([]);
+                setProviderModelSearchTerm("");
               }}
               className="text-blue-500 hover:text-blue-700 flex items-center"
             >
@@ -819,7 +843,25 @@ export const ModelDeleteDialog = ({
           {selectedSource === MODEL_SOURCES.SILICON &&
           providerModels.length > 0 ? (
             <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-200">
-              {providerModels.map((providerModel: any) => {
+              {providerModels.length > 0 && (
+                <div className="sticky top-0 z-10 bg-white p-2">
+                  <Input
+                    allowClear
+                    size="small"
+                    placeholder={t("model.dialog.modelList.searchPlaceholder")}
+                    value={providerModelSearchTerm}
+                    onChange={(event) =>
+                      setProviderModelSearchTerm(event.target.value)
+                    }
+                  />
+                </div>
+              )}
+              {filteredProviderModels.length === 0 && (
+                <div className="p-4 text-center text-xs text-gray-500">
+                  {t("model.dialog.modelList.noResults")}
+                </div>
+              )}
+              {filteredProviderModels.map((providerModel: any) => {
                 const checked = pendingSelectedProviderIds.has(
                   providerModel.id
                 );
