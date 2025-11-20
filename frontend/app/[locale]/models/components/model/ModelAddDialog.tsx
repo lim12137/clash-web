@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Modal, Select, Input, Button, Switch, Tooltip, App } from "antd";
@@ -159,6 +159,7 @@ export const ModelAddDialog = ({
   });
 
   const [modelList, setModelList] = useState<any[]>([]);
+  const [modelSearchTerm, setModelSearchTerm] = useState("");
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(
     new Set()
   );
@@ -189,6 +190,24 @@ export const ModelAddDialog = ({
       return `${parts[0]}/${parts[parts.length - 1]}`;
     }
   };
+
+  const filteredModelList = useMemo(() => {
+    const keyword = modelSearchTerm.trim().toLowerCase()
+    if (!keyword) {
+      return modelList
+    }
+    return modelList.filter((model: any) => {
+      const candidates = [
+        model.id,
+        model.model_name,
+        model.model_tag,
+        model.description,
+      ]
+      return candidates.some((text) =>
+        typeof text === "string" && text.toLowerCase().includes(keyword)
+      )
+    })
+  }, [modelList, modelSearchTerm])
 
   // Handle model name change, automatically update the display name
   const handleModelNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -813,7 +832,20 @@ export const ModelAddDialog = ({
               </Button>
             </div>
             {showModelList && (
-              <div className="mt-2 space-y-1 max-h-60 overflow-y-auto">
+              <div className="mt-2 max-h-60 overflow-y-auto">
+                {modelList.length > 0 && (
+                  <div className="sticky top-0 z-10 bg-gray-50 pb-2">
+                    <Input
+                      allowClear
+                      size="small"
+                      placeholder={t("model.dialog.modelList.searchPlaceholder")}
+                      value={modelSearchTerm}
+                      onChange={(event) =>
+                        setModelSearchTerm(event.target.value)
+                      }
+                    />
+                  </div>
+                )}
                 {loadingModelList ? (
                   <div className="flex flex-col items-center justify-center py-4 text-xs text-gray-500">
                     <LoadingOutlined
@@ -827,11 +859,15 @@ export const ModelAddDialog = ({
                     <span>{t("common.loading") || "获取中..."}</span>
                   </div>
                 ) : modelList.length === 0 ? (
+                  <div className="text-xs text-gray-500 text-center space-y-1">
+                    <div>{t("model.dialog.message.noModels")}</div>
+                  </div>
+                ) : filteredModelList.length === 0 ? (
                   <div className="text-xs text-gray-500 text-center">
-                    {t("model.dialog.message.noModels") || "请先获取模型"}
+                    {t("model.dialog.modelList.noResults")}
                   </div>
                 ) : (
-                  modelList.map((model: any) => {
+                  filteredModelList.map((model: any) => {
                     const checked = selectedModelIds.has(model.id);
                     const toggleSelect = (value: boolean) => {
                       setSelectedModelIds((prev) => {
