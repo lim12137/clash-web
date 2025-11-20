@@ -2,7 +2,6 @@ import re
 import ast
 import time
 import threading
-import logging
 from textwrap import dedent
 from typing import Any, Optional, List, Dict
 from collections.abc import Generator
@@ -24,7 +23,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import PIL.Image
 
-logger = logging.getLogger(__name__)
 
 def parse_code_blobs(text: str) -> str:
     """Extract code blocs from the LLM's output for execution.
@@ -40,7 +38,6 @@ def parse_code_blobs(text: str) -> str:
 
     Raises:
         ValueError: If no valid code block is found in the text.
-        DisplayCodeOnlyError: If only DISPLAY code blocks are found (no executable code).
     """
     # First try to match the new <RUN> format for execution
     # <END_CODE> is optional - match both with and without it
@@ -63,28 +60,6 @@ def parse_code_blobs(text: str) -> str:
     except SyntaxError:
         pass
 
-    # Check if there are DISPLAY code blocks (but no executable code)
-    # Only raise DisplayCodeOnlyError if:
-    # 1. There are DISPLAY code blocks present
-    # 2. AND there are NO executable code blocks (RUN or py/python) anywhere in the text
-    # This ensures we don't skip execution if executable code appears later in the output
-    display_pattern = r"```<DISPLAY:\w+>\s*\n(.*?)\n```(?:<END_CODE>)?"
-    display_matches = re.findall(display_pattern, text, re.DOTALL)
-    has_display = bool(display_matches)
-    
-    # Double-check: ensure there are NO executable code blocks anywhere
-    # (This is a safety check - we should have already checked above, but be explicit)
-    run_check = bool(re.search(r"```<RUN>\s*\n(.*?)\n```(?:<END_CODE>)?", text, re.DOTALL))
-    py_check = bool(re.search(r"```(?:py|python)\s*\n(.*?)\n```", text, re.DOTALL))
-    has_executable = run_check or py_check
-    
-    logger.info(f"[parse_code_blobs] Code block detection: has_display={has_display} (found {len(display_matches)} DISPLAY blocks), "
-             f"has_executable={has_executable} (RUN={run_check}, py/python={py_check})")
-    
-    if has_display and not has_executable:
-        raise DisplayCodeOnlyError()
-
-    logger.info("[parse_code_blobs] No valid executable code block found, raising ValueError")
     raise ValueError(
         dedent(
             f"""
@@ -117,6 +92,7 @@ def convert_code_format(text):
 
     # Restore <END_CODE> if it was affected by the above replacement
     text = text.replace("```<END_CODE>", "```")
+    text = text.replace("```<END_DISPLAY_CODE>", "```")
 
     # Clean up any remaining ```< patterns
     text = text.replace("```<", "```")
@@ -126,11 +102,6 @@ def convert_code_format(text):
 
 class FinalAnswerError(Exception):
     """Raised when agent output directly."""
-    pass
-
-
-class DisplayCodeOnlyError(Exception):
-    """Raised when only DISPLAY code blocks are found (no executable code)."""
     pass
 
 
@@ -179,13 +150,6 @@ class CoreAgent(CodeAgent):
             self.observer.add_message(
                 self.agent_name, ProcessType.PARSE, code_action)
 
-        except DisplayCodeOnlyError:
-            # Only DISPLAY code blocks found - use them as the final answer immediately
-            self.logger.log_markdown(
-                content=model_output, title="Display code detected (finalizing answer)", level=LogLevel.INFO)
-            memory_step.observations = "Display code was provided and returned directly as the final answer."
-            memory_step.action_output = None
-            raise FinalAnswerError()
         except Exception:
             self.logger.log_markdown(
                 content=model_output, title="AGENT FINAL ANSWER", level=LogLevel.INFO)
