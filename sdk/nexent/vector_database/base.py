@@ -110,16 +110,24 @@ class VectorDatabaseCore(ABC):
         pass
 
     @abstractmethod
-    def get_index_chunks(self, index_name: str, batch_size: int = 1000) -> List[Dict[str, Any]]:
+    def get_index_chunks(
+        self,
+        index_name: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        path_or_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Retrieve all chunk records for the specified index.
+        Retrieve chunk records for the specified index with optional pagination.
 
         Args:
             index_name: Name of the index to query
-            batch_size: Number of records to fetch per request
+            page: Page number to return (1-based). If None, all chunks are returned.
+            page_size: Page size for pagination. Must be provided together with page.
+            path_or_url: Optional filter for a specific document path or URL.
 
         Returns:
-            List containing the chunk dictionaries
+            Dict containing chunks, total count, and pagination metadata
         """
         pass
 

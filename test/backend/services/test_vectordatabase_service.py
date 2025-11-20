@@ -1288,14 +1288,18 @@ class TestElasticSearchService(unittest.TestCase):
         """
         Test chunk retrieval filters unsupported fields and reports totals.
         """
-        self.mock_vdb_core.get_index_chunks.return_value = [
-            {"id": "1", "content": "A", "path_or_url": "/a", "extra": "ignore"},
-            {"content": "B", "create_time": "2024-01-01T00:00:00"}
-        ]
+        self.mock_vdb_core.get_index_chunks.return_value = {
+            "chunks": [
+                {"id": "1", "content": "A", "path_or_url": "/a", "extra": "ignore"},
+                {"content": "B", "create_time": "2024-01-01T00:00:00"}
+            ],
+            "total": 2,
+            "page": None,
+            "page_size": None,
+        }
 
         result = ElasticSearchService.get_index_chunks(
             index_name="kb-index",
-            batch_size=500,
             vdb_core=self.mock_vdb_core
         )
 
@@ -1303,17 +1307,26 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["total"], 2)
         self.assertEqual(result["chunks"][0], {"id": "1", "content": "A", "path_or_url": "/a"})
         self.assertEqual(result["chunks"][1], {"content": "B", "create_time": "2024-01-01T00:00:00"})
-        self.mock_vdb_core.get_index_chunks.assert_called_once_with("kb-index", 500)
+        self.mock_vdb_core.get_index_chunks.assert_called_once_with(
+            "kb-index",
+            page=None,
+            page_size=None,
+            path_or_url=None,
+        )
 
     def test_get_index_chunks_keeps_non_dict_entries(self):
         """
         Test chunk retrieval keeps non-dict entries unchanged.
         """
-        self.mock_vdb_core.get_index_chunks.return_value = ["raw_chunk"]
+        self.mock_vdb_core.get_index_chunks.return_value = {
+            "chunks": ["raw_chunk"],
+            "total": 1,
+            "page": 1,
+            "page_size": 1,
+        }
 
         result = ElasticSearchService.get_index_chunks(
             index_name="kb-index",
-            batch_size=10,
             vdb_core=self.mock_vdb_core
         )
 
@@ -1329,7 +1342,6 @@ class TestElasticSearchService(unittest.TestCase):
         with self.assertRaises(Exception) as exc:
             ElasticSearchService.get_index_chunks(
                 index_name="kb-index",
-                batch_size=10,
                 vdb_core=self.mock_vdb_core
             )
 

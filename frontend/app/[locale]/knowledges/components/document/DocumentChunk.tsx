@@ -1,14 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Tabs, Card, Badge, Button, App, Spin, Tag } from "antd";
+import {
+  Tabs,
+  Card,
+  Badge,
+  Button,
+  App,
+  Spin,
+  Tag,
+  Tooltip,
+  Pagination,
+} from "antd";
 import { Download, ScanText } from "lucide-react";
 import { FieldNumberOutlined } from "@ant-design/icons";
 import knowledgeBaseService from "@/services/knowledgeBaseService";
 import { Document } from "@/types/knowledgeBase";
 import log from "@/lib/logger";
-import { SETUP_PAGE_CONTAINER } from "@/const/layoutConstants";
 
 interface Chunk {
   id: string;
@@ -24,7 +33,9 @@ interface DocumentChunkProps {
   getFileIcon: (type: string) => string;
 }
 
-const FILENAME_TOOLTIP_THRESHOLD = 24;
+const PAGE_SIZE = 10;
+
+const TABS_ROOT_CLASS = "document-chunk-tabs";
 
 const DocumentChunk: React.FC<DocumentChunkProps> = ({
   knowledgeBaseName,
@@ -34,33 +45,51 @@ const DocumentChunk: React.FC<DocumentChunkProps> = ({
   const { t } = useTranslation();
   const { message } = App.useApp();
   const [chunks, setChunks] = useState<Chunk[]>([]);
+  const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [activeDocumentKey, setActiveDocumentKey] = useState<string>("");
+  const [documentChunkCounts, setDocumentChunkCounts] = useState<
+    Record<string, number>
+  >({});
+  const [pagination, setPagination] = useState<{
+    page: number;
+    pageSize: number;
+  }>({
+    page: 1,
+    pageSize: PAGE_SIZE,
+  });
 
-  // Group chunks by document (path_or_url)
-  const chunksByDocument = useMemo(() => {
-    const grouped: Record<string, Chunk[]> = {};
-    chunks.forEach((chunk) => {
-      const docKey = chunk.path_or_url || chunk.filename || "unknown";
-      if (!grouped[docKey]) {
-        grouped[docKey] = [];
-      }
-      grouped[docKey].push(chunk);
-    });
-    return grouped;
-  }, [chunks]);
+  // Set active document when documents change
+  useEffect(() => {
+    if (documents.length > 0 && !activeDocumentKey) {
+      setActiveDocumentKey(documents[0].id);
+      // Reset pagination when document changes
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }
+  }, [documents, activeDocumentKey]);
 
-  // Load chunks when component mounts or knowledge base changes
+  // Load chunks for active document with server-side pagination
   useEffect(() => {
     const loadChunks = async () => {
-      if (!knowledgeBaseName) return;
+      if (!knowledgeBaseName || !activeDocumentKey) {
+        return;
+      }
 
       setLoading(true);
       try {
-        const loadedChunks = await knowledgeBaseService.previewChunks(
-          knowledgeBaseName
+        const result = await knowledgeBaseService.previewChunksPaginated(
+          knowledgeBaseName,
+          pagination.page,
+          pagination.pageSize,
+          activeDocumentKey
         );
-        setChunks(loadedChunks);
+
+        setChunks(result.chunks || []);
+        setTotal(result.total || 0);
+        setDocumentChunkCounts((prev) => ({
+          ...prev,
+          [activeDocumentKey]: result.total || 0,
+        }));
       } catch (error) {
         log.error("Failed to load chunks:", error);
         message.error(t("document.chunk.error.loadFailed"));
@@ -70,14 +99,60 @@ const DocumentChunk: React.FC<DocumentChunkProps> = ({
     };
 
     loadChunks();
-  }, [knowledgeBaseName, message, t]);
+  }, [
+    knowledgeBaseName,
+    activeDocumentKey,
+    pagination.page,
+    pagination.pageSize,
+    message,
+    t,
+  ]);
 
-  // Set active document when documents change
   useEffect(() => {
-    if (documents.length > 0 && !activeDocumentKey) {
-      setActiveDocumentKey(documents[0].id);
+    if (documents.length === 0) {
+      setDocumentChunkCounts({});
+      setActiveDocumentKey("");
+      return;
     }
-  }, [documents, activeDocumentKey]);
+
+    setDocumentChunkCounts((prev) => {
+      const next = { ...prev };
+      const docIds = new Set<string>();
+
+      documents.forEach((doc) => {
+        docIds.add(doc.id);
+
+        if (
+          typeof doc.chunk_num === "number" &&
+          doc.chunk_num >= 0 &&
+          next[doc.id] !== doc.chunk_num
+        ) {
+          next[doc.id] = doc.chunk_num;
+        }
+      });
+
+      Object.keys(next).forEach((docId) => {
+        if (!docIds.has(docId)) {
+          delete next[docId];
+        }
+      });
+
+      return next;
+    });
+  }, [documents]);
+
+  // Handle document tab change
+  const handleTabChange = (key: string) => {
+    setActiveDocumentKey(key);
+    setChunks([]);
+    setTotal(documentChunkCounts[key] ?? 0);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  // Handle pagination change
+  const handlePaginationChange = (page: number, pageSize: number) => {
+    setPagination({ page, pageSize });
+  };
 
   // Download chunk as txt file
   const handleDownloadChunk = (chunk: Chunk) => {
@@ -98,8 +173,6 @@ const DocumentChunk: React.FC<DocumentChunkProps> = ({
     }
   };
 
-
-  // Create tab items for documents
   const getDisplayName = (name: string): string => {
     const lastDotIndex = name.lastIndexOf(".");
     if (lastDotIndex <= 0) {
@@ -108,105 +181,95 @@ const DocumentChunk: React.FC<DocumentChunkProps> = ({
     return name.substring(0, lastDotIndex);
   };
 
-  const [hoveredDocId, setHoveredDocId] = useState<string | null>(null);
-
-  const handleLabelMouseEnter = useCallback((docId: string) => {
-    setHoveredDocId(docId);
-  }, []);
-
-  const handleLabelMouseLeave = useCallback(() => {
-    setHoveredDocId(null);
-  }, []);
-
   const renderDocumentLabel = (doc: Document, chunkCount: number) => {
     const displayName = getDisplayName(doc.name || "");
-    const shouldExpandOnHover =
-      (doc.name || "").length > displayName.length ||
-      displayName.length > FILENAME_TOOLTIP_THRESHOLD;
-
-    const isHovered = hoveredDocId === doc.id;
-    const widthClass =
-      shouldExpandOnHover && isHovered ? "max-w-full" : "max-w-[200px]";
 
     return (
-      <div
-        className="flex w-full items-center justify-between gap-2 min-w-0"
-        onMouseEnter={() =>
-          shouldExpandOnHover ? handleLabelMouseEnter(doc.id) : undefined
-        }
-        onMouseLeave={shouldExpandOnHover ? handleLabelMouseLeave : undefined}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span>{getFileIcon(doc.type)}</span>
-          <span
-            className={`truncate text-sm font-medium text-gray-800 transition-[max-width] duration-200 ease-out inline-block ${widthClass}`}
-          >
-            {displayName}
-          </span>
+      <Tooltip title={displayName} placement="top" arrow>
+        <div className="flex w-full items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span>{getFileIcon(doc.type)}</span>
+            <span className="truncate text-sm font-medium text-gray-800 max-w-[150px]">
+              {displayName}
+            </span>
+          </div>
+          <Badge
+            color="#1677ff"
+            showZero
+            count={chunkCount}
+            className="flex-shrink-0"
+          />
         </div>
-        <Badge color="#1677ff" showZero count={chunkCount} className="flex-shrink-0" />
-      </div>
+      </Tooltip>
     );
   };
 
   const tabItems = documents.map((doc) => {
-    const docChunks = chunksByDocument[doc.id] || [];
-    const chunkCount = docChunks.length;
+    const chunkCount = documentChunkCounts[doc.id] ?? doc.chunk_num ?? 0;
+    const isActive = doc.id === activeDocumentKey;
+    const docChunksData = isActive
+      ? { chunks, total, paginatedChunks: chunks }
+      : { chunks: [], total: 0, paginatedChunks: [] };
 
     return {
       key: doc.id,
       label: renderDocumentLabel(doc, chunkCount),
       children: (
-        <div className="h-full min-h-0 overflow-y-auto p-4">
-          {loading ? (
-            <div className="flex h-52 items-center justify-center">
-              <Spin size="large" />
-            </div>
-          ) : docChunks.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-200 p-10 text-center text-sm text-gray-500">
-              {t("document.chunk.noChunks")}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {docChunks.map((chunk, index) => (
-                <Card
-                  key={chunk.id || index}
-                  size="small"
-                  className="flex flex-col"
-                  headStyle={{ padding: "8px 12px" }}
-                  title={
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-wrap gap-1">
-                        <Tag className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 border border-gray-200 rounded-md">
-                          <FieldNumberOutlined className="text-[12px]" />
-                          <span>{index + 1}</span>
-                        </Tag>
-                        <Tag className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 border border-gray-200 rounded-md">
-                          <ScanText size={14} />
-                          <span>
-                            {t("document.chunk.characterCount", {
-                              count: (chunk.content || "").length,
-                            })}
-                          </span>
-                        </Tag>
+        <div className="flex h-full flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8">
+            {loading && docChunksData.paginatedChunks.length === 0 ? (
+              <div className="flex h-52 items-center justify-center">
+                <Spin size="large" />
+              </div>
+            ) : docChunksData.total === 0 ? (
+              <div className="rounded-md border border-dashed border-gray-200 p-10 text-center text-sm text-gray-500">
+                {t("document.chunk.noChunks")}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {docChunksData.paginatedChunks.map((chunk, index) => (
+                  <Card
+                    key={chunk.id || index}
+                    size="small"
+                    className="w-full"
+                    title={
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-1">
+                          <Tag className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 border border-gray-200 rounded-md">
+                            <FieldNumberOutlined className="text-[12px]" />
+                            <span>
+                              {(pagination.page - 1) * pagination.pageSize +
+                                index +
+                                1}
+                            </span>
+                          </Tag>
+                          <Tag className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 border border-gray-200 rounded-md">
+                            <ScanText size={14} />
+                            <span>
+                              {t("document.chunk.characterCount", {
+                                count: (chunk.content || "").length,
+                              })}
+                            </span>
+                          </Tag>
+                        </div>
+                        <Button
+                          type="text"
+                          icon={<Download size={16} />}
+                          onClick={() => handleDownloadChunk(chunk)}
+                          size="small"
+                          className="self-center"
+                        />
                       </div>
-                      <Button
-                        type="text"
-                        icon={<Download size={16} />}
-                        onClick={() => handleDownloadChunk(chunk)}
-                        size="small"
-                        className="self-center"
-                      />
+                    }
+                  >
+                    <div className="max-h-[150px] overflow-y-auto break-words whitespace-pre-wrap text-sm">
+                      {chunk.content || ""}
                     </div>
-                  }
-                >
-                  <div className="max-h-[200px] overflow-y-auto break-words whitespace-pre-wrap text-sm">
-                    {chunk.content || ""}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ),
     };
@@ -220,15 +283,35 @@ const DocumentChunk: React.FC<DocumentChunkProps> = ({
     );
   }
 
+  const activeDocumentTotal =
+    documentChunkCounts[activeDocumentKey] ?? total ?? 0;
+  const shouldShowPagination = activeDocumentTotal > 0;
+
   return (
-    <div className="flex h-full w-full flex-col min-h-0">
+    <div className="flex h-full w-full flex-col min-h-0 overflow-hidden">
       <Tabs
-        tabPosition="top"
+        tabPosition="left"
         activeKey={activeDocumentKey}
-        onChange={setActiveDocumentKey}
+        onChange={handleTabChange}
         items={tabItems}
-        className="h-full w-full"
+        className={`h-full w-full min-h-0 ${TABS_ROOT_CLASS}`}
+        rootClassName="h-full"
       />
+      {shouldShowPagination && (
+        <div className="sticky bottom-0 left-0 z-10 flex w-full justify-center bg-white px-8 pb-4 pt-2 shadow-[0_-4px_12px_rgba(15,23,42,0.04)]">
+          <Pagination
+            current={pagination.page}
+            pageSize={pagination.pageSize}
+            total={activeDocumentTotal}
+            onChange={handlePaginationChange}
+            disabled={loading}
+            showQuickJumper
+            showTotal={(pageTotal, range) =>
+              `${range[0]}-${range[1]} of ${pageTotal}`
+            }
+          />
+        </div>
+      )}
     </div>
   );
 };

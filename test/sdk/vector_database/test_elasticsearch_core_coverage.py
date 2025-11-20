@@ -261,17 +261,19 @@ class TestElasticSearchCoreCoverage:
     def test_get_index_chunks_not_found(self, vdb_core):
         """Ensure get_index_chunks handles missing index gracefully."""
         vdb_core.client = MagicMock()
-        vdb_core.client.search.side_effect = exceptions.NotFoundError(
+        vdb_core.client.count.side_effect = exceptions.NotFoundError(
             404, "missing", {})
 
         result = vdb_core.get_index_chunks("missing-index")
 
-        assert result == []
+        assert result == {"chunks": [], "total": 0,
+                          "page": None, "page_size": None}
         vdb_core.client.clear_scroll.assert_not_called()
 
     def test_get_index_chunks_cleanup_warning(self, vdb_core):
         """Ensure clear_scroll errors are swallowed."""
         vdb_core.client = MagicMock()
+        vdb_core.client.count.return_value = {"count": 1}
         vdb_core.client.search.return_value = {
             "_scroll_id": "scroll123",
             "hits": {"hits": [{"_id": "doc-1", "_source": {"content": "A"}}]}
@@ -282,10 +284,10 @@ class TestElasticSearchCoreCoverage:
         }
         vdb_core.client.clear_scroll.side_effect = Exception("cleanup-failed")
 
-        result = vdb_core.get_index_chunks("kb-index", batch_size=1)
+        result = vdb_core.get_index_chunks("kb-index")
 
-        assert len(result) == 1
-        assert result[0]["id"] == "doc-1"
+        assert len(result["chunks"]) == 1
+        assert result["chunks"][0]["id"] == "doc-1"
         vdb_core.client.clear_scroll.assert_called_once_with(
             scroll_id="scroll123")
 

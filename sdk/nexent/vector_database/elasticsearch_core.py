@@ -27,6 +27,10 @@ class BulkOperation:
     expected_duration: timedelta
 
 
+SCROLL_TTL = "2m"
+DEFAULT_SCROLL_SIZE = 1000
+
+
 class ElasticSearchCore(VectorDatabaseCore):
     """
     Core class for Elasticsearch operations including:
@@ -611,44 +615,111 @@ class ElasticSearchCore(VectorDatabaseCore):
             logger.error(f"Error counting documents: {str(e)}")
             return 0
 
-    def get_index_chunks(self, index_name: str, batch_size: int = 1000) -> List[Dict[str, Any]]:
+    def get_index_chunks(
+        self,
+        index_name: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        path_or_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Retrieve every chunk record stored in an index using the scroll API.
+        Retrieve chunk records for the specified index with optional pagination.
+
+        Args:
+            index_name: Name of the index to query
+            page: Page number (1-based). Provide together with page_size.
+            page_size: Number of records per page. Provide together with page.
+            path_or_url: Optional path_or_url filter.
+
+        Returns:
+            Dictionary containing chunks, total count, page, and page_size
         """
         chunks: List[Dict[str, Any]] = []
+        total = 0
         scroll_id: Optional[str] = None
+        paginate = page is not None and page_size is not None
+        result_page = page if paginate else None
+        result_page_size = page_size if paginate else None
 
         try:
-            response = self.client.search(
+            query: Dict[str, Any] = {"match_all": {}}
+            if path_or_url:
+                query = {"term": {"path_or_url": path_or_url}}
+
+            count_response = self.client.count(
                 index=index_name,
-                body={"query": {"match_all": {}},
-                      "_source": {"excludes": ["embedding"]}},
-                size=batch_size,
-                scroll="2m",
+                body={"query": query},
             )
-            scroll_id = response.get("_scroll_id")
+            total = count_response.get("count", 0)
 
-            while True:
+            if total == 0:
+                return {
+                    "chunks": [],
+                    "total": 0,
+                    "page": result_page,
+                    "page_size": result_page_size,
+                }
+
+            source_filter = {"_source": {"excludes": ["embedding"]}}
+
+            if paginate:
+                safe_page = max(page, 1)
+                safe_page_size = max(page_size, 1)
+                from_index = (safe_page - 1) * safe_page_size
+                response = self.client.search(
+                    index=index_name,
+                    body={
+                        "query": query,
+                        **source_filter,
+                    },
+                    from_=from_index,
+                    size=safe_page_size,
+                )
                 hits = response.get("hits", {}).get("hits", [])
-                if not hits:
-                    break
-
                 for hit in hits:
                     chunk = hit.get("_source", {}).copy()
                     if "id" not in chunk:
                         chunk["id"] = hit.get("_id")
                     chunks.append(chunk)
-
-                if not scroll_id:
-                    break
-
-                response = self.client.scroll(scroll_id=scroll_id, scroll="2m")
+            else:
+                response = self.client.search(
+                    index=index_name,
+                    body={
+                        "query": query,
+                        **source_filter,
+                    },
+                    size=DEFAULT_SCROLL_SIZE,
+                    scroll=SCROLL_TTL,
+                )
                 scroll_id = response.get("_scroll_id")
+
+                while True:
+                    hits = response.get("hits", {}).get("hits", [])
+                    if not hits:
+                        break
+
+                    for hit in hits:
+                        chunk = hit.get("_source", {}).copy()
+                        if "id" not in chunk:
+                            chunk["id"] = hit.get("_id")
+                        chunks.append(chunk)
+
+                    if not scroll_id:
+                        break
+
+                    response = self.client.scroll(
+                        scroll_id=scroll_id,
+                        scroll=SCROLL_TTL,
+                    )
+                    scroll_id = response.get("_scroll_id")
 
         except exceptions.NotFoundError:
             logger.info(f"Index {index_name} not found when fetching chunks")
+            chunks = []
+            total = 0
         except Exception as e:
             logger.error(f"Error fetching chunks for index {index_name}: {e}")
+            raise
         finally:
             if scroll_id:
                 try:
@@ -658,7 +729,12 @@ class ElasticSearchCore(VectorDatabaseCore):
                         f"Failed to clear scroll context for index {index_name}: {cleanup_error}"
                     )
 
-        return chunks
+        return {
+            "chunks": chunks,
+            "total": total,
+            "page": result_page,
+            "page_size": result_page_size,
+        }
 
     def search(self, index_name: str, query: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -907,6 +983,7 @@ class ElasticSearchCore(VectorDatabaseCore):
                     "filename": source.get("filename", ""),
                     "file_size": source.get("file_size", 0),
                     "create_time": source.get("create_time", None),
+                    "chunk_count": bucket.get("doc_count", 0),
                 }
                 file_list.append(file_info)
 

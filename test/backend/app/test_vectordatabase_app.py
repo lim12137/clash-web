@@ -687,18 +687,26 @@ async def test_get_index_chunks_success(vdb_core_mock):
             "status": "success",
             "message": "ok",
             "chunks": [{"id": "1"}],
-            "total": 1
+            "total": 1,
+            "page": 2,
+            "page_size": 50,
         }
         mock_get_chunks.return_value = expected_response
 
         response = client.post(
             f"/indices/{index_name}/chunks",
-            params={"batch_size": 500}
+            params={"page": 2, "page_size": 50, "path_or_url": "/foo"}
         )
 
         assert response.status_code == 200
         assert response.json() == expected_response
-        mock_get_chunks.assert_called_once_with(index_name, 500, ANY)
+        mock_get_chunks.assert_called_once_with(
+            index_name=index_name,
+            page=2,
+            page_size=50,
+            path_or_url="/foo",
+            vdb_core=ANY,
+        )
 
 
 @pytest.mark.asyncio
@@ -717,7 +725,13 @@ async def test_get_index_chunks_error(vdb_core_mock):
 
         assert response.status_code == 500
         assert response.json() == {"detail": "Error getting chunks: Chunk failure"}
-        mock_get_chunks.assert_called_once_with(index_name, 1000, ANY)
+        mock_get_chunks.assert_called_once_with(
+            index_name=index_name,
+            page=None,
+            page_size=None,
+            path_or_url=None,
+            vdb_core=ANY,
+        )
 
 
 @pytest.mark.asyncio
