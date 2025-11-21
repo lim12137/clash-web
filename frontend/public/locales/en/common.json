@@ -1046,5 +1046,19 @@
   "sidebar.knowledgeBase": "Knowledge Base",
   "sidebar.modelManagement": "Model Management",
   "sidebar.memoryManagement": "Memory Management",
-  "sidebar.userManagement": "User Management"
+  "sidebar.userManagement": "User Management",
+
+  "market.comingSoon.title": "Agent Market Coming Soon",
+  "market.comingSoon.description": "Discover and install pre-built AI agents from our marketplace. Save time by leveraging community-created solutions.",
+  "market.comingSoon.feature1": "Browse curated agent templates",
+  "market.comingSoon.feature2": "One-click installation and deployment",
+  "market.comingSoon.feature3": "Share your own agents with the community",
+  "market.comingSoon.badge": "Coming Soon",
+
+  "users.comingSoon.title": "User Management Coming Soon",
+  "users.comingSoon.description": "Comprehensive user management system for administrators. Control access, roles, and permissions across your organization.",
+  "users.comingSoon.feature1": "Manage user accounts and roles",
+  "users.comingSoon.feature2": "Configure fine-grained permissions",
+  "users.comingSoon.feature3": "Monitor user activity and usage",
+  "users.comingSoon.badge": "Coming Soon"
 }
