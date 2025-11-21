@@ -21,6 +21,9 @@ def get_prompt_template(template_type: str, language: str = LANGUAGE["ZH"], **kw
             - 'analyze_file': File analysis template
             - 'generate_title': Title generation template
             - 'file_processing_messages': File processing messages template
+            - 'document_summary': Document summary template (Map stage)
+            - 'cluster_summary_reduce': Cluster summary reduce template (Reduce stage)
+            - 'cluster_summary_agent': Cluster summary agent template (legacy)
         language: Language code ('zh' or 'en')
         **kwargs: Additional parameters, for agent type need to pass is_manager parameter
 
@@ -61,6 +64,18 @@ def get_prompt_template(template_type: str, language: str = LANGUAGE["ZH"], **kw
         'file_processing_messages': {
             LANGUAGE["ZH"]: 'backend/prompts/utils/file_processing_messages.yaml',
             LANGUAGE["EN"]: 'backend/prompts/utils/file_processing_messages_en.yaml'
+        },
+        'document_summary': {
+            LANGUAGE["ZH"]: 'backend/prompts/document_summary_agent_zh.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/document_summary_agent.yaml'
+        },
+        'cluster_summary_reduce': {
+            LANGUAGE["ZH"]: 'backend/prompts/cluster_summary_reduce_zh.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/cluster_summary_reduce.yaml'
+        },
+        'cluster_summary_agent': {
+            LANGUAGE["ZH"]: 'backend/prompts/cluster_summary_agent.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/cluster_summary_agent.yaml'
         }
     }
 
@@ -164,3 +179,42 @@ def get_file_processing_messages_template(language: str = 'zh') -> Dict[str, Any
         dict: Loaded file processing messages configuration
     """
     return get_prompt_template('file_processing_messages', language)
+
+
+def get_document_summary_prompt_template(language: str = LANGUAGE["ZH"]) -> Dict[str, Any]:
+    """
+    Get document summary prompt template (Map stage)
+
+    Args:
+        language: Language code ('zh' or 'en')
+
+    Returns:
+        dict: Loaded document summary prompt template configuration
+    """
+    return get_prompt_template('document_summary', language)
+
+
+def get_cluster_summary_reduce_prompt_template(language: str = LANGUAGE["ZH"]) -> Dict[str, Any]:
+    """
+    Get cluster summary reduce prompt template (Reduce stage)
+
+    Args:
+        language: Language code ('zh' or 'en')
+
+    Returns:
+        dict: Loaded cluster summary reduce prompt template configuration
+    """
+    return get_prompt_template('cluster_summary_reduce', language)
+
+
+def get_cluster_summary_agent_prompt_template(language: str = LANGUAGE["ZH"]) -> Dict[str, Any]:
+    """
+    Get cluster summary agent prompt template (legacy)
+
+    Args:
+        language: Language code ('zh' or 'en')
+
+    Returns:
+        dict: Loaded cluster summary agent prompt template configuration
+    """
+    return get_prompt_template('cluster_summary_agent', language)
