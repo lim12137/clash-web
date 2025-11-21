@@ -1,4 +1,6 @@
 // Agent Configuration Types
+import type { Dispatch, SetStateAction } from "react";
+
 import { ChatMessageType } from "./chat";
 import { ModelOption } from "@/types/modelConfig";
 import { GENERATE_PROMPT_STREAM_TYPES } from "../const/agentConfig";
@@ -90,7 +92,7 @@ export interface AgentSetupOrchestratorProps {
   setBusinessLogic: (value: string) => void;
   businessLogicError?: boolean;
   selectedTools: Tool[];
-  setSelectedTools: (tools: Tool[]) => void;
+  setSelectedTools: Dispatch<SetStateAction<Tool[]>>;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
   mainAgentModel: string | null;

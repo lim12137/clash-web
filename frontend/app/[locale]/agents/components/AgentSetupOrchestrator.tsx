@@ -515,7 +515,7 @@ export default function AgentSetupOrchestrator({
         [updatedTool.id]:
           updatedTool.initParams?.map((param) => ({ ...param })) || [],
       }));
-      setSelectedTools((prev) => {
+      setSelectedTools((prev: Tool[]) => {
         if (!prev || prev.length === 0) {
           return prev;
         }
