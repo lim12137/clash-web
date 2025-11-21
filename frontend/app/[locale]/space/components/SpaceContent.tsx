@@ -25,6 +25,7 @@ interface SpaceContentProps {
   onLoadAgents: () => void;
   onImportAgent: () => void;
   onChatNavigate?: (agentId: string) => void;
+  onEditNavigate?: () => void;
 }
 
 /**
@@ -39,6 +40,7 @@ export function SpaceContent({
   onLoadAgents,
   onImportAgent,
   onChatNavigate,
+  onEditNavigate,
 }: SpaceContentProps) {
   const router = useRouter();
   const { t } = useTranslation("common");
@@ -47,9 +49,11 @@ export function SpaceContent({
   // Check if user is admin (or in speed mode where all features are available)
   const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
 
-  // Handle create new agent
+  // Handle create new agent - navigate to agents view
   const handleCreateAgent = () => {
-    router.push("/setup/agents");
+    if (onEditNavigate) {
+      onEditNavigate();
+    }
   };
 
   // Handle chat with agent
@@ -163,6 +167,7 @@ export function SpaceContent({
                 agent={agent}
                 onRefresh={onLoadAgents}
                 onChat={handleChat}
+                onEdit={onEditNavigate}
               />
             </motion.div>
           ))}
