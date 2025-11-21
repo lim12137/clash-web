@@ -13,24 +13,29 @@ import random
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import yaml
 from jinja2 import Template, StrictUndefined
+from nexent.vector_database.base import VectorDatabaseCore
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 from consts.const import LANGUAGE
+from utils.prompt_template_utils import (
+    get_document_summary_prompt_template,
+    get_cluster_summary_reduce_prompt_template,
+    get_cluster_summary_agent_prompt_template
+)
 
 logger = logging.getLogger("document_vector_utils")
 
 
-def get_documents_from_es(index_name: str, es_core, sample_doc_count: int = 200) -> Dict[str, Dict]:
+def get_documents_from_es(index_name: str, vdb_core: VectorDatabaseCore, sample_doc_count: int = 200) -> Dict[str, Dict]:
     """
     Get document samples from Elasticsearch, aggregated by path_or_url
     
     Args:
         index_name: Name of the index to query
-        es_core: ElasticSearchCore instance
+        vdb_core: VectorDatabaseCore instance
         sample_doc_count: Number of documents to sample
         
     Returns:
@@ -51,7 +56,7 @@ def get_documents_from_es(index_name: str, es_core, sample_doc_count: int = 200)
         }
         
         logger.info(f"Fetching unique documents from index {index_name}")
-        agg_response = es_core.client.search(index=index_name, body=agg_query)
+        agg_response = vdb_core.search(index_name=index_name, query=agg_query)
         all_documents = agg_response['aggregations']['unique_documents']['buckets']
         
         if not all_documents:
@@ -89,7 +94,7 @@ def get_documents_from_es(index_name: str, es_core, sample_doc_count: int = 200)
                 ]
             }
             
-            chunks_response = es_core.client.search(index=index_name, body=chunks_query)
+            chunks_response = vdb_core.search(index_name=index_name, query=chunks_query)
             chunks = [hit['_source'] for hit in chunks_response['hits']['hits']]
             
             # Build document object
@@ -444,13 +449,13 @@ def kmeans_cluster_documents(doc_embeddings: Dict[str, np.ndarray], k: Optional[
         raise Exception(f"Failed to cluster documents: {str(e)}")
 
 
-def process_documents_for_clustering(index_name: str, es_core, sample_doc_count: int = 200) -> Tuple[Dict[str, Dict], Dict[str, np.ndarray]]:
+def process_documents_for_clustering(index_name: str, vdb_core, sample_doc_count: int = 200) -> Tuple[Dict[str, Dict], Dict[str, np.ndarray]]:
     """
     Complete workflow: Get documents from ES and calculate their embeddings
     
     Args:
         index_name: Name of the index to query
-        es_core: ElasticSearchCore instance
+        vdb_core: ElasticSearchCore instance
         sample_doc_count: Number of documents to sample
         
     Returns:
@@ -458,7 +463,7 @@ def process_documents_for_clustering(index_name: str, es_core, sample_doc_count:
     """
     try:
         # Step 1: Get documents from ES
-        document_samples = get_documents_from_es(index_name, es_core, sample_doc_count)
+        document_samples = get_documents_from_es(index_name, vdb_core, sample_doc_count)
         
         if not document_samples:
             logger.warning("No documents retrieved from ES")
@@ -547,14 +552,8 @@ def summarize_document(document_content: str, filename: str, language: str = LAN
         Document summary text
     """
     try:
-        # Select prompt file based on language
-        if language == LANGUAGE["ZH"]:
-            prompt_path = 'backend/prompts/document_summary_agent_zh.yaml'
-        else:
-            prompt_path = 'backend/prompts/document_summary_agent.yaml'
-        
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_document_summary_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')
@@ -625,14 +624,8 @@ def summarize_cluster(document_summaries: List[str], language: str = LANGUAGE["Z
         Cluster summary text
     """
     try:
-        # Select prompt file based on language
-        if language == LANGUAGE["ZH"]:
-            prompt_path = 'backend/prompts/cluster_summary_reduce_zh.yaml'
-        else:
-            prompt_path = 'backend/prompts/cluster_summary_reduce.yaml'
-        
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_cluster_summary_reduce_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')
@@ -937,9 +930,8 @@ def summarize_cluster_legacy(cluster_content: str, language: str = LANGUAGE["ZH"
         Cluster summary text
     """
     try:
-        prompt_path = 'backend/prompts/cluster_summary_agent.yaml'
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_cluster_summary_agent_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')

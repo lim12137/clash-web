@@ -231,15 +231,15 @@ def test_run_with_final_answer_error_and_model_output(core_agent_instance):
 
     # Create a mock action step with model_output
     mock_action_step = MagicMock()
-    mock_action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>"
+    mock_action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>"
 
     # Mock _execute_step to set model_output and then raise FinalAnswerError
     def mock_execute_step(action_step):
-        action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>"
+        action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>"
         raise core_agent_module.FinalAnswerError()
 
     with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
-            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```<END_CODE>") as mock_convert, \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
             patch.object(core_agent_instance, '_finalize_step'):
         # Execute
         result = list(core_agent_instance._run_stream(task, max_steps))
@@ -250,7 +250,7 @@ def test_run_with_final_answer_error_and_model_output(core_agent_instance):
     assert isinstance(result[1], MagicMock)  # Final answer step
     # Verify convert_code_format was called
     mock_convert.assert_called_once_with(
-        "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>")
+        "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>")
 
 
 def test_run_with_agent_error_updated(core_agent_instance):
@@ -282,11 +282,11 @@ def test_run_with_agent_parse_error_branch_updated(core_agent_instance):
 
     # Mock _execute_step to set model_output and then raise FinalAnswerError
     def mock_execute_step(action_step):
-        action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>"
+        action_step.model_output = "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>"
         raise core_agent_module.FinalAnswerError()
 
     with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
-            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```<END_CODE>") as mock_convert, \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
             patch.object(core_agent_instance, '_finalize_step'):
         results = list(core_agent_instance._run_stream(task, max_steps))
 
@@ -296,7 +296,7 @@ def test_run_with_agent_parse_error_branch_updated(core_agent_instance):
     assert isinstance(results[1], MagicMock)  # Final answer step
     # Verify convert_code_format was called
     mock_convert.assert_called_once_with(
-        "```<DISPLAY:python>\nprint('hello')\n```<END_CODE>")
+        "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>")
 
 
 def test_convert_code_format_display_replacements():
@@ -305,7 +305,7 @@ def test_convert_code_format_display_replacements():
     original_text = """Here is code:
 ```<DISPLAY:python>
 print('hello')
-```<END_CODE>
+```<END_DISPLAY_CODE>
 And some more text."""
 
     expected_text = """Here is code:
@@ -392,19 +392,19 @@ And some more text."""
     assert result == expected
 
 
-def test_parse_code_blobs_display_format_ignored():
-    """Test parse_code_blobs ignores ```<DISPLAY:python>\ncontent\n```<END_CODE> pattern."""
+def test_parse_code_blobs_display_format_raises_value_error():
+    """Test parse_code_blobs raises ValueError when only DISPLAY code blocks are present."""
     text = """Here is some code:
 ```<DISPLAY:python>
 def hello():
     return "Hello"
-```<END_CODE>
+```<END_DISPLAY_CODE>
 And some more text."""
 
-    # This should raise ValueError because parse_code_blobs only handles <RUN> format
+    # This should raise ValueError when only DISPLAY code blocks are found (no executable code)
     with pytest.raises(ValueError) as exc_info:
         core_agent_module.parse_code_blobs(text)
-
+    
     assert "executable code block pattern" in str(exc_info.value)
 
 
@@ -597,6 +597,32 @@ def test_step_stream_parse_success(core_agent_instance):
         # Check that tool_calls was set (we can't easily test the exact content due to mock behavior)
         assert hasattr(mock_memory_step.tool_calls[0], 'name')
         assert hasattr(mock_memory_step.tool_calls[0], 'arguments')
+
+
+def test_step_stream_skips_execution_for_display_only(core_agent_instance):
+    """Test that _step_stream raises FinalAnswerError when only DISPLAY code blocks are present."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```<DISPLAY:python>\nprint('hello')\n```<END_DISPLAY_CODE>"
+
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+
+    # Mock parse_code_blobs to raise ValueError (no executable code found)
+    with patch.object(core_agent_module, 'parse_code_blobs', side_effect=ValueError("No executable code found")):
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+
+        # Execute and assert that FinalAnswerError is raised
+        with pytest.raises(core_agent_module.FinalAnswerError):
+            list(core_agent_instance._step_stream(mock_memory_step))
 
 
 def test_step_stream_parse_failure_raises_final_answer_error(core_agent_instance):

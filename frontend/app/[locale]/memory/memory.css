@@ -1,0 +1,28 @@
+/* Memory page custom styles */
+
+/* Smooth scrolling and custom scrollbar */
+.memory-single-list .ant-list,
+.ant-menu {
+  scroll-behavior: smooth;
+}
+
+.memory-single-list .ant-list::-webkit-scrollbar,
+.ant-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.memory-single-list .ant-list::-webkit-scrollbar-track,
+.ant-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.memory-single-list .ant-list::-webkit-scrollbar-thumb,
+.ant-menu::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.memory-single-list .ant-list::-webkit-scrollbar-thumb:hover,
+.ant-menu::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

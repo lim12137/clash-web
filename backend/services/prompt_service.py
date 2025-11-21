@@ -2,17 +2,17 @@ import json
 import logging
 import queue
 import threading
+from typing import Optional, List
 
 from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
-from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE, THINK_END_PATTERN, THINK_START_PATTERN
+from consts.const import LANGUAGE, MESSAGE_ROLE, THINK_END_PATTERN, THINK_START_PATTERN
 from consts.model import AgentInfoRequest
-from database.agent_db import update_agent, query_sub_agents_id_list, search_agent_info_by_agent_id
+from database.agent_db import update_agent, search_agent_info_by_agent_id
 from database.model_management_db import get_model_by_model_id
 from database.tool_db import query_tools_by_ids
-from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.config_utils import tenant_config_manager, get_model_name_from_config
+from utils.config_utils import get_model_name_from_config
 from utils.prompt_template_utils import get_prompt_generate_prompt_template
 
 # Configure logging
@@ -34,7 +34,7 @@ def _process_thinking_tokens(new_token: str, is_thinking: bool, token_join: list
     """
     # Handle thinking mode
     if is_thinking:
-        return not (THINK_END_PATTERN in new_token)
+        return THINK_END_PATTERN not in new_token
 
     # Handle start of thinking
     if THINK_START_PATTERN in new_token:
@@ -98,14 +98,16 @@ def call_llm_for_system_prompt(model_id: int, user_prompt: str, system_prompt: s
         raise e
 
 
-def gen_system_prompt_streamable(agent_id: int, model_id: int, task_description: str, user_id: str, tenant_id: str, language: str):
+def gen_system_prompt_streamable(agent_id: int, model_id: int, task_description: str, user_id: str, tenant_id: str, language: str, tool_ids: Optional[List[int]] = None, sub_agent_ids: Optional[List[int]] = None):
     for system_prompt in generate_and_save_system_prompt_impl(
         agent_id=agent_id,
         model_id=model_id,
         task_description=task_description,
         user_id=user_id,
         tenant_id=tenant_id,
-        language=language
+        language=language,
+        tool_ids=tool_ids,
+        sub_agent_ids=sub_agent_ids
     ):
         # SSE format, each message ends with \n\n
         yield f"data: {json.dumps({'success': True, 'data': system_prompt}, ensure_ascii=False)}\n\n"
@@ -116,17 +118,35 @@ def generate_and_save_system_prompt_impl(agent_id: int,
                                          task_description: str,
                                          user_id: str,
                                          tenant_id: str,
-                                         language: str):
-    # Get description of tool and agent
-    # In create mode (agent_id=0), return empty lists
-    if agent_id == 0:
-        tool_info_list = []
-        sub_agent_info_list = []
+                                         language: str,
+                                         tool_ids: Optional[List[int]] = None,
+                                         sub_agent_ids: Optional[List[int]] = None):
+    # Get description of tool and agent from frontend-provided IDs
+    # Frontend always provides tool_ids and sub_agent_ids (could be empty arrays)
+
+    # Handle tool IDs
+    if tool_ids and len(tool_ids) > 0:
+        tool_info_list = query_tools_by_ids(tool_ids)
+        logger.debug(f"Using frontend-provided tool IDs: {tool_ids}")
     else:
-        tool_info_list = get_enabled_tool_description_for_generate_prompt(
-            tenant_id=tenant_id, agent_id=agent_id)
-        sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
-            tenant_id=tenant_id, agent_id=agent_id)
+        tool_info_list = []
+        logger.debug("No tools selected (empty tool_ids list)")
+
+    # Handle sub-agent IDs
+    if sub_agent_ids and len(sub_agent_ids) > 0:
+        sub_agent_info_list = []
+        for sub_agent_id in sub_agent_ids:
+            try:
+                sub_agent_info = search_agent_info_by_agent_id(
+                    agent_id=sub_agent_id, tenant_id=tenant_id)
+                sub_agent_info_list.append(sub_agent_info)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get sub-agent info for agent_id {sub_agent_id}: {str(e)}")
+        logger.debug(f"Using frontend-provided sub-agent IDs: {sub_agent_ids}")
+    else:
+        sub_agent_info_list = []
+        logger.debug("No sub-agents selected (empty sub_agent_ids list)")
 
     # 1. Real-time streaming push
     final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
@@ -292,27 +312,3 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
         "assistant_description": assistant_description
     })
     return content
-
-
-def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str):
-    # Get tool information
-    logger.info("Fetching tool instances")
-    tool_id_list = get_enable_tool_id_by_agent_id(
-        agent_id=agent_id, tenant_id=tenant_id)
-    tool_info_list = query_tools_by_ids(tool_id_list)
-    return tool_info_list
-
-
-def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str):
-    logger.info("Fetching sub-agents information")
-
-    sub_agent_id_list = query_sub_agents_id_list(
-        main_agent_id=agent_id, tenant_id=tenant_id)
-
-    sub_agent_info_list = []
-    for sub_agent_id in sub_agent_id_list:
-        sub_agent_info = search_agent_info_by_agent_id(
-            agent_id=sub_agent_id, tenant_id=tenant_id)
-
-        sub_agent_info_list.append(sub_agent_info)
-    return sub_agent_info_list

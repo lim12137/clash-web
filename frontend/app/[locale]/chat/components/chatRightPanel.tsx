@@ -5,7 +5,7 @@ import { ExternalLink, Database, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
-import { ChatMessageType, ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
+import { ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
 import { API_ENDPOINTS } from "@/services/api";
 import { formatDate, formatUrl } from "@/lib/utils";
 import log from "@/lib/logger";
@@ -335,8 +335,8 @@ export function ChatRightPanel({
   return (
     <div
       className={`transition-all duration-300 ease-in-out ${
-        isVisible ? "lg:block w-[400px]" : "lg:block w-0 opacity-0"
-      } hidden border-l bg-background relative`}
+        isVisible ? "lg:flex w-[400px]" : "lg:flex w-0 opacity-0"
+      } hidden border-l bg-background relative flex-col h-full`}
       style={{ maxWidth: "400px", overflow: "hidden" }}
     >
       {/* Image viewer modal */}
@@ -401,7 +401,8 @@ export function ChatRightPanel({
 
       <Tabs
         defaultValue="sources"
-        style={{ maxWidth: "400px", overflow: "hidden" }}
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ maxWidth: "400px" }}
       >
         <TabsList className="w-full" style={{ maxWidth: "400px" }}>
           <TabsTrigger value="sources" className="flex-1">
@@ -423,7 +424,7 @@ export function ChatRightPanel({
         </TabsList>
 
         <StaticScrollArea
-          className="h-[calc(100vh-120px)]"
+          className="flex-1"
           style={{ maxWidth: "400px", overflow: "hidden" }}
         >
           <TabsContent

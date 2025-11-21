@@ -53,8 +53,8 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
      - Write code in simple Python
      - Follow Python coding standards and Python syntax
      - Call tools/assistants correctly according to format specifications
-     - To distinguish between code execution and displaying user code, use 'Code: \n```<RUN>\n' to start executing code and '```<END_CODE>' to indicate its completion. Use 'Code: \n```<DISPLAY:language_type>\n' to start displaying code and '```<END_CODE>' to indicate its completion.
-     - Note that executed code is not visible to users. If users need to see the code, use 'Code: \n```<DISPLAY:language_type>\n' as the start and '```<END_CODE>' to denote displayed code.
+     - To distinguish between code execution and displaying user code, use 'Code: \n```<RUN>\n' to start executing code and '```<END_CODE>' to indicate its completion. Use 'Code: \n```<DISPLAY:language_type>\n' to start displaying code and '```<END_DISPLAY_CODE>' to indicate its completion.
+     - Note that executed code is not visible to users. If users need to see the code, use 'Code: \n```<DISPLAY:language_type>\n' as the start and '```<END_DISPLAY_CODE>' to denote displayed code.
 
   3. Observe Results:
      - View code execution results
@@ -62,7 +62,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   After thinking, when you believe you can answer the user's question, you can generate a final answer directly to the user without generating code and stop the loop.
   
   ### Python Code Specifications
-  1. If it is considered to be code that needs to be executed, the code content begins with 'Code:\n```<RUN>\n' and ends with '```<END_CODE>'. If the code does not need to be executed for display only, the code content begins with 'Code:\n```<DISPLAY:language_type>\n', and ends with '```<END_CODE>', where language_type can be python, java, javascript, etc.;
+  1. If it is considered to be code that needs to be executed, the code content begins with 'Code:\n```<RUN>\n' and ends with '```<END_CODE>'. If the code does not need to be executed for display only, the code content begins with 'Code:\n```<DISPLAY:language_type>\n', and ends with '```<END_DISPLAY_CODE>', where language_type can be python, java, javascript, etc.;
   2. Only use defined variables, variables will persist between multiple calls;
   3. Use "print()" function to let the next model call see corresponding variable information;
   4. Use tool/assistant input parameters correctly, use keyword arguments, not dictionary format;
@@ -158,7 +158,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     middle = [x for x in arr if x == pivot]
     right = [x for x in arr if x > pivot]
     return quick_sort(left) + middle + quick_sort(right)
-  ```<END_CODE>
+  ```<END_DISPLAY_CODE>
   Observe Results: The Python quick sort code.
 
   Think: I have obtained the Python quick sort code, now I will generate the final answer.
@@ -172,7 +172,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     middle = [x for x in arr if x == pivot]
     right = [x for x in arr if x > pivot]
     return quick_sort(left) + middle + quick_sort(right)
-  ```<END_CODE>
+  ```<END_DISPLAY_CODE>
 
   ---
 

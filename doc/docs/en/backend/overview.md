@@ -28,7 +28,7 @@ backend/
 ├── services/                     # Business service layer
 │   ├── agent_service.py         # Agent business logic
 │   ├── conversation_management_service.py # Conversation management
-│   ├── elasticsearch_service.py # Search engine service
+│   ├── vectordatabase_service.py # Search engine service
 │   ├── model_health_service.py  # Model health checks
 │   ├── prompt_service.py        # Prompt service
 │   └── tenant_config_service.py # Tenant configuration service
@@ -64,7 +64,8 @@ backend/
 │   └── utils/                   # Prompt utilities
 ├── sql/                         # SQL scripts
 ├── assets/                      # Backend resource files
-├── main_service.py              # Main service entry point
+├── config_service.py            # Config service entry point
+├── runtime_service.py           # Runtime service entry point
 ├── data_process_service.py      # Data processing service entry point
 └── requirements.txt             # Python dependencies
 ```
@@ -179,8 +180,9 @@ uv sync && uv pip install -e ../sdk
 ### Service Startup
 ```bash
 python backend/data_process_service.py   # Data processing service
-python backend/main_service.py           # Main service
-python backend/nexent_mcp_service.py     # MCP service
+python backend/config_service.py         # Config service
+python backend/runtime_service.py        # Runtime service
+python backend/mcp_service.py            # MCP service
 ```
 
 ## Performance and Scalability

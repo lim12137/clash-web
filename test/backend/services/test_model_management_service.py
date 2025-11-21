@@ -93,7 +93,7 @@ consts_const_mod = types.ModuleType("consts.const")
 consts_const_mod.LOCALHOST_IP = "127.0.0.1"
 consts_const_mod.LOCALHOST_NAME = "localhost"
 consts_const_mod.DOCKER_INTERNAL_HOST = "host.docker.internal"
-# Fields required by utils.memory_utils and services.elasticsearch_service
+# Fields required by utils.memory_utils and services.vectordatabase_service
 consts_const_mod.MODEL_CONFIG_MAPPING = {
     "llm": "LLM_ID", "embedding": "EMBEDDING_ID"}
 consts_const_mod.ES_HOST = "http://localhost:9200"
@@ -255,16 +255,16 @@ db_tenant_cfg_mod.insert_config = _insert_config
 db_tenant_cfg_mod.update_config_by_tenant_config_id_and_data = _update_config_by_tenant_config_id_and_data
 sys.modules["database.tenant_config_db"] = db_tenant_cfg_mod
 
-# Stub services.elasticsearch_service to avoid heavy imports
-services_es_mod = types.ModuleType("services.elasticsearch_service")
+# Stub services.vectordatabase_service to avoid heavy imports
+services_vdb_mod = types.ModuleType("services.vectordatabase_service")
 
 
-def _get_es_core():
+def _get_vector_db_core():
     return object()
 
 
-services_es_mod.get_es_core = _get_es_core
-sys.modules["services.elasticsearch_service"] = services_es_mod
+services_vdb_mod.get_vector_db_core = _get_vector_db_core
+sys.modules["services.vectordatabase_service"] = services_vdb_mod
 
 # Stub nexent.memory.memory_service.clear_model_memories
 nexent_memory_mod = types.ModuleType("nexent.memory.memory_service")
@@ -583,13 +583,13 @@ async def test_delete_model_for_tenant_embedding_deletes_both():
     ]
     with mock.patch.object(svc, "get_model_by_display_name", side_effect=side_effect) as mock_get, \
             mock.patch.object(svc, "delete_model_record") as mock_delete, \
-            mock.patch.object(svc, "get_es_core", return_value=object()) as mock_get_es, \
+            mock.patch.object(svc, "get_vector_db_core", return_value=object()) as mock_get_vdb, \
             mock.patch.object(svc, "build_memory_config_for_tenant", return_value={}) as mock_build_cfg, \
             mock.patch.object(svc, "clear_model_memories", new=mock.AsyncMock()) as mock_clear:
         await svc.delete_model_for_tenant("u1", "t1", "name")
         assert mock_delete.call_count == 2
         mock_get.assert_called()
-        mock_get_es.assert_called_once()
+        mock_get_vdb.assert_called_once()
         mock_build_cfg.assert_called_once_with("t1")
         # Best-effort cleanup may call once or twice depending on state
         assert mock_clear.await_count >= 1
@@ -606,7 +606,7 @@ async def test_delete_model_for_tenant_cleanup_inner_exception(caplog):
     ]
     with mock.patch.object(svc, "get_model_by_display_name", side_effect=side_effect), \
             mock.patch.object(svc, "delete_model_record") as mock_delete, \
-            mock.patch.object(svc, "get_es_core", return_value=object()), \
+            mock.patch.object(svc, "get_vector_db_core", return_value=object()), \
             mock.patch.object(svc, "build_memory_config_for_tenant", return_value={}), \
             mock.patch.object(svc, "clear_model_memories", new=mock.AsyncMock(side_effect=Exception("boom"))):
 
@@ -629,7 +629,7 @@ async def test_delete_model_for_tenant_cleanup_outer_exception(caplog):
     ]
     with mock.patch.object(svc, "get_model_by_display_name", side_effect=side_effect), \
             mock.patch.object(svc, "delete_model_record") as mock_delete, \
-            mock.patch.object(svc, "get_es_core", side_effect=Exception("es_down")), \
+            mock.patch.object(svc, "get_vector_db_core", side_effect=Exception("vdb_down")), \
             mock.patch.object(svc, "build_memory_config_for_tenant", return_value={}):
 
         with caplog.at_level(logging.WARNING):
