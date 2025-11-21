@@ -63,6 +63,13 @@ export default function ToolConfigModal({
   const { windowWidth, mainModalTop, mainModalRight } =
     useModalPosition(isOpen);
 
+  const normalizedAgentId =
+    typeof mainAgentId === "number" && !Number.isNaN(mainAgentId)
+      ? mainAgentId
+      : null;
+  const canPersistToolConfig =
+    typeof normalizedAgentId === "number" && normalizedAgentId > 0;
+
   // load tool config
   useEffect(() => {
     const buildDefaultParams = () =>
@@ -78,14 +85,17 @@ export default function ToolConfigModal({
       }
 
       // In creation mode we do not have an agent ID yet, so use the tool's default params.
-      if (!mainAgentId) {
+      if (!normalizedAgentId) {
         setCurrentParams(buildDefaultParams());
         return;
       }
 
       setIsLoading(true);
       try {
-        const result = await searchToolConfig(parseInt(tool.id), mainAgentId);
+        const result = await searchToolConfig(
+          parseInt(tool.id),
+          normalizedAgentId
+        );
         if (result.success) {
           if (result.data?.params) {
             const savedParams = tool.initParams.map((param) => {
@@ -117,7 +127,7 @@ export default function ToolConfigModal({
     } else {
       setCurrentParams([]);
     }
-  }, [isOpen, tool, mainAgentId, t, message]);
+  }, [isOpen, tool, normalizedAgentId, t, message]);
 
   // check required fields
   const checkRequiredFields = () => {
@@ -190,12 +200,21 @@ export default function ToolConfigModal({
         return acc;
       }, {} as Record<string, any>);
 
+      if (!canPersistToolConfig) {
+        message.success(t("toolConfig.message.saveSuccess"));
+        onSave({
+          ...tool,
+          initParams: currentParams,
+        });
+        return;
+      }
+
       // decide enabled status based on whether the tool is in selectedTools
       const isEnabled = selectedTools.some((t) => t.id === tool.id);
 
       const result = await updateToolConfig(
         parseInt(tool.id),
-        mainAgentId,
+        normalizedAgentId,
         params,
         isEnabled
       );

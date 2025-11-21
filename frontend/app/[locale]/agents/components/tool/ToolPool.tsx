@@ -31,6 +31,7 @@ import McpConfigModal from "../McpConfigModal";
 function ToolPool({
   selectedTools,
   onSelectTool,
+  onToolConfigSave,
   tools = [],
   loadingTools = false,
   mainAgentId,
@@ -40,6 +41,7 @@ function ToolPool({
   isGeneratingAgent = false, // New: Default not in generating state
   isEmbeddingConfigured = true,
   agentUnavailableReasons = [],
+  toolConfigDrafts = {},
 }: ToolPoolProps) {
   const { t } = useTranslation("common");
   const { message } = App.useApp();
@@ -55,6 +57,34 @@ function ToolPool({
   const [activeTabKey, setActiveTabKey] = useState<string>("");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
+  );
+
+  const normalizedAgentId =
+    typeof mainAgentId === "string"
+      ? parseInt(mainAgentId, 10)
+      : typeof mainAgentId === "number"
+      ? mainAgentId
+      : null;
+  const shouldCacheLocally =
+    !normalizedAgentId ||
+    Number.isNaN(normalizedAgentId) ||
+    normalizedAgentId <= 0;
+
+  const applyDraftParams = useCallback(
+    (tool: Tool): Tool => {
+      if (!shouldCacheLocally) {
+        return tool;
+      }
+      const draft = toolConfigDrafts?.[tool.id];
+      if (!draft || draft.length === 0) {
+        return tool;
+      }
+      return {
+        ...tool,
+        initParams: draft.map((param) => ({ ...param })),
+      };
+    },
+    [shouldCacheLocally, toolConfigDrafts]
   );
 
   // Use useMemo to cache the selected tool ID set to improve lookup efficiency
@@ -200,19 +230,23 @@ function ToolPool({
       }
 
       try {
+        const preparedTool = applyDraftParams(tool);
         // step 1: if enabling the tool, check required fields using current or default values
-        let params: Record<string, any> = (tool.initParams || []).reduce(
-          (acc, param) => {
-            if (param && param.name) {
-              acc[param.name] = param.value;
-            }
-            return acc;
-          },
-          {} as Record<string, any>
-        );
+        let params: Record<string, any> = (
+          preparedTool.initParams || []
+        ).reduce((acc, param) => {
+          if (param && param.name) {
+            acc[param.name] = param.value;
+          }
+          return acc;
+        }, {} as Record<string, any>);
 
-        if (isSelected && tool.initParams && tool.initParams.length > 0) {
-          const missingRequiredFields = tool.initParams
+        if (
+          isSelected &&
+          preparedTool.initParams &&
+          preparedTool.initParams.length > 0
+        ) {
+          const missingRequiredFields = preparedTool.initParams
             .filter(
               (param) =>
                 param &&
@@ -225,20 +259,20 @@ function ToolPool({
 
           if (missingRequiredFields.length > 0) {
             setCurrentTool({
-              ...tool,
-              initParams: tool.initParams.map((param) => ({
+              ...preparedTool,
+              initParams: preparedTool.initParams.map((param) => ({
                 ...param,
                 value: params[param.name] || param.value,
               })),
             });
-            setPendingToolSelection({ tool, isSelected });
+            setPendingToolSelection({ tool: preparedTool, isSelected });
             setIsToolModalOpen(true);
             return;
           }
         }
 
         // step 2: if all checks pass, update local selection only; persistence happens on Save
-        onSelectTool(tool, isSelected);
+        onSelectTool(preparedTool, isSelected);
       } catch (error) {
         message.error(t("tool.error.updateRetry"));
       }
@@ -249,6 +283,7 @@ function ToolPool({
       isGeneratingAgent,
       message,
       isEmbeddingConfigured,
+      applyDraftParams,
     ]
   );
 
@@ -262,15 +297,19 @@ function ToolPool({
         return;
       }
 
-      setCurrentTool(tool);
+      const preparedTool = applyDraftParams(tool);
+      setCurrentTool(preparedTool);
       setIsToolModalOpen(true);
     },
-    [isGeneratingAgent]
+    [isGeneratingAgent, applyDraftParams]
   );
 
   // Use useCallback to cache the tool save processing function
   const handleToolSave = useCallback(
     (updatedTool: Tool) => {
+      if (shouldCacheLocally) {
+        onToolConfigSave?.(updatedTool);
+      }
       if (pendingToolSelection) {
         const { tool, isSelected } = pendingToolSelection;
         const missingRequiredFields = updatedTool.initParams
@@ -299,7 +338,13 @@ function ToolPool({
       setIsToolModalOpen(false);
       setPendingToolSelection(null);
     },
-    [pendingToolSelection, onSelectTool, t]
+    [
+      pendingToolSelection,
+      onSelectTool,
+      t,
+      onToolConfigSave,
+      shouldCacheLocally,
+    ]
   );
 
   // Use useCallback to cache the modal close processing function
@@ -432,19 +477,19 @@ function ToolPool({
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
           <div
-                className={`font-medium text-sm truncate transition-colors duration-300 ${
-                  !isEffectivelyAvailable && !isSelected ? "text-gray-400" : ""
-                }`}
-                style={{
-                  maxWidth: "300px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  display: "inline-block",
-                  verticalAlign: "middle",
-                }}
-              >
-                {tool.name}
+            className={`font-medium text-sm truncate transition-colors duration-300 ${
+              !isEffectivelyAvailable && !isSelected ? "text-gray-400" : ""
+            }`}
+            style={{
+              maxWidth: "300px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              display: "inline-block",
+              verticalAlign: "middle",
+            }}
+          >
+            {tool.name}
           </div>
         </div>
         {/* Settings button right - Tag removed */}
@@ -672,7 +717,7 @@ function ToolPool({
         onCancel={handleModalClose}
         onSave={handleToolSave}
         tool={currentTool}
-        mainAgentId={parseInt(mainAgentId || "0")}
+        mainAgentId={normalizedAgentId}
         selectedTools={selectedTools}
         isEditingMode={isEditingMode}
       />

@@ -18,7 +18,12 @@ import {
   searchToolConfig,
   updateToolConfig,
 } from "@/services/agentConfigService";
-import { Agent, AgentSetupOrchestratorProps, Tool } from "@/types/agentConfig";
+import {
+  Agent,
+  AgentSetupOrchestratorProps,
+  Tool,
+  ToolParam,
+} from "@/types/agentConfig";
 import log from "@/lib/logger";
 
 import SubAgentPool from "./agent/SubAgentPool";
@@ -90,6 +95,9 @@ export default function AgentSetupOrchestrator({
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [toolConfigDrafts, setToolConfigDrafts] = useState<
+    Record<string, ToolParam[]>
+  >({});
   // Use generation state passed from parent component, not local state
 
   // Delete confirmation popup status
@@ -145,6 +153,19 @@ export default function AgentSetupOrchestrator({
     },
     []
   );
+
+  const numericMainAgentId =
+    mainAgentId !== null &&
+    mainAgentId !== undefined &&
+    String(mainAgentId).trim() !== ""
+      ? Number(mainAgentId)
+      : null;
+  const hasPersistedMainAgentId =
+    typeof numericMainAgentId === "number" &&
+    !Number.isNaN(numericMainAgentId) &&
+    numericMainAgentId > 0;
+  const isDraftCreationSession =
+    isCreatingNewAgent && !hasPersistedMainAgentId && !isEditingAgent;
 
   // Add a flag to track if it has been initialized to avoid duplicate calls
   const hasInitialized = useRef(false);
@@ -255,6 +276,12 @@ export default function AgentSetupOrchestrator({
       setHasUnsavedChanges(false);
     }
   }, [isEditingAgent, editingAgent]);
+
+  useEffect(() => {
+    if (!isDraftCreationSession) {
+      setToolConfigDrafts({});
+    }
+  }, [isDraftCreationSession]);
 
   // Initialize baseline when entering create mode so draft changes don't attach to previous agent
   useEffect(() => {
@@ -478,6 +505,36 @@ export default function AgentSetupOrchestrator({
     [hasUnsavedChanges]
   );
 
+  const handleToolConfigDraftSave = useCallback(
+    (updatedTool: Tool) => {
+      if (!isDraftCreationSession) {
+        return;
+      }
+      setToolConfigDrafts((prev) => ({
+        ...prev,
+        [updatedTool.id]:
+          updatedTool.initParams?.map((param) => ({ ...param })) || [],
+      }));
+      setSelectedTools((prev) => {
+        if (!prev || prev.length === 0) {
+          return prev;
+        }
+        const index = prev.findIndex((tool) => tool.id === updatedTool.id);
+        if (index === -1) {
+          return prev;
+        }
+        const next = [...prev];
+        next[index] = {
+          ...updatedTool,
+          initParams:
+            updatedTool.initParams?.map((param) => ({ ...param })) || [],
+        };
+        return next;
+      });
+    },
+    [isDraftCreationSession, setSelectedTools]
+  );
+
   // Function to directly update enabledAgentIds
   const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
     setEnabledAgentIds(newEnabledAgentIds);
@@ -512,6 +569,23 @@ export default function AgentSetupOrchestrator({
     }
   }, [isCreatingNewAgent, isEditingAgent, mainAgentId]);
 
+  const applyDraftParamsToTool = useCallback(
+    (tool: Tool): Tool => {
+      if (!isDraftCreationSession) {
+        return tool;
+      }
+      const draft = toolConfigDrafts[tool.id];
+      if (!draft || draft.length === 0) {
+        return tool;
+      }
+      return {
+        ...tool,
+        initParams: draft.map((param) => ({ ...param })),
+      };
+    },
+    [isDraftCreationSession, toolConfigDrafts]
+  );
+
   // Listen for changes in the tool status, update the selected tool
   useEffect(() => {
     if (!tools || isLoadingTools) return;
@@ -519,14 +593,22 @@ export default function AgentSetupOrchestrator({
     if (enabledToolIds === undefined || enabledToolIds === null) return;
 
     // Filter out unavailable tools (is_available === false) to prevent deleted MCP tools from showing
-    const enabledTools = tools.filter(
-      (tool) =>
-        enabledToolIds.includes(Number(tool.id)) &&
-        tool.is_available !== false
-    );
+    const enabledTools = tools
+      .filter(
+        (tool) =>
+          enabledToolIds.includes(Number(tool.id)) &&
+          tool.is_available !== false
+      )
+      .map((tool) => applyDraftParamsToTool(tool));
 
     setSelectedTools(enabledTools);
-  }, [tools, enabledToolIds, isLoadingTools]);
+  }, [
+    tools,
+    enabledToolIds,
+    isLoadingTools,
+    applyDraftParamsToTool,
+    setSelectedTools,
+  ]);
 
   // Auto-unselect knowledge_base_search if embedding is not configured
   useEffect(() => {
@@ -913,6 +995,61 @@ export default function AgentSetupOrchestrator({
   };
 
   // Handle the creation of a new Agent
+  const persistDraftToolConfigs = useCallback(
+    async (agentId: number, toolIdsToEnable: number[]) => {
+      if (!toolIdsToEnable || toolIdsToEnable.length === 0) {
+        return;
+      }
+
+      const payloads = toolIdsToEnable
+        .map((toolId) => {
+          const toolIdStr = String(toolId);
+          const draftParams = toolConfigDrafts[toolIdStr];
+          const baseTool =
+            selectedTools.find((tool) => Number(tool.id) === toolId) ||
+            tools.find((tool) => Number(tool.id) === toolId);
+          const paramsSource =
+            (draftParams && draftParams.length > 0
+              ? draftParams
+              : baseTool?.initParams) || [];
+          if (!paramsSource || paramsSource.length === 0) {
+            return null;
+          }
+          const params = paramsSource.reduce((acc, param) => {
+            acc[param.name] = param.value;
+            return acc;
+          }, {} as Record<string, any>);
+          return {
+            toolId,
+            params,
+          };
+        })
+        .filter(Boolean) as Array<{
+        toolId: number;
+        params: Record<string, any>;
+      }>;
+
+      if (payloads.length === 0) {
+        return;
+      }
+
+      let persistError = false;
+      for (const payload of payloads) {
+        try {
+          await updateToolConfig(payload.toolId, agentId, payload.params, true);
+        } catch (error) {
+          persistError = true;
+          log.error("Failed to persist tool configuration for new agent:", error);
+        }
+      }
+
+      if (persistError) {
+        message.error(t("toolConfig.message.saveError"));
+      }
+    },
+    [toolConfigDrafts, selectedTools, tools, message, t]
+  );
+
   const handleSaveNewAgent = async (
     name: string,
     description: string,
@@ -987,6 +1124,13 @@ export default function AgentSetupOrchestrator({
         }
 
         if (result.success) {
+          if (!isEditingAgent && result.data?.agent_id) {
+            await persistDraftToolConfigs(
+              Number(result.data.agent_id),
+              deduplicatedToolIds
+            );
+            setToolConfigDrafts({});
+          }
           // If created, set new mainAgentId for subsequent operations
           if (!isEditingAgent && result.data?.agent_id) {
             setMainAgentId(String(result.data.agent_id));
@@ -1723,6 +1867,8 @@ export default function AgentSetupOrchestrator({
                     isGeneratingAgent={isGeneratingAgent}
                     isEmbeddingConfigured={isEmbeddingConfigured}
                     agentUnavailableReasons={agentUnavailableReasons}
+                    onToolConfigSave={handleToolConfigDraftSave}
+                    toolConfigDrafts={toolConfigDrafts}
                   />
                 </div>
               </div>
