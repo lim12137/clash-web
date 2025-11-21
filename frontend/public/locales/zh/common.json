@@ -510,6 +510,8 @@
   "document.status.loadingList": "正在加载文档列表...",
   "document.input.knowledgeBaseName": "请输入知识库名称",
   "document.button.details": "详细内容",
+  "document.button.overview": "概览",
+  "document.button.detail": "分片详情",
   "document.button.autoSummary": "自动总结",
   "document.title.createNew": "创建新知识库",
   "document.hint.uploadToCreate": "请选择文件上传以完成知识库创建",
@@ -530,6 +532,10 @@
   "document.modal.deleteConfirm.content": "确定要删除这个文档吗？删除后无法恢复。",
   "document.message.noFiles": "请先选择文件",
   "document.message.uploadError": "文件上传失败",
+  "document.chunk.noChunks": "暂无分片数据",
+  "document.chunk.characterCount": "{{count}} 字符",
+  "document.chunk.error.loadFailed": "加载分片失败",
+  "document.chunk.error.downloadFailed": "下载分片失败",
 
   "model.dialog.title": "添加模型",
   "model.dialog.label.type": "模型类型",
@@ -1040,5 +1046,19 @@
   "sidebar.knowledgeBase": "知识库",
   "sidebar.modelManagement": "模型管理",
   "sidebar.memoryManagement": "记忆管理",
-  "sidebar.userManagement": "用户管理"
+  "sidebar.userManagement": "用户管理",
+
+  "market.comingSoon.title": "智能体市场即将推出",
+  "market.comingSoon.description": "从我们的市场中发现并安装预构建的AI智能体。通过使用社区创建的解决方案节省时间。",
+  "market.comingSoon.feature1": "浏览精选的智能体模板",
+  "market.comingSoon.feature2": "一键安装和部署",
+  "market.comingSoon.feature3": "与社区分享您自己的智能体",
+  "market.comingSoon.badge": "即将推出",
+
+  "users.comingSoon.title": "用户管理即将推出",
+  "users.comingSoon.description": "为管理员提供全面的用户管理系统。控制组织内的访问权限、角色和权限。",
+  "users.comingSoon.feature1": "管理用户账户和角色",
+  "users.comingSoon.feature2": "配置精细化权限",
+  "users.comingSoon.feature3": "监控用户活动和使用情况",
+  "users.comingSoon.badge": "即将推出"
 }

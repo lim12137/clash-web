@@ -674,6 +674,67 @@ async def test_get_index_files_permission_exception(vdb_core_mock):
 
 
 @pytest.mark.asyncio
+async def test_get_index_chunks_success(vdb_core_mock):
+    """
+    Test retrieving index chunks successfully.
+    Verifies that the endpoint forwards query params and returns the service payload.
+    """
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.get_index_chunks") as mock_get_chunks:
+
+        index_name = "test_index"
+        expected_response = {
+            "status": "success",
+            "message": "ok",
+            "chunks": [{"id": "1"}],
+            "total": 1,
+            "page": 2,
+            "page_size": 50,
+        }
+        mock_get_chunks.return_value = expected_response
+
+        response = client.post(
+            f"/indices/{index_name}/chunks",
+            params={"page": 2, "page_size": 50, "path_or_url": "/foo"}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == expected_response
+        mock_get_chunks.assert_called_once_with(
+            index_name=index_name,
+            page=2,
+            page_size=50,
+            path_or_url="/foo",
+            vdb_core=ANY,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_index_chunks_error(vdb_core_mock):
+    """
+    Test retrieving index chunks with service error.
+    Ensures the endpoint maps the exception to HTTP 500.
+    """
+    with patch("backend.apps.vectordatabase_app.get_vector_db_core", return_value=vdb_core_mock), \
+            patch("backend.apps.vectordatabase_app.ElasticSearchService.get_index_chunks") as mock_get_chunks:
+
+        index_name = "test_index"
+        mock_get_chunks.side_effect = Exception("Chunk failure")
+
+        response = client.post(f"/indices/{index_name}/chunks")
+
+        assert response.status_code == 500
+        assert response.json() == {"detail": "Error getting chunks: Chunk failure"}
+        mock_get_chunks.assert_called_once_with(
+            index_name=index_name,
+            page=None,
+            page_size=None,
+            path_or_url=None,
+            vdb_core=ANY,
+        )
+
+
+@pytest.mark.asyncio
 async def test_health_check_success(vdb_core_mock):
     """
     Test health check endpoint successfully.

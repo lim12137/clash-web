@@ -40,9 +40,10 @@ interface AgentCardProps {
   agent: Agent;
   onRefresh: () => void;
   onChat: (agentId: string) => void;
+  onEdit?: () => void;
 }
 
-export default function AgentCard({ agent, onRefresh, onChat }: AgentCardProps) {
+export default function AgentCard({ agent, onRefresh, onChat, onEdit }: AgentCardProps) {
   const router = useRouter();
   const { t } = useTranslation("common");
   const { message, modal } = App.useApp();
@@ -136,9 +137,11 @@ export default function AgentCard({ agent, onRefresh, onChat }: AgentCardProps) 
     onChat(agent.id);
   };
 
-  // Handle edit
+  // Handle edit - navigate to agents view
   const handleEdit = () => {
-    router.push("/setup/agents");
+    if (onEdit) {
+      onEdit();
+    }
   };
 
   // Handle view detail

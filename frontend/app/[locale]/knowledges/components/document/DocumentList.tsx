@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 
 import { Input, Button, App, Select } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
+import { BookText, Pilcrow } from "lucide-react";
 import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
 
 import {
@@ -27,9 +28,21 @@ import log from "@/lib/logger";
 import { useConfig } from "@/hooks/useConfig";
 
 import DocumentStatus from "./DocumentStatus";
+import DocumentChunk from "./DocumentChunk";
 import UploadArea from "../upload/UploadArea";
 import { useKnowledgeBaseContext } from "../../contexts/KnowledgeBaseContext";
 import { useDocumentContext } from "../../contexts/DocumentContext";
+
+const CONTAINER_HEIGHT_CLASS_MAP: Record<string, string> = {
+  "83vh": "h-[83vh]",
+  "70vh": "h-[70vh]",
+  "57vh": "h-[57vh]",
+  "100%": "h-full",
+};
+
+const TITLE_BAR_HEIGHT_CLASS_MAP: Record<string, string> = {
+  "56.8px": "h-[56.8px]",
+};
 
 interface DocumentListProps {
   documents: Document[];
@@ -129,6 +142,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
       uppy: uploadAreaRef.current?.uppy,
     }));
     const [showDetail, setShowDetail] = React.useState(false);
+    const [showChunk, setShowChunk] = React.useState(false);
     const [summary, setSummary] = useState("");
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -138,9 +152,10 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
     const {} = useKnowledgeBaseContext();
     const { t } = useTranslation();
 
-    // Reset showDetail state when knowledge base name changes
+    // Reset showDetail and showChunk state when knowledge base name changes
     React.useEffect(() => {
       setShowDetail(false);
+      setShowChunk(false);
     }, [knowledgeBaseName]);
 
     // Load available models when showing detail
@@ -161,7 +176,9 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
 
             // 1) Knowledge base model (if provided)
             if (knowledgeBaseModel) {
-              const matchedByName = models.find((m) => m.name === knowledgeBaseModel);
+              const matchedByName = models.find(
+                (m) => m.name === knowledgeBaseModel
+              );
               const matchedByDisplay = matchedByName
                 ? null
                 : models.find((m) => m.displayName === knowledgeBaseModel);
@@ -178,12 +195,16 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
               const configuredModelName = modelConfig?.llm?.modelName || "";
 
               const matchedByDisplay = models.find(
-                (m) => m.displayName === configuredDisplayName && configuredDisplayName !== ""
+                (m) =>
+                  m.displayName === configuredDisplayName &&
+                  configuredDisplayName !== ""
               );
               const matchedByName = matchedByDisplay
                 ? null
                 : models.find(
-                    (m) => m.name === configuredModelName && configuredModelName !== ""
+                    (m) =>
+                      m.name === configuredModelName &&
+                      configuredModelName !== ""
                   );
 
               if (matchedByDisplay) {
@@ -203,7 +224,9 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
             if (initialModelId !== null) {
               setSelectedModel(initialModelId);
             } else {
-              message.warning(t("businessLogic.config.error.noAvailableModels"));
+              message.warning(
+                t("businessLogic.config.error.noAvailableModels")
+              );
             }
           } catch (error) {
             log.error("Failed to load models:", error);
@@ -295,14 +318,18 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
       }
     };
 
-    // Refactored: Style is embedded within the component
+    const containerHeightClass =
+      CONTAINER_HEIGHT_CLASS_MAP[containerHeight] ?? "h-full";
+    const titleBarHeightClass =
+      TITLE_BAR_HEIGHT_CLASS_MAP[titleBarHeight] ?? "h-14";
+
     return (
       <div
-        className={`flex flex-col w-full bg-white border border-gray-200 rounded-md shadow-sm h-full h-[${containerHeight}]`}
+        className={`flex flex-col w-full bg-white border border-gray-200 rounded-md shadow-sm ${containerHeightClass}`}
       >
         {/* Title bar */}
         <div
-          className={`${LAYOUT.KB_HEADER_PADDING} border-b border-gray-200 flex-shrink-0 flex items-center h-[${titleBarHeight}]`}
+          className={`${LAYOUT.KB_HEADER_PADDING} border-b border-gray-200 flex-shrink-0 flex items-center ${titleBarHeightClass}`}
         >
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center">
@@ -350,11 +377,40 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                 </div>
               )}
             </div>
-            {/* Right: detailed content */}
+            {/* Right: overview and detail buttons */}
             {!isCreatingMode && (
-              <Button type="primary" onClick={() => setShowDetail(true)}>
-                {t("document.button.details")}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="primary"
+                  icon={<BookText size={16} />}
+                  onClick={() => {
+                    if (showDetail) {
+                      // Close detail view and reset summary
+                      setShowDetail(false);
+                      setSummary("");
+                    } else {
+                      setShowDetail(true);
+                      setShowChunk(false);
+                    }
+                  }}
+                >
+                  {t("document.button.overview")}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<Pilcrow size={16} />}
+                  onClick={() => {
+                    if (showChunk) {
+                      setShowChunk(false);
+                    } else {
+                      setShowChunk(true);
+                      setShowDetail(false);
+                    }
+                  }}
+                >
+                  {t("document.button.detail")}
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -382,7 +438,15 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
             e.stopPropagation();
           }}
         >
-          {showDetail ? (
+          {showChunk ? (
+            <div className="flex h-full flex-col px-8 py-4">
+              <DocumentChunk
+                knowledgeBaseName={knowledgeBaseName}
+                documents={documents}
+                getFileIcon={getFileIcon}
+              />
+            </div>
+          ) : showDetail ? (
             <div className="px-8 py-4 h-full flex flex-col">
               <div className="flex items-center justify-between mb-5">
                 <span className="font-bold text-lg">
@@ -434,7 +498,13 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                 >
                   {t("common.save")}
                 </Button>
-                <Button size="large" onClick={() => setShowDetail(false)}>
+                <Button
+                  size="large"
+                  onClick={() => {
+                    setShowDetail(false);
+                    setSummary("");
+                  }}
+                >
                   {t("common.back")}
                 </Button>
               </div>
@@ -558,7 +628,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
         </div>
 
         {/* Upload area */}
-        {!showDetail && (
+        {!showDetail && !showChunk && (
           <UploadArea
             key={
               isCreatingMode

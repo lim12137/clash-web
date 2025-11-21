@@ -3,6 +3,7 @@ from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path, Query
+from fastapi.responses import JSONResponse
 
 from consts.model import IndexingResponse
 from nexent.vector_database.base import VectorDatabaseCore
@@ -195,3 +196,33 @@ def health_check(vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)):
         return ElasticSearchService.health_check(vdb_core)
     except Exception as e:
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"{str(e)}")
+
+
+@router.post("/{index_name}/chunks")
+def get_index_chunks(
+        index_name: str = Path(...,
+                               description="Name of the index to get chunks from"),
+        page: int = Query(
+            None, description="Page number (1-based) for pagination"),
+        page_size: int = Query(
+            None, description="Number of records per page for pagination"),
+        path_or_url: Optional[str] = Query(
+            None, description="Filter chunks by document path_or_url"),
+        vdb_core: VectorDatabaseCore = Depends(get_vector_db_core)
+):
+    """Get chunks from the specified index, with optional pagination support"""
+    try:
+        result = ElasticSearchService.get_index_chunks(
+            index_name=index_name,
+            page=page,
+            page_size=page_size,
+            path_or_url=path_or_url,
+            vdb_core=vdb_core,
+        )
+        return JSONResponse(status_code=HTTPStatus.OK, content=result)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(
+            f"Error getting chunks for index '{index_name}': {error_msg}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error getting chunks: {error_msg}")
