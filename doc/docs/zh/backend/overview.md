@@ -28,7 +28,7 @@ backend/
 ├── services/                     # 业务服务层
 │   ├── agent_service.py         # 代理业务逻辑
 │   ├── conversation_management_service.py # 对话管理
-│   ├── elasticsearch_service.py # 搜索引擎服务
+│   ├── vectordatabase_service.py # 搜索引擎服务
 │   ├── model_health_service.py  # 模型健康检查
 │   ├── prompt_service.py        # 提示词服务
 │   └── tenant_config_service.py # 租户配置服务
@@ -64,7 +64,8 @@ backend/
 │   └── utils/                   # 提示词工具
 ├── sql/                         # SQL脚本
 ├── assets/                      # 后端资源文件
-├── main_service.py              # 主服务入口
+├── config_service.py            # 编辑态服务入口
+├── runtime_service.py           # 运行态服务入口
 ├── data_process_service.py      # 数据处理服务入口
 └── requirements.txt             # Python依赖
 ```
@@ -179,8 +180,9 @@ uv sync && uv pip install -e ../sdk
 ### 服务启动
 ```bash
 python backend/data_process_service.py   # 数据处理服务
-python backend/main_service.py           # 主服务
-python backend/nexent_mcp_service.py     # MCP服务
+python backend/config_service.py      # 编辑态服务
+python backend/runtime_service.py        # 运行态服务
+python backend/mcp_service.py     # MCP服务
 ```
 
 ## 性能和可扩展性

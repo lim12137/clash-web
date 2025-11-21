@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -8,6 +9,11 @@ load_dotenv(override=True)
 # Test voice file path
 TEST_VOICE_PATH = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'assets', 'test.wav')
+
+
+# Vector database providers
+class VectorDatabaseType(str, Enum):
+    ELASTICSEARCH = "elasticsearch"
 
 
 # ModelEngine Configuration
@@ -273,7 +279,7 @@ LLM_SLOW_TOKEN_RATE_THRESHOLD = float(
     os.getenv("LLM_SLOW_TOKEN_RATE_THRESHOLD", "10.0"))  # tokens per second
 
 # APP Version
-APP_VERSION = "v1.7.5.3"
+APP_VERSION = "v1.7.6"
 
 DEFAULT_ZH_TITLE = "新对话"
 DEFAULT_EN_TITLE = "New Conversation"

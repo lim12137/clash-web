@@ -76,14 +76,15 @@ def create_agent(agent_info, tenant_id: str, user_id: str):
     :param user_id:
     :return: Created agent object
     """
-    agent_info.update({
+    info_with_metadata = dict(agent_info)
+    info_with_metadata.setdefault("max_steps", 5)
+    info_with_metadata.update({
         "tenant_id": tenant_id,
         "created_by": user_id,
         "updated_by": user_id,
-        "max_steps": 5
     })
     with get_db_session() as session:
-        new_agent = AgentInfo(**filter_property(agent_info, AgentInfo))
+        new_agent = AgentInfo(**filter_property(info_with_metadata, AgentInfo))
         new_agent.delete_flag = 'N'
         session.add(new_agent)
         session.flush()

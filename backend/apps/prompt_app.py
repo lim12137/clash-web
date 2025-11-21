@@ -27,7 +27,9 @@ async def generate_and_save_system_prompt_api(
             task_description=prompt_request.task_description,
             user_id=user_id,
             tenant_id=tenant_id,
-            language=language
+            language=language,
+            tool_ids=prompt_request.tool_ids,
+            sub_agent_ids=prompt_request.sub_agent_ids
         ), media_type="text/event-stream")
     except Exception as e:
         logger.exception(f"Error occurred while generating system prompt: {e}")

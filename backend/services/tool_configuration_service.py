@@ -20,10 +20,10 @@ from database.tool_db import (
     query_all_tools,
     query_tool_instances_by_id,
     update_tool_table_from_scan_tool_list,
-    search_last_tool_instance_by_tool_id
+    search_last_tool_instance_by_tool_id,
 )
 from database.user_tenant_db import get_all_tenant_ids
-from services.elasticsearch_service import get_embedding_model, elastic_core
+from services.vectordatabase_service import get_embedding_model, get_vector_db_core
 from services.tenant_config_service import get_selected_knowledge_list
 
 logger = logging.getLogger("tool_configuration_service")
@@ -605,11 +605,12 @@ def _validate_local_tool(
             index_names = [knowledge_info.get("index_name")
                            for knowledge_info in knowledge_info_list]
             embedding_model = get_embedding_model(tenant_id=tenant_id)
+            vdb_core = get_vector_db_core()
             params = {
                 **instantiation_params,
                 'index_names': index_names,
-                'es_core': elastic_core,
-                'embedding_model': embedding_model
+                'vdb_core': vdb_core,
+                'embedding_model': embedding_model,
             }
             tool_instance = tool_class(**params)
         else:

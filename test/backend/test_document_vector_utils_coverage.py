@@ -39,8 +39,8 @@ class TestGetDocumentsFromES:
     
     def test_get_documents_from_es_success(self):
         """Test successful document retrieval from ES"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.return_value = {
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.return_value = {
             'aggregations': {
                 'unique_documents': {
                     'buckets': [
@@ -63,14 +63,14 @@ class TestGetDocumentsFromES:
             }
         }
         
-        result = get_documents_from_es('test_index', mock_es_core, sample_doc_count=10)
+        result = get_documents_from_es('test_index', mock_vdb_core, sample_doc_count=10)
         assert isinstance(result, dict)
-        assert mock_es_core.client.search.called
+        assert mock_vdb_core.search.called
     
     def test_get_documents_from_es_empty(self):
         """Test ES retrieval with no documents"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.return_value = {
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.return_value = {
             'aggregations': {
                 'unique_documents': {
                     'buckets': []
@@ -78,16 +78,16 @@ class TestGetDocumentsFromES:
             }
         }
         
-        result = get_documents_from_es('test_index', mock_es_core)
+        result = get_documents_from_es('test_index', mock_vdb_core)
         assert result == {}
     
     def test_get_documents_from_es_error(self):
         """Test ES retrieval error handling"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.side_effect = Exception("ES error")
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.side_effect = Exception("ES error")
         
         with pytest.raises(Exception, match="Failed to retrieve documents from Elasticsearch"):
-            get_documents_from_es('test_index', mock_es_core)
+            get_documents_from_es('test_index', mock_vdb_core)
 
 
 class TestProcessDocumentsForClustering:
@@ -105,8 +105,8 @@ class TestProcessDocumentsForClustering:
         }
         mock_calc_emb.return_value = np.array([0.1, 0.2, 0.3])
         
-        mock_es_core = MagicMock()
-        docs, embeddings = process_documents_for_clustering('test_index', mock_es_core)
+        mock_vdb_core = MagicMock()
+        docs, embeddings = process_documents_for_clustering('test_index', mock_vdb_core)
         
         assert isinstance(docs, dict)
         assert isinstance(embeddings, dict)
@@ -118,8 +118,8 @@ class TestProcessDocumentsForClustering:
         """Test processing with no documents"""
         mock_get_docs.return_value = {}
         
-        mock_es_core = MagicMock()
-        docs, embeddings = process_documents_for_clustering('test_index', mock_es_core)
+        mock_vdb_core = MagicMock()
+        docs, embeddings = process_documents_for_clustering('test_index', mock_vdb_core)
         
         assert docs == {}
         assert embeddings == {}
@@ -318,10 +318,10 @@ class TestAdditionalCoverage:
     
     def test_get_documents_from_es_non_list_documents(self):
         """Test ES retrieval when all_documents is not a list"""
-        mock_es_core = MagicMock()
+        mock_vdb_core = MagicMock()
         
         # Mock the first search call to return a tuple instead of list
-        mock_es_core.client.search.side_effect = [
+        mock_vdb_core.client.search.side_effect = [
             {
                 'aggregations': {
                     'unique_documents': {
@@ -347,13 +347,13 @@ class TestAdditionalCoverage:
             }
         ]
         
-        result = get_documents_from_es('test_index', mock_es_core)
+        result = get_documents_from_es('test_index', mock_vdb_core)
         assert isinstance(result, dict)
     
     def test_get_documents_from_es_no_chunks(self):
         """Test ES retrieval when document has no chunks"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.side_effect = [
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.client.search.side_effect = [
             {
                 'aggregations': {
                     'unique_documents': {
@@ -370,7 +370,7 @@ class TestAdditionalCoverage:
             }
         ]
         
-        result = get_documents_from_es('test_index', mock_es_core)
+        result = get_documents_from_es('test_index', mock_vdb_core)
         assert result == {}  # Should return empty dict when no chunks
     
     def test_calculate_document_embedding_exception(self):
@@ -428,16 +428,16 @@ class TestAdditionalCoverage:
     
     def test_process_documents_for_clustering_exception(self):
         """Test process_documents_for_clustering with exception"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.side_effect = Exception("ES error")
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.side_effect = Exception("ES error")
         
         with pytest.raises(Exception, match="Failed to process documents"):
-            process_documents_for_clustering('test_index', mock_es_core)
+            process_documents_for_clustering('test_index', mock_vdb_core)
     
     def test_process_documents_for_clustering_no_embeddings(self):
         """Test process_documents_for_clustering when some documents fail embedding calculation"""
-        mock_es_core = MagicMock()
-        mock_es_core.client.search.return_value = {
+        mock_vdb_core = MagicMock()
+        mock_vdb_core.search.return_value = {
             'aggregations': {
                 'unique_documents': {
                     'buckets': [
@@ -463,7 +463,7 @@ class TestAdditionalCoverage:
         with patch('backend.utils.document_vector_utils.calculate_document_embedding') as mock_calc:
             mock_calc.return_value = None
             
-            docs, embeddings = process_documents_for_clustering('test_index', mock_es_core)
+            docs, embeddings = process_documents_for_clustering('test_index', mock_vdb_core)
             assert isinstance(docs, dict)
             assert isinstance(embeddings, dict)
             assert len(embeddings) == 0  # No successful embeddings

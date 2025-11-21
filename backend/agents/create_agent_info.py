@@ -9,7 +9,11 @@ from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 from nexent.memory.memory_service import search_memory_in_levels
 
-from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
+from services.vectordatabase_service import (
+    ElasticSearchService,
+    get_vector_db_core,
+    get_embedding_model,
+)
 from services.tenant_config_service import get_selected_knowledge_list
 from services.remote_mcp_service import get_remote_mcp_server_list
 from services.memory_config_service import build_memory_context
@@ -227,9 +231,11 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
                 tenant_id=tenant_id, user_id=user_id)
             index_names = [knowledge_info.get(
                 "index_name") for knowledge_info in knowledge_info_list]
-            tool_config.metadata = {"index_names": index_names,
-                                    "es_core": elastic_core,
-                                    "embedding_model": get_embedding_model(tenant_id=tenant_id)}
+            tool_config.metadata = {
+                "index_names": index_names,
+                "vdb_core": get_vector_db_core(),
+                "embedding_model": get_embedding_model(tenant_id=tenant_id),
+            }
         tool_config_list.append(tool_config)
 
     return tool_config_list

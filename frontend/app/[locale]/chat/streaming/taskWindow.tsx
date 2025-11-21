@@ -665,6 +665,7 @@ const messageHandlers: MessageHandler[] = [
           content={message.content}
           className="task-message-content"
           showDiagramToggle={false}
+          enableMultimodal={false}
         />
       </div>
     ),
@@ -759,6 +760,7 @@ const messageHandlers: MessageHandler[] = [
             content={content}
             className="task-message-content"
             showDiagramToggle={false}
+            enableMultimodal={false}
           />
         );
       } else {

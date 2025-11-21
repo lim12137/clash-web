@@ -66,11 +66,23 @@ class NexentAgent:
             raise ValueError(f"{class_name} not found in local")
         else:
             if class_name == "KnowledgeBaseSearchTool":
-                tools_obj = tool_class(index_names=tool_config.metadata.get("index_names", []),
-                                       observer=self.observer,
-                                       es_core=tool_config.metadata.get("es_core", []),
-                                       embedding_model=tool_config.metadata.get("embedding_model", []),
-                                       **params)
+                # Filter out conflicting parameters from params to avoid conflicts
+                # These parameters have exclude=True and cannot be passed to __init__
+                # due to smolagents.tools.Tool wrapper restrictions
+                filtered_params = {k: v for k, v in params.items()
+                                   if k not in ["index_names", "vdb_core", "embedding_model", "observer"]}
+                # Create instance with only non-excluded parameters
+                tools_obj = tool_class(**filtered_params)
+                # Set excluded parameters directly as attributes after instantiation
+                # This bypasses smolagents wrapper restrictions
+                tools_obj.observer = self.observer
+                index_names = tool_config.metadata.get(
+                    "index_names", None) if tool_config.metadata else None
+                tools_obj.index_names = [] if index_names is None else index_names
+                tools_obj.vdb_core = tool_config.metadata.get(
+                    "vdb_core", None) if tool_config.metadata else None
+                tools_obj.embedding_model = tool_config.metadata.get(
+                    "embedding_model", None) if tool_config.metadata else None
             else:
                 tools_obj = tool_class(**params)
                 if hasattr(tools_obj, 'observer'):
