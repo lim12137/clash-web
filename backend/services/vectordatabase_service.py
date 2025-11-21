@@ -741,6 +741,7 @@ class ElasticSearchService:
             index_name: Name of the index to summarize
             batch_size: Number of documents to sample (default: 1000)
             vdb_core: VectorDatabaseCore instance
+            user_id: ID of the user delete the knowledge base
             tenant_id: ID of the tenant
             language: Language of the summary (default: 'zh')
             model_id: Model ID for LLM summarization
@@ -762,32 +763,45 @@ class ElasticSearchService:
             # Use new Map-Reduce approach
             sample_count = min(batch_size // 5, 200)  # Sample reasonable number of documents
             
-            # Step 1: Get documents and calculate embeddings
-            document_samples, doc_embeddings = process_documents_for_clustering(
-                index_name=index_name,
-                vdb_core=vdb_core,
-                sample_doc_count=sample_count
-            )
+            # Define a helper function to run all blocking operations in a thread pool
+            def _generate_summary_sync():
+                """Synchronous function that performs all blocking operations"""
+                # Step 1: Get documents and calculate embeddings
+                document_samples, doc_embeddings = process_documents_for_clustering(
+                    index_name=index_name,
+                    vdb_core=vdb_core,
+                    sample_doc_count=sample_count
+                )
+                
+                if not document_samples:
+                    raise Exception("No documents found in index.")
+                
+                # Step 2: Cluster documents (CPU-intensive operation)
+                clusters = kmeans_cluster_documents(doc_embeddings, k=None)
+                
+                # Step 3: Map-Reduce summarization (contains blocking LLM calls)
+                cluster_summaries = summarize_clusters_map_reduce(
+                    document_samples=document_samples,
+                    clusters=clusters,
+                    language=language,
+                    doc_max_words=100,
+                    cluster_max_words=150,
+                    model_id=model_id,
+                    tenant_id=tenant_id
+                )
+                
+                # Step 4: Merge into final summary
+                final_summary = merge_cluster_summaries(cluster_summaries)
+                return final_summary
             
-            if not document_samples:
-                raise Exception("No documents found in index.")
-            
-            # Step 2: Cluster documents
-            clusters = kmeans_cluster_documents(doc_embeddings, k=None)
-            
-            # Step 3: Map-Reduce summarization
-            cluster_summaries = summarize_clusters_map_reduce(
-                document_samples=document_samples,
-                clusters=clusters,
-                language=language,
-                doc_max_words=100,
-                cluster_max_words=150,
-                model_id=model_id,
-                tenant_id=tenant_id
-            )
-            
-            # Step 4: Merge into final summary
-            final_summary = merge_cluster_summaries(cluster_summaries)
+            # Run blocking operations in a thread pool to avoid blocking the event loop
+            # Use get_running_loop() for better compatibility with modern asyncio
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # Fallback for edge cases
+                loop = asyncio.get_event_loop()
+            final_summary = await loop.run_in_executor(None, _generate_summary_sync)
             
             # Stream the result
             async def generate_summary():
