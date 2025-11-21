@@ -45,10 +45,12 @@ function getMenuKeyFromPathname(pathname: string): string {
     'chat': '1',       // Start chat (separate page)
     'setup': '2',      // Quick config
     'space': '3',      // Agent space
+    'market': '4',     // Agent market
     'agents': '5',     // Agent dev
     'knowledges': '6', // Knowledge base
     'models': '7',     // Model management
     'memory': '8',     // Memory management
+    'users': '9',      // User management
   };
   
   return pathToKeyMap[pathWithoutLocale] || '0';
@@ -79,10 +81,12 @@ export function SideNavigation({
         'chat': '1',
         'setup': '2',
         'space': '3',
+        'market': '4',
         'agents': '5',
         'knowledges': '6',
         'models': '7',
         'memory': '8',
+        'users': '9',
       };
       setSelectedKey(viewToKeyMap[currentView] || '0');
     } else {
@@ -142,6 +146,13 @@ export function SideNavigation({
       key: "4",
       icon: <ShoppingBag className="h-4 w-4" />,
       label: t("sidebar.agentMarket"),
+      onClick: () => {
+        if (!isSpeedMode && !user) {
+          onAuthRequired?.();
+        } else {
+          onViewChange?.("market");
+        }
+      },
     },
     {
       key: "5",
@@ -199,7 +210,6 @@ export function SideNavigation({
         if (!isSpeedMode && user?.role !== "admin") {
           onAdminRequired?.();
         } else {
-          // TODO: Implement user management view
           onViewChange?.("users");
         }
       },
