@@ -193,6 +193,8 @@ class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
     model_id: int
+    tool_ids: Optional[List[int]] = None  # Optional: tool IDs from frontend (takes precedence over database query)
+    sub_agent_ids: Optional[List[int]] = None  # Optional: sub-agent IDs from frontend (takes precedence over database query)
 
 
 class GenerateTitleRequest(BaseModel):

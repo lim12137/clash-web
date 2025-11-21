@@ -1093,6 +1093,8 @@ export const ModelAddDialog = ({
         open={settingsModalVisible}
         onCancel={() => setSettingsModalVisible(false)}
         onOk={handleSettingsSave}
+        cancelText={t("common.cancel")}
+        okText={t("common.ok")}
         destroyOnClose
       >
         <div className="space-y-3">

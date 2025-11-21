@@ -86,6 +86,15 @@ module_mocks = {
     "openai.types.chat.chat_completion_message_param": MagicMock(),
     # Mock exa_py to avoid importing the real package when sdk.nexent.core.tools imports it
     "exa_py": MagicMock(Exa=MagicMock()),
+    # Mock paramiko and cryptography to avoid PyO3 import issues in tests
+    "paramiko": MagicMock(),
+    "cryptography": MagicMock(),
+    "cryptography.hazmat": MagicMock(),
+    "cryptography.hazmat.primitives": MagicMock(),
+    "cryptography.hazmat.primitives.ciphers": MagicMock(),
+    "cryptography.hazmat.primitives.ciphers.base": MagicMock(),
+    "cryptography.hazmat.bindings": MagicMock(),
+    "cryptography.hazmat.bindings._rust": MagicMock(),
     # Mock the OpenAIModel import
     "sdk.nexent.core.models.openai_llm": MagicMock(OpenAIModel=mock_openai_model_class),
     # Mock CoreAgent import
@@ -100,6 +109,7 @@ module_mocks = {
 # ---------------------------------------------------------------------------
 with patch.dict("sys.modules", module_mocks):
     from sdk.nexent.core.utils.observer import MessageObserver, ProcessType
+    from sdk.nexent.core.agents import nexent_agent
     from sdk.nexent.core.agents.nexent_agent import NexentAgent, ActionStep, TaskStep
     from sdk.nexent.core.agents.agent_model import ToolConfig, ModelConfig, AgentConfig
 
@@ -445,6 +455,236 @@ def test_create_tool_with_local_source(nexent_agent_instance):
 
     mock_create_local_tool.assert_called_once_with(tool_config)
     assert result == "local_tool"
+
+
+def test_create_local_tool_success(nexent_agent_instance):
+    """Test successful creation of a local tool."""
+    mock_tool_class = MagicMock()
+    mock_tool_instance = MagicMock()
+    mock_tool_class.return_value = mock_tool_instance
+
+    tool_config = ToolConfig(
+        class_name="DummyTool",
+        name="dummy",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={"param1": "value1", "param2": 42},
+        source="local",
+        metadata={},
+    )
+
+    # Patch the module's globals to include our mock tool class
+    original_value = nexent_agent.__dict__.get("DummyTool")
+    nexent_agent.__dict__["DummyTool"] = mock_tool_class
+
+    try:
+        result = nexent_agent_instance.create_local_tool(tool_config)
+    finally:
+        # Restore original value
+        if original_value is not None:
+            nexent_agent.__dict__["DummyTool"] = original_value
+        elif "DummyTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["DummyTool"]
+
+    mock_tool_class.assert_called_once_with(param1="value1", param2=42)
+    assert result == mock_tool_instance
+
+
+def test_create_local_tool_class_not_found(nexent_agent_instance):
+    """Test create_local_tool raises ValueError when class is not found."""
+    tool_config = ToolConfig(
+        class_name="NonExistentTool",
+        name="dummy",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={},
+        source="local",
+        metadata={},
+    )
+
+    with pytest.raises(ValueError, match="NonExistentTool not found in local"):
+        nexent_agent_instance.create_local_tool(tool_config)
+
+
+def test_create_local_tool_knowledge_base_search_tool_success(nexent_agent_instance):
+    """Test successful creation of KnowledgeBaseSearchTool with metadata."""
+    mock_kb_tool_class = MagicMock()
+    mock_kb_tool_instance = MagicMock()
+    mock_kb_tool_class.return_value = mock_kb_tool_instance
+
+    mock_vdb_core = MagicMock()
+    mock_embedding_model = MagicMock()
+
+    tool_config = ToolConfig(
+        class_name="KnowledgeBaseSearchTool",
+        name="knowledge_base_search",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={"top_k": 10},
+        source="local",
+        metadata={
+            "index_names": ["index1", "index2"],
+            "vdb_core": mock_vdb_core,
+            "embedding_model": mock_embedding_model,
+        },
+    )
+
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+
+    try:
+        result = nexent_agent_instance.create_local_tool(tool_config)
+    finally:
+        # Restore original value
+        if original_value is not None:
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
+
+    # Verify only non-excluded params are passed to __init__
+    mock_kb_tool_class.assert_called_once_with(
+        top_k=10,  # Only non-excluded params passed to __init__
+    )
+    # Verify excluded parameters were set directly as attributes after instantiation
+    assert result == mock_kb_tool_instance
+    assert mock_kb_tool_instance.observer == nexent_agent_instance.observer
+    assert mock_kb_tool_instance.index_names == ["index1", "index2"]
+    assert mock_kb_tool_instance.vdb_core == mock_vdb_core
+    assert mock_kb_tool_instance.embedding_model == mock_embedding_model
+
+
+def test_create_local_tool_knowledge_base_search_tool_with_conflicting_params(nexent_agent_instance):
+    """Test KnowledgeBaseSearchTool creation filters out conflicting params from params dict."""
+    mock_kb_tool_class = MagicMock()
+    mock_kb_tool_instance = MagicMock()
+    mock_kb_tool_class.return_value = mock_kb_tool_instance
+
+    mock_vdb_core = MagicMock()
+    mock_embedding_model = MagicMock()
+
+    tool_config = ToolConfig(
+        class_name="KnowledgeBaseSearchTool",
+        name="knowledge_base_search",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={
+            "top_k": 10,
+            "index_names": ["conflicting_index"],  # This should be filtered out
+            "vdb_core": "conflicting_vdb",  # This should be filtered out
+            "embedding_model": "conflicting_model",  # This should be filtered out
+            "observer": "conflicting_observer",  # This should be filtered out
+        },
+        source="local",
+        metadata={
+            "index_names": ["index1", "index2"],  # These should be used instead
+            "vdb_core": mock_vdb_core,
+            "embedding_model": mock_embedding_model,
+        },
+    )
+
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+
+    try:
+        result = nexent_agent_instance.create_local_tool(tool_config)
+    finally:
+        # Restore original value
+        if original_value is not None:
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
+
+    # Verify conflicting params were filtered out from __init__ call
+    # Only non-excluded params should be passed to __init__ due to smolagents wrapper restrictions
+    mock_kb_tool_class.assert_called_once_with(
+        top_k=10,  # From filtered_params (not in conflict list)
+    )
+    # Verify excluded parameters were set directly as attributes after instantiation
+    assert result == mock_kb_tool_instance
+    assert mock_kb_tool_instance.observer == nexent_agent_instance.observer
+    assert mock_kb_tool_instance.index_names == ["index1", "index2"]  # From metadata, not params
+    assert mock_kb_tool_instance.vdb_core == mock_vdb_core  # From metadata, not params
+    assert mock_kb_tool_instance.embedding_model == mock_embedding_model  # From metadata, not params
+
+
+def test_create_local_tool_knowledge_base_search_tool_with_none_defaults(nexent_agent_instance):
+    """Test KnowledgeBaseSearchTool creation with None defaults when metadata is missing."""
+    mock_kb_tool_class = MagicMock()
+    mock_kb_tool_instance = MagicMock()
+    mock_kb_tool_class.return_value = mock_kb_tool_instance
+
+    tool_config = ToolConfig(
+        class_name="KnowledgeBaseSearchTool",
+        name="knowledge_base_search",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={"top_k": 5},
+        source="local",
+        metadata={},  # No metadata provided
+    )
+
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+
+    try:
+        result = nexent_agent_instance.create_local_tool(tool_config)
+    finally:
+        # Restore original value
+        if original_value is not None:
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
+
+    # Verify only non-excluded params are passed to __init__
+    mock_kb_tool_class.assert_called_once_with(
+        top_k=5,
+    )
+    # Verify excluded parameters were set directly as attributes with None defaults when metadata is missing
+    assert result == mock_kb_tool_instance
+    assert mock_kb_tool_instance.observer == nexent_agent_instance.observer
+    assert mock_kb_tool_instance.index_names == []  # Empty list when None
+    assert mock_kb_tool_instance.vdb_core is None
+    assert mock_kb_tool_instance.embedding_model is None
+    assert result == mock_kb_tool_instance
+
+
+def test_create_local_tool_with_observer_attribute(nexent_agent_instance):
+    """Test create_local_tool sets observer attribute on tool if it exists."""
+    mock_tool_class = MagicMock()
+    mock_tool_instance = MagicMock()
+    mock_tool_instance.observer = None  # Initially no observer
+    mock_tool_class.return_value = mock_tool_instance
+
+    tool_config = ToolConfig(
+        class_name="ToolWithObserver",
+        name="tool",
+        description="desc",
+        inputs="{}",
+        output_type="string",
+        params={},
+        source="local",
+        metadata={},
+    )
+
+    original_value = nexent_agent.__dict__.get("ToolWithObserver")
+    nexent_agent.__dict__["ToolWithObserver"] = mock_tool_class
+
+    try:
+        result = nexent_agent_instance.create_local_tool(tool_config)
+    finally:
+        # Restore original value
+        if original_value is not None:
+            nexent_agent.__dict__["ToolWithObserver"] = original_value
+        elif "ToolWithObserver" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["ToolWithObserver"]
+
+    # Verify observer was set on the tool instance
+    assert result.observer == nexent_agent_instance.observer
 
 
 def test_create_tool_with_mcp_source(nexent_agent_instance):

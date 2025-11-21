@@ -65,69 +65,59 @@ export default function ToolConfigModal({
 
   // load tool config
   useEffect(() => {
+    const buildDefaultParams = () =>
+      (tool?.initParams || []).map((param) => ({
+        ...param,
+        value: param.value,
+      }));
+
     const loadToolConfig = async () => {
-      if (tool && mainAgentId) {
-        setIsLoading(true);
-        try {
-          const result = await searchToolConfig(parseInt(tool.id), mainAgentId);
-          if (result.success) {
-            if (result.data?.params) {
-              // use backend returned config content
-              const savedParams = tool.initParams.map((param) => {
-                // if backend returned config has this param value, use backend returned value
-                // otherwise use param default value
-                const savedValue = result.data.params[param.name];
-                return {
-                  ...param,
-                  value: savedValue !== undefined ? savedValue : param.value,
-                };
-              });
-              setCurrentParams(savedParams);
-            } else {
-              // if backend returned params is null, means no saved config, use default config
-              setCurrentParams(
-                tool.initParams.map((param) => ({
-                  ...param,
-                  value: param.value, // use default value
-                }))
-              );
-            }
-          } else {
-            message.error(result.message || t("toolConfig.message.loadError"));
-            // when load failed, use default config
-            setCurrentParams(
-              tool.initParams.map((param) => ({
-                ...param,
-                value: param.value,
-              }))
-            );
-          }
-        } catch (error) {
-          log.error(t("toolConfig.message.loadError"), error);
-          message.error(t("toolConfig.message.loadErrorUseDefault"));
-          // when error occurs, use default config
-          setCurrentParams(
-            tool.initParams.map((param) => ({
-              ...param,
-              value: param.value,
-            }))
-          );
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        // if there is no tool or mainAgentId, clear params
+      if (!tool) {
         setCurrentParams([]);
+        return;
+      }
+
+      // In creation mode we do not have an agent ID yet, so use the tool's default params.
+      if (!mainAgentId) {
+        setCurrentParams(buildDefaultParams());
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const result = await searchToolConfig(parseInt(tool.id), mainAgentId);
+        if (result.success) {
+          if (result.data?.params) {
+            const savedParams = tool.initParams.map((param) => {
+              const savedValue = result.data.params[param.name];
+              return {
+                ...param,
+                value: savedValue !== undefined ? savedValue : param.value,
+              };
+            });
+            setCurrentParams(savedParams);
+          } else {
+            setCurrentParams(buildDefaultParams());
+          }
+        } else {
+          message.error(result.message || t("toolConfig.message.loadError"));
+          setCurrentParams(buildDefaultParams());
+        }
+      } catch (error) {
+        log.error(t("toolConfig.message.loadError"), error);
+        message.error(t("toolConfig.message.loadErrorUseDefault"));
+        setCurrentParams(buildDefaultParams());
+      } finally {
+        setIsLoading(false);
       }
     };
 
     if (isOpen && tool) {
       loadToolConfig();
     } else {
-      // when modal is closed, clear params
       setCurrentParams([]);
     }
-  }, [isOpen, tool, mainAgentId, t]);
+  }, [isOpen, tool, mainAgentId, t, message]);
 
   // check required fields
   const checkRequiredFields = () => {
