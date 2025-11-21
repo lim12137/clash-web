@@ -1284,6 +1284,69 @@ class TestElasticSearchService(unittest.TestCase):
 
         self.assertIn("Unable to get summary", str(context.exception))
 
+    def test_get_index_chunks_filters_fields(self):
+        """
+        Test chunk retrieval filters unsupported fields and reports totals.
+        """
+        self.mock_vdb_core.get_index_chunks.return_value = {
+            "chunks": [
+                {"id": "1", "content": "A", "path_or_url": "/a", "extra": "ignore"},
+                {"content": "B", "create_time": "2024-01-01T00:00:00"}
+            ],
+            "total": 2,
+            "page": None,
+            "page_size": None,
+        }
+
+        result = ElasticSearchService.get_index_chunks(
+            index_name="kb-index",
+            vdb_core=self.mock_vdb_core
+        )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["chunks"][0], {"id": "1", "content": "A", "path_or_url": "/a"})
+        self.assertEqual(result["chunks"][1], {"content": "B", "create_time": "2024-01-01T00:00:00"})
+        self.mock_vdb_core.get_index_chunks.assert_called_once_with(
+            "kb-index",
+            page=None,
+            page_size=None,
+            path_or_url=None,
+        )
+
+    def test_get_index_chunks_keeps_non_dict_entries(self):
+        """
+        Test chunk retrieval keeps non-dict entries unchanged.
+        """
+        self.mock_vdb_core.get_index_chunks.return_value = {
+            "chunks": ["raw_chunk"],
+            "total": 1,
+            "page": 1,
+            "page_size": 1,
+        }
+
+        result = ElasticSearchService.get_index_chunks(
+            index_name="kb-index",
+            vdb_core=self.mock_vdb_core
+        )
+
+        self.assertEqual(result["chunks"], ["raw_chunk"])
+        self.assertEqual(result["total"], 1)
+
+    def test_get_index_chunks_error(self):
+        """
+        Test chunk retrieval error handling.
+        """
+        self.mock_vdb_core.get_index_chunks.side_effect = Exception("boom")
+
+        with self.assertRaises(Exception) as exc:
+            ElasticSearchService.get_index_chunks(
+                index_name="kb-index",
+                vdb_core=self.mock_vdb_core
+            )
+
+        self.assertIn("Error retrieving chunks from index kb-index: boom", str(exc.exception))
+
     @patch('backend.services.vectordatabase_service.get_knowledge_info_by_tenant_id')
     @patch('fastapi.Response')
     def test_list_indices_success_status_200(self, mock_response, mock_get_knowledge):
