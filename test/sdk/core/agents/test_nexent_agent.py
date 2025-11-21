@@ -86,6 +86,15 @@ module_mocks = {
     "openai.types.chat.chat_completion_message_param": MagicMock(),
     # Mock exa_py to avoid importing the real package when sdk.nexent.core.tools imports it
     "exa_py": MagicMock(Exa=MagicMock()),
+    # Mock paramiko and cryptography to avoid PyO3 import issues in tests
+    "paramiko": MagicMock(),
+    "cryptography": MagicMock(),
+    "cryptography.hazmat": MagicMock(),
+    "cryptography.hazmat.primitives": MagicMock(),
+    "cryptography.hazmat.primitives.ciphers": MagicMock(),
+    "cryptography.hazmat.primitives.ciphers.base": MagicMock(),
+    "cryptography.hazmat.bindings": MagicMock(),
+    "cryptography.hazmat.bindings._rust": MagicMock(),
     # Mock the OpenAIModel import
     "sdk.nexent.core.models.openai_llm": MagicMock(OpenAIModel=mock_openai_model_class),
     # Mock CoreAgent import
@@ -100,6 +109,7 @@ module_mocks = {
 # ---------------------------------------------------------------------------
 with patch.dict("sys.modules", module_mocks):
     from sdk.nexent.core.utils.observer import MessageObserver, ProcessType
+    from sdk.nexent.core.agents import nexent_agent
     from sdk.nexent.core.agents.nexent_agent import NexentAgent, ActionStep, TaskStep
     from sdk.nexent.core.agents.agent_model import ToolConfig, ModelConfig, AgentConfig
 
@@ -465,18 +475,17 @@ def test_create_local_tool_success(nexent_agent_instance):
     )
 
     # Patch the module's globals to include our mock tool class
-    import sdk.nexent.core.agents.nexent_agent as nexent_agent_module
-    original_value = nexent_agent_module.__dict__.get("DummyTool")
-    nexent_agent_module.__dict__["DummyTool"] = mock_tool_class
+    original_value = nexent_agent.__dict__.get("DummyTool")
+    nexent_agent.__dict__["DummyTool"] = mock_tool_class
 
     try:
         result = nexent_agent_instance.create_local_tool(tool_config)
     finally:
         # Restore original value
         if original_value is not None:
-            nexent_agent_module.__dict__["DummyTool"] = original_value
-        elif "DummyTool" in nexent_agent_module.__dict__:
-            del nexent_agent_module.__dict__["DummyTool"]
+            nexent_agent.__dict__["DummyTool"] = original_value
+        elif "DummyTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["DummyTool"]
 
     mock_tool_class.assert_called_once_with(param1="value1", param2=42)
     assert result == mock_tool_instance
@@ -523,18 +532,17 @@ def test_create_local_tool_knowledge_base_search_tool_success(nexent_agent_insta
         },
     )
 
-    import sdk.nexent.core.agents.nexent_agent as nexent_agent_module
-    original_value = nexent_agent_module.__dict__.get("KnowledgeBaseSearchTool")
-    nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
 
     try:
         result = nexent_agent_instance.create_local_tool(tool_config)
     finally:
         # Restore original value
         if original_value is not None:
-            nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = original_value
-        elif "KnowledgeBaseSearchTool" in nexent_agent_module.__dict__:
-            del nexent_agent_module.__dict__["KnowledgeBaseSearchTool"]
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
 
     # Verify only non-excluded params are passed to __init__
     mock_kb_tool_class.assert_called_once_with(
@@ -578,18 +586,17 @@ def test_create_local_tool_knowledge_base_search_tool_with_conflicting_params(ne
         },
     )
 
-    import sdk.nexent.core.agents.nexent_agent as nexent_agent_module
-    original_value = nexent_agent_module.__dict__.get("KnowledgeBaseSearchTool")
-    nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
 
     try:
         result = nexent_agent_instance.create_local_tool(tool_config)
     finally:
         # Restore original value
         if original_value is not None:
-            nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = original_value
-        elif "KnowledgeBaseSearchTool" in nexent_agent_module.__dict__:
-            del nexent_agent_module.__dict__["KnowledgeBaseSearchTool"]
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
 
     # Verify conflicting params were filtered out from __init__ call
     # Only non-excluded params should be passed to __init__ due to smolagents wrapper restrictions
@@ -621,18 +628,17 @@ def test_create_local_tool_knowledge_base_search_tool_with_none_defaults(nexent_
         metadata={},  # No metadata provided
     )
 
-    import sdk.nexent.core.agents.nexent_agent as nexent_agent_module
-    original_value = nexent_agent_module.__dict__.get("KnowledgeBaseSearchTool")
-    nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
+    original_value = nexent_agent.__dict__.get("KnowledgeBaseSearchTool")
+    nexent_agent.__dict__["KnowledgeBaseSearchTool"] = mock_kb_tool_class
 
     try:
         result = nexent_agent_instance.create_local_tool(tool_config)
     finally:
         # Restore original value
         if original_value is not None:
-            nexent_agent_module.__dict__["KnowledgeBaseSearchTool"] = original_value
-        elif "KnowledgeBaseSearchTool" in nexent_agent_module.__dict__:
-            del nexent_agent_module.__dict__["KnowledgeBaseSearchTool"]
+            nexent_agent.__dict__["KnowledgeBaseSearchTool"] = original_value
+        elif "KnowledgeBaseSearchTool" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["KnowledgeBaseSearchTool"]
 
     # Verify only non-excluded params are passed to __init__
     mock_kb_tool_class.assert_called_once_with(
@@ -665,18 +671,17 @@ def test_create_local_tool_with_observer_attribute(nexent_agent_instance):
         metadata={},
     )
 
-    import sdk.nexent.core.agents.nexent_agent as nexent_agent_module
-    original_value = nexent_agent_module.__dict__.get("ToolWithObserver")
-    nexent_agent_module.__dict__["ToolWithObserver"] = mock_tool_class
+    original_value = nexent_agent.__dict__.get("ToolWithObserver")
+    nexent_agent.__dict__["ToolWithObserver"] = mock_tool_class
 
     try:
         result = nexent_agent_instance.create_local_tool(tool_config)
     finally:
         # Restore original value
         if original_value is not None:
-            nexent_agent_module.__dict__["ToolWithObserver"] = original_value
-        elif "ToolWithObserver" in nexent_agent_module.__dict__:
-            del nexent_agent_module.__dict__["ToolWithObserver"]
+            nexent_agent.__dict__["ToolWithObserver"] = original_value
+        elif "ToolWithObserver" in nexent_agent.__dict__:
+            del nexent_agent.__dict__["ToolWithObserver"]
 
     # Verify observer was set on the tool instance
     assert result.observer == nexent_agent_instance.observer
