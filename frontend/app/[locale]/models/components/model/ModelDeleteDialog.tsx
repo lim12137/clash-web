@@ -1059,6 +1059,8 @@ export const ModelDeleteDialog = ({
         open={settingsModalVisible}
         onCancel={() => setSettingsModalVisible(false)}
         onOk={handleSettingsSave}
+        cancelText={t("common.button.cancel")}
+        okText={t("common.button.save")}
         destroyOnClose
       >
         <div className="space-y-3">
