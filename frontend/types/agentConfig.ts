@@ -1,4 +1,6 @@
 // Agent Configuration Types
+import type { Dispatch, SetStateAction } from "react";
+
 import { ChatMessageType } from "./chat";
 import { ModelOption } from "@/types/modelConfig";
 import { GENERATE_PROMPT_STREAM_TYPES } from "../const/agentConfig";
@@ -90,7 +92,7 @@ export interface AgentSetupOrchestratorProps {
   setBusinessLogic: (value: string) => void;
   businessLogicError?: boolean;
   selectedTools: Tool[];
-  setSelectedTools: (tools: Tool[]) => void;
+  setSelectedTools: Dispatch<SetStateAction<Tool[]>>;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
   mainAgentModel: string | null;
@@ -162,6 +164,7 @@ export interface SubAgentPoolProps {
 export interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
+  onToolConfigSave?: (tool: Tool) => void;
   tools?: Tool[];
   loadingTools?: boolean;
   mainAgentId?: string | null;
@@ -171,6 +174,7 @@ export interface ToolPoolProps {
   isGeneratingAgent?: boolean;
   isEmbeddingConfigured?: boolean;
   agentUnavailableReasons?: string[];
+  toolConfigDrafts?: Record<string, ToolParam[]>;
 }
 
 // Simple prompt editor props interface
@@ -199,7 +203,7 @@ export interface ToolConfigModalProps {
   onCancel: () => void;
   onSave: (tool: Tool) => void;
   tool: Tool | null;
-  mainAgentId: number;
+  mainAgentId?: number | null;
   selectedTools?: Tool[];
   isEditingMode?: boolean;
 }
