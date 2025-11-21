@@ -162,6 +162,7 @@ export interface SubAgentPoolProps {
 export interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
+  onToolConfigSave?: (tool: Tool) => void;
   tools?: Tool[];
   loadingTools?: boolean;
   mainAgentId?: string | null;
@@ -171,6 +172,7 @@ export interface ToolPoolProps {
   isGeneratingAgent?: boolean;
   isEmbeddingConfigured?: boolean;
   agentUnavailableReasons?: string[];
+  toolConfigDrafts?: Record<string, ToolParam[]>;
 }
 
 // Simple prompt editor props interface
@@ -199,7 +201,7 @@ export interface ToolConfigModalProps {
   onCancel: () => void;
   onSave: (tool: Tool) => void;
   tool: Tool | null;
-  mainAgentId: number;
+  mainAgentId?: number | null;
   selectedTools?: Tool[];
   isEditingMode?: boolean;
 }
