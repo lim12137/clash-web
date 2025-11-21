@@ -35,6 +35,9 @@ from services.redis_service import get_redis_service
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 
+ALLOWED_CHUNK_FIELDS = {"filename",
+                        "path_or_url", "content", "create_time", "id"}
+
 # Configure logging
 logger = logging.getLogger("vectordatabase_service")
 
@@ -572,7 +575,8 @@ class ElasticSearchService:
                     'file_size': file_info.get('file_size', 0),
                     'create_time': int(utc_create_timestamp * 1000),
                     'status': "COMPLETED",
-                    'latest_task_id': ''
+                    'latest_task_id': '',
+                    'chunk_count': file_info.get('chunk_count', 0)
                 }
                 files.append(file_data)
 
@@ -630,7 +634,7 @@ class ElasticSearchService:
                 # Initialize chunks for all files
                 for file_data in files:
                     file_data['chunks'] = []
-                    file_data['chunk_count'] = 0
+                    file_data['chunk_count'] = file_data.get('chunk_count', 0)
 
                 if msearch_body:
                     try:
@@ -667,7 +671,7 @@ class ElasticSearchService:
             else:
                 for file_data in files:
                     file_data['chunks'] = []
-                    file_data['chunk_count'] = 0
+                    file_data['chunk_count'] = file_data.get('chunk_count', 0)
 
             return {"files": files}
 
@@ -918,4 +922,63 @@ class ElasticSearchService:
             raise Exception(error_detail)
         except Exception as e:
             error_msg = f"Failed to get summary: {str(e)}"
+            raise Exception(error_msg)
+
+    @staticmethod
+    def get_index_chunks(
+        index_name: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        path_or_url: Optional[str] = None,
+        vdb_core: VectorDatabaseCore = Depends(get_vector_db_core),
+    ):
+        """
+        Retrieve chunk records for the specified index with optional pagination.
+
+        Args:
+            index_name: Name of the index to query
+            page: Page number (1-based) when paginating
+            page_size: Page size when paginating
+            path_or_url: Optional document filter
+            vdb_core: VectorDatabaseCore instance
+
+        Returns:
+            Dictionary containing status, chunk list, total, and pagination metadata
+        """
+        try:
+            result = vdb_core.get_index_chunks(
+                index_name,
+                page=page,
+                page_size=page_size,
+                path_or_url=path_or_url,
+            )
+            raw_chunks = result.get("chunks", [])
+            total = result.get("total", len(raw_chunks))
+            result_page = result.get("page", page)
+            result_page_size = result.get("page_size", page_size)
+
+            filtered_chunks: List[Any] = []
+            for chunk in raw_chunks:
+                if isinstance(chunk, dict):
+                    filtered_chunks.append(
+                        {
+                            field: chunk.get(field)
+                            for field in ALLOWED_CHUNK_FIELDS
+                            if field in chunk
+                        }
+                    )
+                else:
+                    filtered_chunks.append(chunk)
+
+            return {
+                "status": "success",
+                "message": f"Successfully retrieved {len(filtered_chunks)} chunks from index {index_name}",
+                "chunks": filtered_chunks,
+                "total": total,
+                "page": result_page,
+                "page_size": result_page_size
+            }
+        except Exception as e:
+            error_msg = f"Error retrieving chunks from index {index_name}: {str(e)}"
+            logger.error(error_msg)
             raise Exception(error_msg)

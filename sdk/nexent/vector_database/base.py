@@ -110,6 +110,28 @@ class VectorDatabaseCore(ABC):
         pass
 
     @abstractmethod
+    def get_index_chunks(
+        self,
+        index_name: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        path_or_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve chunk records for the specified index with optional pagination.
+
+        Args:
+            index_name: Name of the index to query
+            page: Page number to return (1-based). If None, all chunks are returned.
+            page_size: Page size for pagination. Must be provided together with page.
+            path_or_url: Optional filter for a specific document path or URL.
+
+        Returns:
+            Dict containing chunks, total count, and pagination metadata
+        """
+        pass
+
+    @abstractmethod
     def count_documents(self, index_name: str) -> int:
         """
         Count the total number of documents in an index.

@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import time
 from typing import List, Dict, Any
+from elasticsearch import exceptions
 
 # Import the class under test
 from sdk.nexent.vector_database.elasticsearch_core import ElasticSearchCore
@@ -445,8 +446,6 @@ def test_delete_index_success(elasticsearch_core_instance):
 
 def test_delete_index_not_found(elasticsearch_core_instance):
     """Test deleting an index that doesn't exist."""
-    from elasticsearch import exceptions
-
     with patch.object(elasticsearch_core_instance.client.indices, 'delete') as mock_delete:
         mock_delete.side_effect = exceptions.NotFoundError(
             "Index not found", {}, {})
@@ -574,6 +573,97 @@ def test_delete_documents_success(elasticsearch_core_instance):
         mock_delete.assert_called_once()
 
 
+def test_get_index_chunks_success(elasticsearch_core_instance):
+    """Test fetching chunks via scroll API."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.count.return_value = {"count": 2}
+    elasticsearch_core_instance.client.search.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {
+            "hits": [
+                {"_id": "doc-1", "_source": {"id": "chunk-1", "content": "A"}},
+                {"_id": "doc-2", "_source": {"content": "B"}}
+            ]
+        }
+    }
+    elasticsearch_core_instance.client.scroll.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {"hits": []}
+    }
+
+    result = elasticsearch_core_instance.get_index_chunks("kb-index")
+
+    assert result["chunks"] == [
+        {"id": "chunk-1", "content": "A"},
+        {"content": "B", "id": "doc-2"}
+    ]
+    assert result["total"] == 2
+    elasticsearch_core_instance.client.search.assert_called_once()
+    elasticsearch_core_instance.client.scroll.assert_called_once_with(scroll_id="scroll123", scroll="2m")
+    elasticsearch_core_instance.client.clear_scroll.assert_called_once_with(scroll_id="scroll123")
+
+
+def test_get_index_chunks_paginated(elasticsearch_core_instance):
+    """Test fetching chunks with pagination parameters."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.count.return_value = {"count": 5}
+    elasticsearch_core_instance.client.search.return_value = {
+        "hits": {
+            "hits": [
+                {"_id": "doc-2", "_source": {"content": "B"}},
+            ]
+        }
+    }
+
+    result = elasticsearch_core_instance.get_index_chunks(
+        "kb-index", page=2, page_size=1)
+
+    assert result["chunks"] == [{"content": "B", "id": "doc-2"}]
+    assert result["page"] == 2
+    assert result["page_size"] == 1
+    assert result["total"] == 5
+    elasticsearch_core_instance.client.scroll.assert_not_called()
+    elasticsearch_core_instance.client.clear_scroll.assert_not_called()
+
+
+def test_get_index_chunks_not_found(elasticsearch_core_instance):
+    """Test fetching chunks when index does not exist."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.count.side_effect = exceptions.NotFoundError(
+        404, "not found", {})
+
+    chunks = elasticsearch_core_instance.get_index_chunks("missing-index")
+
+    assert chunks == {"chunks": [], "total": 0,
+                      "page": None, "page_size": None}
+    elasticsearch_core_instance.client.clear_scroll.assert_not_called()
+
+
+def test_get_index_chunks_cleanup_failure(elasticsearch_core_instance):
+    """Test cleanup warning path when clear_scroll raises."""
+    elasticsearch_core_instance.client = MagicMock()
+    elasticsearch_core_instance.client.count.return_value = {"count": 1}
+    elasticsearch_core_instance.client.search.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {
+            "hits": [
+                {"_id": "doc-1", "_source": {"content": "A"}}
+            ]
+        }
+    }
+    elasticsearch_core_instance.client.scroll.return_value = {
+        "_scroll_id": "scroll123",
+        "hits": {"hits": []}
+    }
+    elasticsearch_core_instance.client.clear_scroll.side_effect = Exception("cleanup error")
+
+    chunks = elasticsearch_core_instance.get_index_chunks("kb-index")
+
+    assert len(chunks["chunks"]) == 1
+    assert chunks["chunks"][0]["id"] == "doc-1"
+    elasticsearch_core_instance.client.clear_scroll.assert_called_once_with(scroll_id="scroll123")
+
+
 # ----------------------------------------------------------------------------
 # Tests for search operations
 # ----------------------------------------------------------------------------
@@ -608,6 +698,32 @@ def test_accurate_search_success(elasticsearch_core_instance):
         mock_exec.assert_called_once()
 
 
+def test_accurate_search_builds_multi_index_query(elasticsearch_core_instance):
+    """Ensure accurate_search joins indices and applies top_k sizing."""
+    with patch.object(elasticsearch_core_instance, 'exec_query') as mock_exec, \
+            patch('sdk.nexent.vector_database.elasticsearch_core.calculate_term_weights') as mock_weights, \
+            patch('sdk.nexent.vector_database.elasticsearch_core.build_weighted_query') as mock_build:
+
+        mock_weights.return_value = {"test": 0.5}
+        mock_build.return_value = {"query": {"match_all": {}}}
+        mock_exec.return_value = []
+
+        elasticsearch_core_instance.accurate_search(
+            ["index_a", "index_b"],
+            "multi query",
+            top_k=7,
+        )
+
+        mock_weights.assert_called_once_with("multi query")
+        mock_build.assert_called_once_with("multi query", {"test": 0.5})
+        mock_exec.assert_called_once()
+
+        index_pattern, search_query = mock_exec.call_args[0]
+        assert index_pattern == "index_a,index_b"
+        assert search_query["size"] == 7
+        assert search_query["_source"]["excludes"] == ["embedding"]
+
+
 def test_semantic_search_success(elasticsearch_core_instance):
     """Test semantic search with vector similarity."""
     mock_embedding_model = MagicMock()
@@ -634,6 +750,32 @@ def test_semantic_search_success(elasticsearch_core_instance):
         mock_embedding_model.get_embeddings.assert_called_once_with(
             "test query")
         mock_exec.assert_called_once()
+
+
+def test_semantic_search_sets_knn_parameters(elasticsearch_core_instance):
+    """Ensure semantic_search sets k and num_candidates based on top_k."""
+    mock_embedding_model = MagicMock()
+    mock_embedding_model.get_embeddings.return_value = [[0.2] * 8]
+
+    with patch.object(elasticsearch_core_instance, 'exec_query') as mock_exec:
+        mock_exec.return_value = []
+
+        elasticsearch_core_instance.semantic_search(
+            ["index_x"],
+            "query terms",
+            mock_embedding_model,
+            top_k=4,
+        )
+
+        mock_embedding_model.get_embeddings.assert_called_once_with(
+            "query terms")
+        mock_exec.assert_called_once()
+
+        _, search_query = mock_exec.call_args[0]
+        assert search_query["knn"]["k"] == 4
+        assert search_query["knn"]["num_candidates"] == 8
+        assert search_query["size"] == 4
+        assert search_query["_source"]["excludes"] == ["embedding"]
 
 
 def test_hybrid_search_success(elasticsearch_core_instance):
@@ -691,6 +833,7 @@ def test_get_documents_detail_success(elasticsearch_core_instance):
                 "unique_sources": {
                     "buckets": [
                         {
+                            "doc_count": 3,
                             "file_sample": {
                                 "hits": {
                                     "hits": [
@@ -718,6 +861,7 @@ def test_get_documents_detail_success(elasticsearch_core_instance):
         assert result[0]["path_or_url"] == "/path/to/file1.pdf"
         assert result[0]["filename"] == "file1.pdf"
         assert result[0]["file_size"] == 1024
+        assert result[0]["chunk_count"] == 3
         mock_search.assert_called_once()
 
 

@@ -272,7 +272,7 @@ class KnowledgeBaseService {
         type: this.getFileTypeFromName(file.file || file.path_or_url),
         size: file.file_size,
         create_time: file.create_time,
-        chunk_num: file.chunk_count || 0,
+        chunk_num: file.chunk_count ?? 0,
         token_num: 0,
         status: file.status || "UNKNOWN",
         latest_task_id: file.latest_task_id || "",
@@ -568,6 +568,104 @@ class KnowledgeBaseService {
         throw error;
       }
       throw new Error("Failed to get summary");
+    }
+  }
+
+  // Preview chunks from a knowledge base
+  async previewChunks(
+    indexName: string,
+    batchSize: number = 1000
+  ): Promise<any[]> {
+    try {
+      const url = new URL(
+        API_ENDPOINTS.knowledgeBase.chunks(indexName),
+        window.location.origin
+      );
+      url.searchParams.set("batch_size", batchSize.toString());
+
+      const response = await fetch(url.toString(), {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            `HTTP error! status: ${response.status}`
+        );
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to get chunks");
+      }
+
+      return data.chunks || [];
+    } catch (error) {
+      log.error("Error getting chunks:", error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Failed to get chunks");
+    }
+  }
+
+  // Preview chunks from a knowledge base with pagination
+  async previewChunksPaginated(
+    indexName: string,
+    page: number = 1,
+    pageSize: number = 10,
+    pathOrUrl?: string
+  ): Promise<{
+    chunks: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    try {
+      const url = new URL(
+        API_ENDPOINTS.knowledgeBase.chunks(indexName),
+        window.location.origin
+      );
+      url.searchParams.set("page", page.toString());
+      url.searchParams.set("page_size", pageSize.toString());
+      if (pathOrUrl) {
+        url.searchParams.set("path_or_url", pathOrUrl);
+      }
+
+      const response = await fetch(url.toString(), {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            `HTTP error! status: ${response.status}`
+        );
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to get chunks");
+      }
+
+      return {
+        chunks: data.chunks || [],
+        total: data.total || 0,
+        page: data.page || page,
+        pageSize: data.page_size || pageSize,
+      };
+    } catch (error) {
+      log.error("Error getting chunks with pagination:", error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Failed to get chunks");
     }
   }
 }
