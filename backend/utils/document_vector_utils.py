@@ -9,12 +9,10 @@ Main features:
 4. Cluster summarization
 """
 import logging
-import os
 import random
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import yaml
 from jinja2 import Template, StrictUndefined
 from nexent.vector_database.base import VectorDatabaseCore
 from sklearn.cluster import KMeans
@@ -22,26 +20,13 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 from consts.const import LANGUAGE
+from utils.prompt_template_utils import (
+    get_document_summary_prompt_template,
+    get_cluster_summary_reduce_prompt_template,
+    get_cluster_summary_agent_prompt_template
+)
 
 logger = logging.getLogger("document_vector_utils")
-
-
-def _get_prompt_absolute_path(relative_path: str) -> str:
-    """
-    Get absolute path for prompt files.
-    
-    Args:
-        relative_path: Relative path like 'backend/prompts/xxx.yaml'
-        
-    Returns:
-        Absolute path to the prompt file
-    """
-    # Get the directory of this file and construct absolute path
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Go up one level from utils to backend, then use the template path
-    backend_dir = os.path.dirname(current_dir)
-    absolute_path = os.path.join(backend_dir, relative_path.replace('backend/', ''))
-    return absolute_path
 
 
 def get_documents_from_es(index_name: str, vdb_core: VectorDatabaseCore, sample_doc_count: int = 200) -> Dict[str, Dict]:
@@ -567,14 +552,8 @@ def summarize_document(document_content: str, filename: str, language: str = LAN
         Document summary text
     """
     try:
-        # Select prompt file based on language
-        if language == LANGUAGE["ZH"]:
-            prompt_path = _get_prompt_absolute_path('backend/prompts/document_summary_agent_zh.yaml')
-        else:
-            prompt_path = _get_prompt_absolute_path('backend/prompts/document_summary_agent.yaml')
-        
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_document_summary_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')
@@ -645,14 +624,8 @@ def summarize_cluster(document_summaries: List[str], language: str = LANGUAGE["Z
         Cluster summary text
     """
     try:
-        # Select prompt file based on language
-        if language == LANGUAGE["ZH"]:
-            prompt_path = _get_prompt_absolute_path('backend/prompts/cluster_summary_reduce_zh.yaml')
-        else:
-            prompt_path = _get_prompt_absolute_path('backend/prompts/cluster_summary_reduce.yaml')
-        
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_cluster_summary_reduce_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')
@@ -957,9 +930,8 @@ def summarize_cluster_legacy(cluster_content: str, language: str = LANGUAGE["ZH"
         Cluster summary text
     """
     try:
-        prompt_path = _get_prompt_absolute_path('backend/prompts/cluster_summary_agent.yaml')
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompts = yaml.safe_load(f)
+        # Get prompt template from prompt_template_utils
+        prompts = get_cluster_summary_agent_prompt_template(language)
         
         system_prompt = prompts.get('system_prompt', '')
         user_prompt_template = prompts.get('user_prompt', '')
