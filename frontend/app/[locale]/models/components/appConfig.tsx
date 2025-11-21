@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
 
@@ -39,8 +39,6 @@ export const AppConfigSection: React.FC = () => {
   // Add user input state tracking
   const isUserTypingAppName = useRef(false);
   const isUserTypingDescription = useRef(false);
-  const appNameUpdateTimer = useRef<NodeJS.Timeout | null>(null);
-  const descriptionUpdateTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Avatar-related state
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -66,6 +64,22 @@ export const AppConfigSection: React.FC = () => {
   const avatarUrl = getAppAvatarUrl(60);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerAutoSave = useCallback(() => {
+    const runSave = async () => {
+      try {
+        const ok = await configService.saveConfigToBackend(getConfig() as any);
+        if (!ok) {
+          message.error(t("setup.page.error.saveConfig"));
+        }
+      } catch (error) {
+        message.error(t("setup.page.error.saveConfig"));
+        log.error("Failed to auto save app configuration", error);
+      }
+    };
+
+    void runSave();
+  }, [getConfig, message, t]);
 
   // Add configuration change listener, synchronize local state when config is loaded from backend
   useEffect(() => {
@@ -139,18 +153,6 @@ export const AppConfigSection: React.FC = () => {
     };
   }, []);
 
-  // Clean up timers
-  useEffect(() => {
-    return () => {
-      if (appNameUpdateTimer.current) {
-        clearTimeout(appNameUpdateTimer.current);
-      }
-      if (descriptionUpdateTimer.current) {
-        clearTimeout(descriptionUpdateTimer.current);
-      }
-    };
-  }, []);
-
   // Handle basic app config changes
   const handleAppNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newAppName = e.target.value;
@@ -162,25 +164,12 @@ export const AppConfigSection: React.FC = () => {
       setAppNameError(false);
     }
 
-    // Clear previous timer
-    if (appNameUpdateTimer.current) {
-      clearTimeout(appNameUpdateTimer.current);
-    }
-
-    // Set debounced update
-    appNameUpdateTimer.current = setTimeout(() => {
-      updateAppConfig({ appName: newAppName });
-      isUserTypingAppName.current = false;
-    }, 500);
   };
 
   const handleAppNameBlur = () => {
-    // Clear timer, update immediately
-    if (appNameUpdateTimer.current) {
-      clearTimeout(appNameUpdateTimer.current);
-    }
     updateAppConfig({ appName: localAppName });
     isUserTypingAppName.current = false;
+    triggerAutoSave();
   };
 
   const handleDescriptionChange = (
@@ -189,26 +178,12 @@ export const AppConfigSection: React.FC = () => {
     const newDescription = e.target.value;
     isUserTypingDescription.current = true;
     setLocalAppDescription(newDescription);
-
-    // Clear previous timer
-    if (descriptionUpdateTimer.current) {
-      clearTimeout(descriptionUpdateTimer.current);
-    }
-
-    // Set debounced update
-    descriptionUpdateTimer.current = setTimeout(() => {
-      updateAppConfig({ appDescription: newDescription });
-      isUserTypingDescription.current = false;
-    }, 500);
   };
 
   const handleDescriptionBlur = () => {
-    // Clear timer, update immediately
-    if (descriptionUpdateTimer.current) {
-      clearTimeout(descriptionUpdateTimer.current);
-    }
     updateAppConfig({ appDescription: localAppDescription });
     isUserTypingDescription.current = false;
+    triggerAutoSave();
   };
 
   // Open avatar selection modal

@@ -92,6 +92,7 @@ def convert_code_format(text):
 
     # Restore <END_CODE> if it was affected by the above replacement
     text = text.replace("```<END_CODE>", "```")
+    text = text.replace("```<END_DISPLAY_CODE>", "```")
 
     # Clean up any remaining ```< patterns
     text = text.replace("```<", "```")

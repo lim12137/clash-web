@@ -27,9 +27,12 @@ import { ChatTopNavContent } from "./chat/internal/ChatTopNavContent";
 import { Badge, Button as AntButton } from "antd";
 import { FiRefreshCw } from "react-icons/fi";
 import { USER_ROLES } from "@/const/modelConfig";
+import MarketContent from "./market/MarketContent";
+import UsersContent from "./users/UsersContent";
+import { getSavedView, saveView } from "@/lib/viewPersistence";
 
 // View type definition
-type ViewType = "home" | "memory" | "models" | "agents" | "knowledges" | "space" | "setup" | "chat";
+type ViewType = "home" | "memory" | "models" | "agents" | "knowledges" | "space" | "setup" | "chat" | "market" | "users";
 type SetupStep = "models" | "knowledges" | "agents";
 
 export default function Home() {
@@ -64,8 +67,8 @@ export default function Home() {
     const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] =
       useState(false);
     
-    // View state management
-    const [currentView, setCurrentView] = useState<ViewType>("home");
+    // View state management with localStorage persistence
+    const [currentView, setCurrentView] = useState<ViewType>(getSavedView);
     
     // Connection status for model-dependent views
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
@@ -121,10 +124,20 @@ export default function Home() {
     // Determine if user is admin
     const isAdmin = isSpeedMode || user?.role === USER_ROLES.ADMIN;
     
+    // Load data for the saved view on initial mount
+    useEffect(() => {
+      if (currentView === "space" && agents.length === 0) {
+        loadAgents();
+      }
+    }, []); // Only run on mount
+    
     // Handle view change from navigation
     const handleViewChange = (view: string) => {
       const viewType = view as ViewType;
       setCurrentView(viewType);
+      
+      // Save current view to localStorage for persistence across page refreshes
+      saveView(viewType);
       
       // Initialize setup step based on user role
       if (viewType === "setup") {
@@ -244,6 +257,7 @@ export default function Home() {
 
     const handleSetupComplete = () => {
       setCurrentView("chat");
+      saveView("chat");
     };
     
     // Determine setup button visibility based on current step and user role
@@ -293,9 +307,18 @@ export default function Home() {
               <HomepageContent
                 onAuthRequired={handleAuthRequired}
                 onAdminRequired={handleAdminRequired}
-                onChatNavigate={() => setCurrentView("chat")}
-                onSetupNavigate={() => setCurrentView("setup")}
-                onSpaceNavigate={() => setCurrentView("space")}
+                onChatNavigate={() => {
+                  setCurrentView("chat");
+                  saveView("chat");
+                }}
+                onSetupNavigate={() => {
+                  setCurrentView("setup");
+                  saveView("setup");
+                }}
+                onSpaceNavigate={() => {
+                  setCurrentView("space");
+                  saveView("space");
+                }}
               />
             </div>
           );
@@ -354,12 +377,40 @@ export default function Home() {
                 // TODO: Store the selected agentId and pass it to ChatContent
                 // For now, just navigate to chat view
                 setCurrentView("chat");
+                saveView("chat");
+              }}
+              onEditNavigate={() => {
+                // Navigate to agents development view
+                setCurrentView("agents");
+                saveView("agents");
               }}
             />
           );
         
         case "chat":
           return <ChatContent />;
+        
+        case "market":
+          return (
+            <div className="w-full h-full">
+              <MarketContent
+                connectionStatus={connectionStatus}
+                isCheckingConnection={isCheckingConnection}
+                onCheckConnection={checkModelEngineConnection}
+              />
+            </div>
+          );
+        
+        case "users":
+          return (
+            <div className="w-full h-full">
+              <UsersContent
+                connectionStatus={connectionStatus}
+                isCheckingConnection={isCheckingConnection}
+                onCheckConnection={checkModelEngineConnection}
+              />
+            </div>
+          );
         
         case "setup":
           const setupNavProps = getSetupNavigationProps();
