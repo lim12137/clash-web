@@ -10,7 +10,7 @@ on:
   
   # 代码推送时触发
   push:
-    branches: [main]
+    branches: [master, main]
     paths:
       - '.github/workflows/auto-update.yml'
       - 'Dockerfile'
@@ -40,8 +40,8 @@ jobs:
       - name: 检查 Sub-Store (sub-web) 更新
         id: check-sub-store
         run: |
-          CURRENT_VERSION=$(grep -oP 'SUB_STORE_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          CURRENT_VERSION=$(grep -oP "SUB_STORE_VERSION:\\s*'\\K[^']+" .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+' || echo "unknown")
           
           echo "当前版本: $CURRENT_VERSION"
           echo "最新版本: $LATEST_VERSION"
@@ -56,8 +56,8 @@ jobs:
       - name: 检查 Mihomo 更新
         id: check-mihomo
         run: |
-          CURRENT_VERSION=$(grep -oP 'MIHOMO_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          CURRENT_VERSION=$(grep -oP "MIHOMO_VERSION:\\s*'\\K[^']+" .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+' || echo "unknown")
           
           echo "当前版本: $CURRENT_VERSION"
           echo "最新版本: $LATEST_VERSION"
@@ -72,8 +72,8 @@ jobs:
       - name: 检查 Metacubexd 更新
         id: check-metacubexd
         run: |
-          CURRENT_VERSION=$(grep -oP 'METACUBEXD_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          CURRENT_VERSION=$(grep -oP "METACUBEXD_VERSION:\\s*'\\K[^']+" .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+' || echo "unknown")
           
           echo "当前版本: $CURRENT_VERSION"
           echo "最新版本: $LATEST_VERSION"
@@ -92,7 +92,7 @@ jobs:
         needs.check-updates.outputs.metacubexd-update == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     
     steps:
@@ -132,9 +132,9 @@ jobs:
       - name: Update version numbers
         run: |
           # 获取最新版本号
-          SUB_STORE_LATEST=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name": "\K.*')
-          MIHOMO_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name": "\K.*')
-          METACUBEXD_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name": "\K.*')
+          SUB_STORE_LATEST=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
+          MIHOMO_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
+          METACUBEXD_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
           
           # 更新 workflow 文件中的版本号
           sed -i "s/SUB_STORE_VERSION: '.*'/SUB_STORE_VERSION: '$SUB_STORE_LATEST'/g" .github/workflows/auto-update.yml
@@ -149,7 +149,7 @@ jobs:
           git push || echo "推送失败（可能没有变更）"
 
       - name: Create Release
-        if: github.ref == 'refs/heads/main'
+        if: github.ref_name == github.event.repository.default_branch
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -169,10 +169,10 @@ jobs:
     name: 部署到服务器
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref_name == github.event.repository.default_branch
     environment:
       name: production
-      url: https://${{ steps.meta.outputs.tags }}
+      url: https://github.com/${{ github.repository }}
     
     steps:
       - name: Checkout repository
