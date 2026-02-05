@@ -28,15 +28,22 @@ RUN apk add --no-cache wget unzip && \
 # 阶段 3: 准备 Metacubexd
 FROM alpine:3.19 AS metacubexd-prep
 
-WORKDIR /var/www/metacubexd
+WORKDIR /tmp/metacubexd
 
-# 下载最新的 Metacubexd release
-ARG METACUBEXD_VERSION=v1.176.2
-RUN apk add --no-cache wget unzip && \
-    wget -q https://github.com/MetaCubeX/metacubexd/releases/download/${METACUBEXD_VERSION}/metacubexd-linux-amd64.zip && \
-    unzip -q metacubexd-linux-amd64.zip && \
-    rm metacubexd-linux-amd64.zip && \
-    chmod +x metacubexd
+# 下载最新的 Metacubexd release（当前发布为静态资源包）
+ARG METACUBEXD_VERSION=latest
+RUN apk add --no-cache curl tar && \
+    set -e; \
+    if [ "$METACUBEXD_VERSION" = "latest" ] || [ -z "$METACUBEXD_VERSION" ]; then \
+      URL="https://github.com/MetaCubeX/metacubexd/releases/latest/download/compressed-dist.tgz"; \
+    else \
+      URL="https://github.com/MetaCubeX/metacubexd/releases/download/${METACUBEXD_VERSION}/compressed-dist.tgz"; \
+    fi; \
+    curl -fsSL "$URL" -o /tmp/metacubexd.tgz; \
+    mkdir -p /out; \
+    tar -xzf /tmp/metacubexd.tgz -C /out; \
+    if [ -d /out/dist ]; then cp -a /out/dist/. /out/; rm -rf /out/dist; fi; \
+    rm -f /tmp/metacubexd.tgz
 
 # 阶段 4: 最终镜像
 FROM node:20-alpine
@@ -70,7 +77,7 @@ RUN mkdir -p \
 # 从构建阶段复制文件
 COPY --from=sub-web-builder /app/dist /var/www/sub-web
 COPY --from=mihomo-prep /usr/local/bin/mihomo /usr/local/bin/mihomo
-COPY --from=metacubexd-prep /var/www/metacubexd /var/www/metacubexd
+COPY --from=metacubexd-prep /out /var/www/metacubexd
 
 # 复制配置文件
 COPY config/mihomo/ /config/mihomo/
