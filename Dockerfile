@@ -73,8 +73,13 @@ COPY --from=mihomo-prep /usr/local/bin/mihomo /usr/local/bin/mihomo
 COPY --from=metacubexd-prep /var/www/metacubexd /var/www/metacubexd
 
 # 复制配置文件
-COPY config/mihomo/config.yaml /config/mihomo/config.yaml
+COPY config/mihomo/ /config/mihomo/
 COPY config/nginx/nginx.conf /etc/nginx/nginx.conf
+
+# 若仅提供示例配置，则生成默认配置文件
+RUN if [ ! -f /config/mihomo/config.yaml ] && [ -f /config/mihomo/config.yaml.example ]; then \
+      cp /config/mihomo/config.yaml.example /config/mihomo/config.yaml; \
+    fi
 
 # 设置权限
 RUN chown -R nobody:nobody /var/www /var/log /var/cache /config

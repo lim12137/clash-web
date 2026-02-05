@@ -1,0 +1,128 @@
+# Mihomo 配置文件示例
+# 完整配置请参考: https://wiki.metacubex.top/
+
+# 基础设置
+mixed-port: 7890
+socks-port: 7891
+allow-lan: true
+mode: Rule
+log-level: info
+
+# 外部控制器 (用于 Metacubexd)
+external-controller: 0.0.0.0:9090
+secret: ""  # 设置你的密码
+
+# DNS 设置
+dns:
+  enable: true
+  prefer-h3: true
+  listen: 0.0.0.0:7874
+  ipv6: true
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "localhost.ptlogin2.qq.com"
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://223.5.5.5/dns-query
+  fallback:
+    - https://doh.pub/dns-query
+    - tls://dns.google:853
+
+# 代理节点 (示例配置，需要替换为你自己的)
+proxies:
+  # 添加你的节点配置
+  # - name: "节点1"
+  #   type: ss
+  #   server: example.com
+  #   port: 443
+  #   cipher: chacha20-ietf-poly1305
+  #   password: "your-password"
+
+# 代理组
+proxy-groups:
+  - name: 🔴 故障切换
+    type: select
+    proxies:
+      - 🔵 负载均衡
+      - 🌏 国内外分流
+      - 🎯 直连
+      - ⛔️ 拦截
+
+  - name: 🔵 负载均衡
+    type: load-balance
+    strategy: round-robin
+    proxies:
+      - 🌏 国内外分流
+      - 🎯 直连
+      - ⛔️ 拦截
+
+  - name: 🌏 国内外分流
+    type: select
+    proxies:
+      - 🎯 直连
+      - ⛔️ 拦截
+
+  - name: 🎯 直连
+    type: select
+    proxies:
+      - DIRECT
+
+  - name: ⛔️ 拦截
+    type: select
+    proxies:
+      - REJECT
+
+  - name: 🪜 代理
+    type: select
+    url: http://www.google.com/generate_204
+    interval: 300
+    proxies:
+      - 🔴 故障切换
+      - 🔵 负载均衡
+      - 🌏 国内外分流
+      - 🎯 直连
+
+# 订阅源 (示例)
+# proxy-providers:
+#   Provider1:
+#     type: http
+#     url: "https://example.com/sub1.yaml"
+#     interval: 3600
+#     path: ./proxies/sub1.yaml
+#     health-check:
+#       enable: true
+#       url: http://www.google.com/generate_204
+#       interval: 300
+
+# 规则
+rules:
+  # IPv6
+  - IP-CIDR6,::1/128,🎯 直连
+  - IP-CIDR6,fe80::/10,🎯 直连
+  - IP-CIDR6,fc00::/7,🎯 直连
+  
+  # 国内常用
+  - DOMAIN-SUFFIX,cn,🎯 直连
+  - DOMAIN-SUFFIX,baidu.com,🎯 直连
+  - DOMAIN-SUFFIX,aliyun.com,🎯 直连
+  - DOMAIN-SUFFIX,taobao.com,🎯 直连
+  - DOMAIN-SUFFIX,jd.com,🎯 直连
+  - DOMAIN-SUFFIX,163.com,🎯 直连
+  - DOMAIN-SUFFIX,qq.com,🎯 直连
+  
+  # 代理规则
+  - DOMAIN-SUFFIX,google.com,🪜 代理
+  - DOMAIN-SUFFIX,github.com,🪜 代理
+  - DOMAIN-SUFFIX,twitter.com,🪜 代理
+  - DOMAIN-SUFFIX,facebook.com,🪜 代理
+  - DOMAIN-SUFFIX,youtube.com,🪜 代理
+  - DOMAIN-SUFFIX,netflix.com,🪜 代理
+  
+  # 默认规则
+  - GEOIP,CN,🎯 直连
+  - MATCH,🔴 故障切换
