@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Configuration (敏感配置不提交)
+config/mihomo/*.yaml
+config/mihomo/*.yml
+!config/mihomo/config.yaml.example
+
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Backup
+*.bak
+*.backup
+
+# Editor
+*~
+
+# Nginx
+nginx/*.conf
+!nginx/nginx.conf.example

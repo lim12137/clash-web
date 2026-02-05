@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  clash-web:
+    image: ghcr.io/lim12137/clash-web:latest
+    container_name: clash-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"      # Web UI (Metacubexd + Sub-Store)
+      - "9090:9090"    # Mihomo REST API
+      - "7890:7890"    # HTTP 代理
+      - "7891:7891"    # SOCKS5 代理
+    volumes:
+      # Mihomo 配置
+      - ./config/mihomo:/config/mihomo:ro
+      
+      # Nginx 配置（可选）
+      - ./config/nginx:/etc/nginx/conf.d:ro
+      
+      # 持久化数据
+      - clash-data:/data
+    
+    environment:
+      - TZ=Asia/Shanghai
+      # Metacubexd 配置
+      - METACUBEXD_URL=http://localhost:9090
+      # Sub-Store 配置
+      - SUB_STORE_API_URL=http://localhost:8080
+    
+    networks:
+      - clash-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  clash-data:
+    driver: local
+
+networks:
+  clash-network:
+    driver: bridge

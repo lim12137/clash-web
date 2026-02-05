@@ -1,0 +1,191 @@
+name: Auto Update & Deploy
+
+on:
+  # 定时检查更新（每天 UTC 0:00）
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # 手动触发
+  workflow_dispatch:
+  
+  # 代码推送时触发
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/auto-update.yml'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # 三个服务的官方镜像版本
+  SUB_STORE_VERSION: 'latest'
+  MIHOMO_VERSION: 'latest'
+  METACUBEXD_VERSION: 'latest'
+
+jobs:
+  check-updates:
+    name: 检查更新
+    runs-on: ubuntu-latest
+    outputs:
+      sub-store-update: ${{ steps.check-sub-store.outputs.update }}
+      mihomo-update: ${{ steps.check-mihomo.outputs.update }}
+      metacubexd-update: ${{ steps.check-metacubexd.outputs.update }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. 检查 Sub-Store 更新
+      - name: 检查 Sub-Store (sub-web) 更新
+        id: check-sub-store
+        run: |
+          CURRENT_VERSION=$(grep -oP 'SUB_STORE_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          
+          echo "当前版本: $CURRENT_VERSION"
+          echo "最新版本: $LATEST_VERSION"
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
+            echo "update=true" >> $GITHUB_OUTPUT
+          else
+            echo "update=false" >> $GITHUB_OUTPUT
+          fi
+
+      # 2. 检查 Mihomo 更新
+      - name: 检查 Mihomo 更新
+        id: check-mihomo
+        run: |
+          CURRENT_VERSION=$(grep -oP 'MIHOMO_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          
+          echo "当前版本: $CURRENT_VERSION"
+          echo "最新版本: $LATEST_VERSION"
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
+            echo "update=true" >> $GITHUB_OUTPUT
+          else
+            echo "update=false" >> $GITHUB_OUTPUT
+          fi
+
+      # 3. 检查 Metacubexd 更新
+      - name: 检查 Metacubexd 更新
+        id: check-metacubexd
+        run: |
+          CURRENT_VERSION=$(grep -oP 'METACUBEXD_VERSION=\K.*' .github/workflows/auto-update.yml || echo "unknown")
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name": "\K.*' || echo "unknown")
+          
+          echo "当前版本: $CURRENT_VERSION"
+          echo "最新版本: $LATEST_VERSION"
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
+            echo "update=true" >> $GITHUB_OUTPUT
+          else
+            echo "update=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    name: 构建并推送镜像
+    needs: check-updates
+    if: needs.check-updates.outputs.sub-store-update == 'true' || 
+        needs.check-updates.outputs.mihomo-update == 'true' ||
+        needs.check-updates.outputs.metacubexd-update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.run_id }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update version numbers
+        run: |
+          # 获取最新版本号
+          SUB_STORE_LATEST=$(curl -s https://api.github.com/repos/CareyWang/sub-web/releases/latest | grep -oP '"tag_name": "\K.*')
+          MIHOMO_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep -oP '"tag_name": "\K.*')
+          METACUBEXD_LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | grep -oP '"tag_name": "\K.*')
+          
+          # 更新 workflow 文件中的版本号
+          sed -i "s/SUB_STORE_VERSION: '.*'/SUB_STORE_VERSION: '$SUB_STORE_LATEST'/g" .github/workflows/auto-update.yml
+          sed -i "s/MIHOMO_VERSION: '.*'/MIHOMO_VERSION: '$MIHOMO_LATEST'/g" .github/workflows/auto-update.yml
+          sed -i "s/METACUBEXD_VERSION: '.*'/METACUBEXD_VERSION: '$METACUBEXD_LATEST'/g" .github/workflows/auto-update.yml
+          
+          # 提交更新
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: 更新版本号到 ${SUB_STORE_LATEST}, ${MIHOMO_LATEST}, ${METACUBEXD_LATEST}" || echo "没有变更需要提交"
+          git push || echo "推送失败（可能没有变更）"
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_id }}
+          release_name: Release v${{ github.run_id }}
+          body: |
+            ## 更新内容
+            
+            - 🆕 Sub-Store: 更新到最新版本
+            - ⚡ Mihomo: 性能优化
+            - 🎨 Metacubexd: UI 改进
+          draft: false
+          prerelease: false
+
+  deploy:
+    name: 部署到服务器
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://${{ steps.meta.outputs.tags }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ${{ secrets.SERVER_DEPLOY_PATH }}
+            docker-compose pull
+            docker-compose up -d
+            echo "部署完成"
