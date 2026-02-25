@@ -20,11 +20,13 @@ from urllib.parse import quote
 
 import requests
 import yaml
-from flask import Flask, Response, jsonify, request, stream_with_context
+from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
 
 BASE_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
 SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
+PROJECT_DIR = SCRIPTS_DIR.parent
+WEB_DIR = Path(os.environ.get("WEB_DIR", str(PROJECT_DIR / "web")))
 
 SUBS_DIR = BASE_DIR / "subs"
 BACKUP_DIR = BASE_DIR / "backups"
@@ -501,6 +503,27 @@ def add_minutes_iso(minutes: int) -> str:
     return datetime.fromtimestamp(next_dt).replace(microsecond=0).isoformat()
 
 
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def web_entry(path: str):
+    if path.startswith("api/"):
+        return json_error("not found", 404)
+    if not WEB_DIR.exists():
+        return json_error(f"web dir not found: {WEB_DIR}", 404)
+
+    safe_root = WEB_DIR.resolve()
+    target = (safe_root / path).resolve()
+    inside_root = target == safe_root or safe_root in target.parents
+
+    if path and inside_root and target.exists() and target.is_file():
+        return send_from_directory(str(safe_root), path)
+
+    index_file = safe_root / "index.html"
+    if index_file.exists():
+        return send_from_directory(str(safe_root), "index.html")
+    return json_error("index.html not found", 404)
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"success": True, "time": datetime.now().isoformat()})
@@ -935,6 +958,145 @@ def clash_groups():
         return json_error(f"failed to load groups: {exc}", 500)
 
 
+@app.route("/api/clash/proxy-meta", methods=["GET"])
+def clash_proxy_meta():
+    try:
+        resp = requests.get(f"{CLASH_API}/proxies", headers=clash_headers(), timeout=6)
+        if resp.status_code != 200:
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        payload = resp.json() if resp.content else {}
+        proxies = payload.get("proxies", {}) if isinstance(payload, dict) else {}
+        if not isinstance(proxies, dict):
+            proxies = {}
+
+        mapping: dict[str, str] = {}
+        for proxy_name, item in proxies.items():
+            if not isinstance(item, dict):
+                continue
+            provider_name = str(item.get("provider-name", "")).strip()
+            if not provider_name:
+                continue
+            mapping[str(proxy_name)] = provider_name
+
+        return jsonify({"success": True, "data": mapping})
+    except Exception as exc:
+        return json_error(f"failed to load proxy metadata: {exc}", 500)
+
+
+@app.route("/api/clash/providers", methods=["GET"])
+def clash_proxy_providers():
+    try:
+        resp = requests.get(
+            f"{CLASH_API}/providers/proxies",
+            headers=clash_headers(),
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        payload = resp.json() if resp.content else {}
+        raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
+        if not isinstance(raw_providers, dict):
+            raw_providers = {}
+
+        rows: list[dict] = []
+        for provider_name, item in raw_providers.items():
+            if not isinstance(item, dict):
+                continue
+
+            proxies = item.get("proxies", [])
+            proxy_count = 0
+            alive_count = 0
+            if isinstance(proxies, list):
+                proxy_count = len(proxies)
+                alive_count = sum(
+                    1
+                    for proxy in proxies
+                    if isinstance(proxy, dict) and proxy.get("alive") is True
+                )
+
+            subscription_info = item.get("subscriptionInfo")
+            if not isinstance(subscription_info, dict):
+                subscription_info = {}
+
+            rows.append(
+                {
+                    "name": str(provider_name),
+                    "type": str(item.get("type", "")),
+                    "vehicle_type": str(item.get("vehicleType", "")),
+                    "proxy_count": proxy_count,
+                    "alive_count": alive_count,
+                    "updated_at": str(item.get("updatedAt", "")),
+                    "has_subscription_info": bool(subscription_info),
+                    "subscription_info": subscription_info,
+                }
+            )
+
+        rows.sort(key=lambda x: x["name"].lower())
+        return jsonify({"success": True, "data": rows})
+    except Exception as exc:
+        return json_error(f"failed to load providers: {exc}", 500)
+
+
+@app.route("/api/clash/proxies/delay", methods=["GET", "POST"])
+def clash_proxy_delay():
+    body = ensure_json_body()
+    proxy_name = str(body.get("name") or request.args.get("name", "")).strip()
+    if not proxy_name:
+        return json_error("name is required", 400)
+
+    test_url = str(
+        body.get("url")
+        or request.args.get("url")
+        or "http://www.gstatic.com/generate_204"
+    ).strip()
+    if not test_url:
+        test_url = "http://www.gstatic.com/generate_204"
+
+    timeout_ms = body.get("timeout")
+    if timeout_ms is None:
+        timeout_ms = request.args.get("timeout", 6000)
+    try:
+        timeout_ms = int(timeout_ms)
+    except Exception:
+        timeout_ms = 6000
+    timeout_ms = max(1000, min(20000, timeout_ms))
+
+    encoded = quote(proxy_name, safe="")
+    request_timeout = max(3.0, timeout_ms / 1000.0 + 2.0)
+    try:
+        resp = requests.get(
+            f"{CLASH_API}/proxies/{encoded}/delay",
+            headers=clash_headers(),
+            params={"url": test_url, "timeout": timeout_ms},
+            timeout=request_timeout,
+        )
+        if resp.status_code != 200:
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        data = resp.json() if resp.content else {}
+        delay = data.get("delay", None) if isinstance(data, dict) else None
+        delay_ms = -1
+        if delay is not None:
+            try:
+                delay_ms = int(delay)
+            except Exception:
+                delay_ms = -1
+
+        return jsonify(
+            {
+                "success": True,
+                "name": proxy_name,
+                "delay": delay_ms,
+                "url": test_url,
+                "timeout": timeout_ms,
+            }
+        )
+    except Exception as exc:
+        return json_error(f"failed to test delay: {exc}", 500)
+
+
 @app.route("/api/clash/groups/<group_name>/select", methods=["POST"])
 @require_write_auth
 def clash_group_select(group_name):
@@ -1276,8 +1438,8 @@ if __name__ == "__main__":
     threading.Thread(target=scheduler_loop, daemon=True).start()
     host = os.environ.get("API_HOST", "0.0.0.0")
     try:
-        port = int(os.environ.get("API_PORT", "9092"))
+        port = int(os.environ.get("API_PORT", "19092"))
     except ValueError:
-        port = 9092
+        port = 19092
     emit_log(f"management api starting on {host}:{port}")
     app.run(host=host, port=port, debug=False, threaded=True)

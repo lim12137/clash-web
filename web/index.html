@@ -212,6 +212,7 @@
               <button type="submit">保存订阅</button>
               <button type="button" id="sub-reset">清空表单</button>
             </form>
+            <p class="muted" style="margin-bottom: 12px;">提示：此处节点数仅统计“订阅管理”中的 URL。若使用“订阅集合 + override.js provider”模式，请查看下方 Provider 状态。</p>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -291,6 +292,38 @@
             </div>
           </section>
 
+          <!-- Provider Status Card -->
+          <section class="card wide" data-page="proxy">
+            <div class="card-header">
+              <h2 class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12h18"/>
+                  <path d="M12 3v18"/>
+                  <circle cx="12" cy="12" r="9"/>
+                </svg>
+                Provider 状态（集合模式）
+              </h2>
+              <button id="reload-providers">刷新 Provider</button>
+            </div>
+            <p id="provider-summary" class="muted" style="margin-bottom: 12px;">集合1: - | 集合2: -</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>来源</th>
+                    <th>来源项</th>
+                    <th>节点总数</th>
+                    <th>在线数</th>
+                    <th>更新</th>
+                    <th>订阅信息</th>
+                  </tr>
+                </thead>
+                <tbody id="provider-table"></tbody>
+              </table>
+            </div>
+          </section>
+
           <!-- Proxy Groups Card -->
           <section class="card wide" data-page="connections">
             <div class="card-header">
@@ -301,9 +334,39 @@
                 </svg>
                 节点切换
               </h2>
-              <button id="reload-groups">刷新组</button>
+              <div class="row wrap">
+                <button id="btn-test-latency">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                    <path d="M12 2v4"/>
+                    <path d="M12 18v4"/>
+                    <path d="M4.93 4.93l2.83 2.83"/>
+                    <path d="M16.24 16.24l2.83 2.83"/>
+                    <path d="M2 12h4"/>
+                    <path d="M18 12h4"/>
+                    <path d="M4.93 19.07l2.83-2.83"/>
+                    <path d="M16.24 7.76l2.83-2.83"/>
+                  </svg>
+                  测延时
+                </button>
+                <button id="reload-groups">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                  刷新节点
+                </button>
+              </div>
             </div>
-            <div id="groups-list" class="groups"></div>
+
+            <!-- 代理组 Tabs -->
+            <div class="proxy-tabs" id="proxy-tabs"></div>
+
+            <!-- 节点网格 -->
+            <div id="nodes-grid" class="nodes-grid"></div>
+
+            <!-- 节点详情/延迟测试面板 -->
+            <div class="node-info-bar" id="node-info-bar">
+              <span class="node-info-text" id="node-info-text"></span>
+            </div>
           </section>
 
           <!-- Config Editor Card -->
