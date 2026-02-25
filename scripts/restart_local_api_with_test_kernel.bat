@@ -12,8 +12,8 @@ if "%API_HOST%"=="" set "API_HOST=0.0.0.0"
 if "%API_PORT%"=="" set "API_PORT=19092"
 
 if "%TEST_CONTROLLER_PORT%"=="" set "TEST_CONTROLLER_PORT=19090"
-if "%TEST_MIXED_PORT%"=="" set "TEST_MIXED_PORT=17891"
-if "%TEST_SOCKS_PORT%"=="" set "TEST_SOCKS_PORT=17892"
+if "%TEST_MIXED_PORT%"=="" set "TEST_MIXED_PORT=17890"
+if "%TEST_SOCKS_PORT%"=="" set "TEST_SOCKS_PORT=0"
 if "%TEST_MIHOMO_DIR%"=="" set "TEST_MIHOMO_DIR=%PROJECT_ROOT%\config-test"
 if "%TEST_CORE_DIR%"=="" set "TEST_CORE_DIR=%PROJECT_ROOT%\tools\mihomo-test"
 
