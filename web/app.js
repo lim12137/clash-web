@@ -5,6 +5,21 @@ let eventSource = null;
 let scheduleHistoryRows = [];
 let bulkImportTarget = null;
 let activeSection = "dashboard";
+let currentSubscriptionSets = { set1: [], set2: [] };
+let providerRows = [];
+
+// 节点切换相关状态
+let proxyGroups = [];
+let activeGroupIndex = 0;
+let activeGroupName = "";
+let autoSelectGroupDone = false;
+let nodeLatencies = new Map(); // 节点延迟缓存
+let nodeProviderMap = new Map(); // 节点 -> provider 名称
+let currentNodes = []; // 当前显示的节点列表
+let isLatencyTesting = false; // 防止重复触发批量延迟测试
+const LATENCY_TEST_CONCURRENCY = 20; // 节点延迟测试并发数
+const SYSTEM_NODE_NAMES = new Set(["DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"]);
+const BUILTIN_PROVIDER_NAMES = new Set(["free-auto", "us-auto", "proxy", "google", "default"]);
 
 const SECTION_TITLES = {
   dashboard: "仪表盘",
@@ -43,6 +58,262 @@ function bindSidebarNav() {
 
   const defaultSection = navItems.find((item) => item.classList.contains("active"))?.dataset.section;
   setActiveSection(defaultSection || "dashboard");
+}
+
+function normalizeProviderName(raw, fallback) {
+  const base = String(raw || fallback || "Sub").trim();
+  return base.replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+function formatBytes(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "-";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let idx = 0;
+  let current = n;
+  while (current >= 1024 && idx < units.length - 1) {
+    current /= 1024;
+    idx += 1;
+  }
+  const display = current >= 100 ? current.toFixed(0) : current.toFixed(1);
+  return `${display}${units[idx]}`;
+}
+
+function formatExpireTime(rawExpire) {
+  const expire = Number(rawExpire);
+  if (!Number.isFinite(expire) || expire <= 0) return "-";
+  const dt = new Date(expire * 1000);
+  if (Number.isNaN(dt.getTime())) return "-";
+  return dt.toLocaleString();
+}
+
+function formatSubscriptionInfo(info) {
+  if (!info || typeof info !== "object") return "-";
+  const totalRaw = Number(info.Total);
+  const uploadRaw = Number(info.Upload);
+  const downloadRaw = Number(info.Download);
+  const remainingRaw = totalRaw - uploadRaw - downloadRaw;
+  const remainText = Number.isFinite(remainingRaw) && remainingRaw > 0 ? formatBytes(remainingRaw) : "-";
+  const totalText = formatBytes(totalRaw);
+  const expireText = formatExpireTime(info.Expire);
+  if (remainText === "-" && totalText === "-" && expireText === "-") return "-";
+  return `余量 ${remainText} / 总量 ${totalText} / 到期 ${expireText}`;
+}
+
+function extractHost(urlText) {
+  const raw = String(urlText || "").trim();
+  if (!raw) return "-";
+  try {
+    const url = new URL(raw);
+    return url.host || "-";
+  } catch (_) {
+    return "-";
+  }
+}
+
+function buildProviderSourceIndex() {
+  const byName = new Map();
+  const orderByName = new Map();
+
+  function addSetItems(setKey, setLabel, items, fallbackPrefix) {
+    if (!Array.isArray(items)) return;
+    items.forEach((item, idx) => {
+      const index = idx + 1;
+      const name = normalizeProviderName(item?.name, `${fallbackPrefix}_${index}`);
+      const displayName = String(item?.name || `${fallbackPrefix}_${index}`);
+      const url = String(item?.url || "").trim();
+      const host = extractHost(url);
+      byName.set(name, {
+        setKey,
+        setLabel,
+        index,
+        displayName,
+        url,
+        host,
+      });
+      const orderBase = setKey === "set1" ? 0 : 1000;
+      orderByName.set(name, orderBase + index);
+    });
+  }
+
+  addSetItems("set1", "集合1", currentSubscriptionSets.set1 || [], "Paid");
+  addSetItems("set2", "集合2", currentSubscriptionSets.set2 || [], "Free");
+  return { byName, orderByName };
+}
+
+function resolveProviderSource(providerName, sourceIndex) {
+  const name = String(providerName || "");
+  const lower = name.toLowerCase();
+  const matched = sourceIndex.byName.get(name);
+
+  if (matched) {
+    return {
+      source: `${matched.setLabel} #${matched.index}`,
+      sourceItem: `${matched.displayName} (${matched.host})`,
+      sortRank: matched.setKey === "set1" ? 10 : 20,
+      sortOrder: sourceIndex.orderByName.get(name) || 9999,
+      matchedSet: matched.setKey,
+      matched: true,
+    };
+  }
+  if (lower === "free-auto") {
+    return {
+      source: "集合2聚合组",
+      sourceItem: "由集合2 provider 自动聚合",
+      sortRank: 30,
+      sortOrder: 1,
+      matchedSet: "set2",
+      matched: true,
+    };
+  }
+  if (lower === "us-auto") {
+    return {
+      source: "集合1筛选组",
+      sourceItem: "由集合1按美国过滤生成",
+      sortRank: 31,
+      sortOrder: 2,
+      matchedSet: "set1",
+      matched: true,
+    };
+  }
+  if (lower === "proxy" || lower === "google") {
+    return {
+      source: "策略组",
+      sourceItem: "override.js 组装",
+      sortRank: 40,
+      sortOrder: 10,
+      matchedSet: "",
+      matched: true,
+    };
+  }
+  if (lower === "default") {
+    return {
+      source: "内置",
+      sourceItem: "mihomo 默认 provider",
+      sortRank: 50,
+      sortOrder: 20,
+      matchedSet: "",
+      matched: true,
+    };
+  }
+  return {
+    source: "未匹配",
+    sourceItem: "-",
+    sortRank: 90,
+    sortOrder: 99999,
+    matchedSet: "",
+    matched: false,
+  };
+}
+
+function renderProviderSummaryHeader(sourceIndex = buildProviderSourceIndex()) {
+  const summaryEl = document.getElementById("provider-summary");
+  if (!summaryEl) return;
+
+  const set1Count = (currentSubscriptionSets.set1 || []).length;
+  const set2Count = (currentSubscriptionSets.set2 || []).length;
+  const providerCount = providerRows.length;
+  const totalNodes = providerRows.reduce((sum, item) => sum + Number(item.proxy_count || 0), 0);
+  const set1Nodes = providerRows
+    .filter((item) => sourceIndex.byName.get(String(item.name || ""))?.setKey === "set1")
+    .reduce((sum, item) => sum + Number(item.proxy_count || 0), 0);
+  const set2Nodes = providerRows
+    .filter((item) => sourceIndex.byName.get(String(item.name || ""))?.setKey === "set2")
+    .reduce((sum, item) => sum + Number(item.proxy_count || 0), 0);
+  const unmatched = providerRows.filter((item) => {
+    const name = String(item.name || "");
+    const lower = name.toLowerCase();
+    return !sourceIndex.byName.has(name) && !BUILTIN_PROVIDER_NAMES.has(lower);
+  }).length;
+
+  let text = `集合1: ${set1Count} 条(${set1Nodes}节点) | 集合2: ${set2Count} 条(${set2Nodes}节点) | Provider: ${providerCount} | 总节点: ${totalNodes}`;
+  if (unmatched > 0) {
+    text += ` | 未匹配Provider: ${unmatched}`;
+  }
+  if (set2Count === 0) {
+    text += " | 集合2为空时 Free-Auto 仅有 DIRECT";
+  }
+  summaryEl.textContent = text;
+}
+
+function renderProviderRows() {
+  const tbody = document.getElementById("provider-table");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!providerRows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="7" class="muted">暂无 provider 数据</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  const sourceIndex = buildProviderSourceIndex();
+  const sortedRows = [...providerRows]
+    .map((item) => ({ item, meta: resolveProviderSource(item.name, sourceIndex) }))
+    .sort((a, b) => {
+      if (a.meta.sortRank !== b.meta.sortRank) return a.meta.sortRank - b.meta.sortRank;
+      if (a.meta.sortOrder !== b.meta.sortOrder) return a.meta.sortOrder - b.meta.sortOrder;
+      return String(a.item.name || "").localeCompare(String(b.item.name || ""), "zh-CN");
+    });
+
+  sortedRows.forEach(({ item, meta }) => {
+    const tr = document.createElement("tr");
+    const proxyCount = Number(item.proxy_count || 0);
+    const aliveCount = Number(item.alive_count || 0);
+    const updateTextRaw = String(item.updated_at || "").trim();
+    const updateText = updateTextRaw && !updateTextRaw.startsWith("0001-01-01") ? updateTextRaw : "-";
+    const aliveRatio = proxyCount > 0 ? `${aliveCount}/${proxyCount}` : String(aliveCount);
+    const subInfo = formatSubscriptionInfo(item.subscription_info);
+    tr.innerHTML = `
+      <td>${item.name || "-"}</td>
+      <td>${meta.source}</td>
+      <td>${meta.sourceItem}</td>
+      <td>${proxyCount}</td>
+      <td>${aliveRatio}</td>
+      <td>${updateText}</td>
+      <td>${subInfo}</td>
+    `;
+    if (meta.source === "未匹配") {
+      tr.classList.add("provider-row-unmatched");
+    }
+    tbody.appendChild(tr);
+  });
+
+  renderProviderSummaryHeader(sourceIndex);
+}
+
+function countRealNodeOptions(group) {
+  const all = Array.isArray(group?.all) ? group.all : [];
+  return all.filter((name) => !SYSTEM_NODE_NAMES.has(String(name || "").toUpperCase())).length;
+}
+
+function pickBestGroupIndex(groups) {
+  if (!Array.isArray(groups) || !groups.length) return 0;
+
+  let bestIndex = 0;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  groups.forEach((group, index) => {
+    const name = String(group?.name || "").toLowerCase();
+    const type = String(group?.type || "").toLowerCase();
+    const realCount = countRealNodeOptions(group);
+
+    let score = realCount;
+    if (name === "proxy") score += 200;
+    if (name === "us-auto") score += 180;
+    if (name.includes("google")) score += 120;
+    if (name === "free-auto") score -= 60;
+    if (name === "global" || name === "default") score -= 40;
+    if (type.includes("selector")) score += 8;
+    if (type.includes("urltest")) score += 5;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
 }
 
 function createSetRowElement(setKey, item = {}) {
@@ -371,16 +642,36 @@ async function loadSubscriptionSets() {
   try {
     const res = await api("/subscription-sets");
     const data = res.data || {};
+    currentSubscriptionSets = {
+      set1: Array.isArray(data.set1) ? data.set1 : [],
+      set2: Array.isArray(data.set2) ? data.set2 : [],
+    };
     const set1Tbody = document.getElementById("set1-table");
     const set2Tbody = document.getElementById("set2-table");
     set1Tbody.innerHTML = "";
     set2Tbody.innerHTML = "";
-    (data.set1 || []).forEach((item) => addSetRow("set1", item));
-    (data.set2 || []).forEach((item) => addSetRow("set2", item));
+    currentSubscriptionSets.set1.forEach((item) => addSetRow("set1", item));
+    currentSubscriptionSets.set2.forEach((item) => addSetRow("set2", item));
     if (!set1Tbody.querySelector("tr")) addSetRow("set1", {});
     if (!set2Tbody.querySelector("tr")) addSetRow("set2", {});
+    renderProviderSummaryHeader();
+    renderProviderRows();
   } catch (err) {
     showToast(`读取集合失败: ${err.message}`);
+  }
+}
+
+async function loadProviderStatus() {
+  try {
+    const res = await api("/clash/providers");
+    providerRows = Array.isArray(res.data) ? res.data : [];
+    renderProviderSummaryHeader();
+    renderProviderRows();
+  } catch (err) {
+    providerRows = [];
+    renderProviderSummaryHeader();
+    renderProviderRows();
+    showToast(`读取 Provider 失败: ${err.message}`);
   }
 }
 
@@ -395,6 +686,8 @@ async function saveSubscriptionSets() {
     if (activeTab === "override-script") {
       await loadEditor();
     }
+    await loadSubscriptionSets();
+    await loadProviderStatus();
   } catch (err) {
     showToast(`保存集合失败: ${err.message}`);
   }
@@ -532,63 +825,374 @@ async function deleteSub(name) {
   }
 }
 
-function groupCard(group) {
-  const box = document.createElement("div");
-  box.className = "group-card";
+async function testProxyDelay(name, options = {}) {
+  const body = { name };
+  if (options.url) body.url = options.url;
+  if (options.timeout !== undefined) body.timeout = options.timeout;
+  try {
+    return await api("/clash/proxies/delay", { method: "POST", body });
+  } catch (err) {
+    const message = String(err?.message || err || "");
+    // Backward compatibility: old backend may still expose GET-only delay endpoint.
+    if (!message.includes("405")) {
+      throw err;
+    }
+    const params = new URLSearchParams({ name });
+    if (options.url) params.set("url", options.url);
+    if (options.timeout !== undefined) params.set("timeout", String(options.timeout));
+    return api(`/clash/proxies/delay?${params.toString()}`);
+  }
+}
 
-  const title = document.createElement("h3");
-  title.textContent = `${group.name} (${group.type || "selector"})`;
-  box.appendChild(title);
+// ==================== 节点切换新功能 ====================
 
-  const now = document.createElement("div");
-  now.className = "muted";
-  now.textContent = `当前: ${group.now || "-"}`;
-  box.appendChild(now);
+// 国家/地区旗帜映射
+const FLAG_MAP = {
+  '美国': '🇺🇸', 'US': '🇺🇸', 'United States': '🇺🇸', 'America': '🇺🇸',
+  '香港': '🇭🇰', 'HK': '🇭🇰', 'Hong Kong': '🇭🇰',
+  '日本': '🇯🇵', 'JP': '🇯🇵', 'Japan': '🇯🇵',
+  '新加坡': '🇸🇬', 'SG': '🇸🇬', 'Singapore': '🇸🇬',
+  '台湾': '🇹🇼', 'TW': '🇹🇼', 'Taiwan': '🇹🇼',
+  '韩国': '🇰🇷', 'KR': '🇰🇷', 'Korea': '🇰🇷', 'South Korea': '🇰🇷',
+  '英国': '🇬🇧', 'UK': '🇬🇧', 'Britain': '🇬🇧', 'United Kingdom': '🇬🇧',
+  '德国': '🇩🇪', 'DE': '🇩🇪', 'Germany': '🇩🇪',
+  '法国': '🇫🇷', 'FR': '🇫🇷', 'France': '🇫🇷',
+  '荷兰': '🇳🇱', 'NL': '🇳🇱', 'Netherlands': '🇳🇱',
+  '加拿大': '🇨🇦', 'CA': '🇨🇦', 'Canada': '🇨🇦',
+  '澳大利亚': '🇦🇺', 'AU': '🇦🇺', 'Australia': '🇦🇺',
+  '印度': '🇮🇳', 'IN': '🇮🇳', 'India': '🇮🇳',
+  '巴西': '🇧🇷', 'BR': '🇧🇷', 'Brazil': '🇧🇷',
+  '俄罗斯': '🇷🇺', 'RU': '🇷🇺', 'Russia': '🇷🇺',
+  '土耳其': '🇹🇷', 'TR': '🇹🇷', 'Turkey': '🇹🇷',
+  '越南': '🇻🇳', 'VN': '🇻🇳', 'Vietnam': '🇻🇳',
+  '泰国': '🇹🇭', 'TH': '🇹🇭', 'Thailand': '🇹🇭',
+  '马来西亚': '🇲🇾', 'MY': '🇲🇾', 'Malaysia': '🇲🇾',
+  '印度尼西亚': '🇮🇩', 'ID': '🇮🇩', 'Indonesia': '🇮🇩',
+  '菲律宾': '🇵🇭', 'PH': '🇵🇭', 'Philippines': '🇵🇭',
+  '乌克兰': '🇺🇦', 'UA': '🇺🇦', 'Ukraine': '🇺🇦',
+  '波兰': '🇵🇱', 'PL': '🇵🇱', 'Poland': '🇵🇱',
+  '瑞典': '🇸🇪', 'SE': '🇸🇪', 'Sweden': '🇸🇪',
+  '瑞士': '🇨🇭', 'CH': '🇨🇭', 'Switzerland': '🇨🇭',
+  '西班牙': '🇪🇸', 'ES': '🇪🇸', 'Spain': '🇪🇸',
+  '意大利': '🇮🇹', 'IT': '🇮🇹', 'Italy': '🇮🇹',
+  '墨西哥': '🇲🇽', 'MX': '🇲🇽', 'Mexico': '🇲🇽',
+  '阿根廷': '🇦🇷', 'AR': '🇦🇷', 'Argentina': '🇦🇷',
+  '南非': '🇿🇦', 'ZA': '🇿🇦', 'South Africa': '🇿🇦',
+  '埃及': '🇪🇬', 'EG': '🇪🇬', 'Egypt': '🇪🇬',
+  '新西兰': '🇳🇿', 'NZ': '🇳🇿', 'New Zealand': '🇳🇿',
+  '以色列': '🇮🇱', 'IL': '🇮🇱', 'Israel': '🇮🇱',
+  '阿联酋': '🇦🇪', 'AE': '🇦🇪', 'UAE': '🇦🇪', 'United Arab Emirates': '🇦🇪',
+  '孟加拉': '🇧🇩', 'BD': '🇧🇩', 'Bangladesh': '🇧🇩',
+  '巴基斯坦': '🇵🇰', 'PK': '🇵🇰', 'Pakistan': '🇵🇰',
+  '尼日利亚': '🇳🇬', 'NG': '🇳🇬', 'Nigeria': '🇳🇬',
+  '肯尼亚': '🇰🇪', 'KE': '🇰🇪', 'Kenya': '🇰🇪',
+  '智利': '🇨🇱', 'CL': '🇨🇱', 'Chile': '🇨🇱',
+  '哥伦比亚': '🇨🇴', 'CO': '🇨🇴', 'Colombia': '🇨🇴',
+  '秘鲁': '🇵🇪', 'PE': '🇵🇪', 'Peru': '🇵🇪',
+  '洛杉矶': '🇺🇸', '硅谷': '🇺🇸', '圣何塞': '🇺🇸', '西雅图': '🇺🇸',
+  '达拉斯': '🇺🇸', '芝加哥': '🇺🇸', '纽约': '🇺🇸', '华盛顿': '🇺🇸',
+  '美西': '🇺🇸', '美东': '🇺🇸',
+};
 
-  const row = document.createElement("div");
-  row.className = "row";
-  const sel = document.createElement("select");
-  (group.all || []).forEach((item) => {
-    const op = document.createElement("option");
-    op.value = item;
-    op.textContent = item;
-    if (item === group.now) op.selected = true;
-    sel.appendChild(op);
+// 代理组图标映射
+const GROUP_ICONS = {
+  'PROXY': '🚀',
+  'Auto': '⚡',
+  'AUTO': '⚡',
+  'SELECT': '📍',
+  'Fallback': '🔁',
+  'FALLBACK': '🔁',
+  'LoadBalance': '⚖️',
+  'URLTest': '🔍',
+};
+
+// 获取节点旗帜
+function getNodeFlag(nodeName) {
+  for (const [key, flag] of Object.entries(FLAG_MAP)) {
+    if (nodeName.toLowerCase().includes(key.toLowerCase())) {
+      return flag;
+    }
+  }
+  return '🌐';
+}
+
+// 获取代理组图标
+function getGroupIcon(groupName) {
+  for (const [key, icon] of Object.entries(GROUP_ICONS)) {
+    if (groupName.toLowerCase().includes(key.toLowerCase())) {
+      return icon;
+    }
+  }
+  return '📡';
+}
+
+// 从节点名称解析协议类型
+function getProtocolType(nodeName) {
+  const protocols = ['Hysteria2', 'Vless', 'Vmess', 'Shadowsocks', 'Trojan', 'Tuic', 'Socks5', 'HTTP', 'Snell'];
+  for (const protocol of protocols) {
+    if (nodeName.toLowerCase().includes(protocol.toLowerCase())) {
+      return protocol;
+    }
+  }
+  return 'Proxy';
+}
+
+// 获取延迟样式类
+function getLatencyClass(delay) {
+  if (delay === null) return 'loading';
+  if (delay === undefined) return 'unknown';
+  if (delay === -1) return 'timeout';
+  if (delay < 200) return 'good';
+  if (delay < 500) return 'medium';
+  return 'bad';
+}
+
+// 格式化延迟显示
+function formatLatency(delay) {
+  if (delay === null) return '测试中...';
+  if (delay === undefined) return '--';
+  if (delay === -1) return '超时';
+  return `${delay} ms`;
+}
+
+// 渲染代理组 Tabs
+function renderProxyTabs() {
+  const tabsContainer = document.getElementById('proxy-tabs');
+  if (!tabsContainer) return;
+
+  tabsContainer.innerHTML = '';
+
+  proxyGroups.forEach((group, index) => {
+    const tab = document.createElement('button');
+    tab.className = `proxy-tab ${index === activeGroupIndex ? 'active' : ''}`;
+    tab.innerHTML = `
+      <span class="proxy-tab-icon">${getGroupIcon(group.name)}</span>
+      <span>${group.name}</span>
+    `;
+    tab.onclick = () => {
+      activeGroupIndex = index;
+      activeGroupName = String(group.name || "");
+      autoSelectGroupDone = true;
+      renderProxyTabs();
+      renderNodesGrid();
+    };
+    tabsContainer.appendChild(tab);
   });
-  const btn = document.createElement("button");
-  btn.textContent = "应用";
-  btn.onclick = async () => {
+}
+
+// 渲染节点网格
+function renderNodesGrid() {
+  const grid = document.getElementById('nodes-grid');
+  const infoBar = document.getElementById('node-info-bar');
+  const infoText = document.getElementById('node-info-text');
+
+  if (!grid) return;
+
+  const group = proxyGroups[activeGroupIndex];
+  if (!group) {
+    grid.innerHTML = '<div class="muted">没有可用的代理组</div>';
+    return;
+  }
+
+  grid.innerHTML = '';
+  currentNodes = group.all || [];
+
+  currentNodes.forEach((nodeName) => {
+    const card = createNodeCard(nodeName, group);
+    grid.appendChild(card);
+  });
+
+  // 更新信息栏
+  if (infoText) {
+    let text = `${group.name} · ${currentNodes.length} 个节点 · 当前选择: ${group.now || '-'}`;
+    if (
+      String(group.name || "").toLowerCase() === "free-auto" &&
+      currentNodes.length === 1 &&
+      String(currentNodes[0] || "").toUpperCase() === "DIRECT"
+    ) {
+      text += " · 集合2为空，当前仅DIRECT";
+    }
+    infoText.textContent = text;
+  }
+}
+
+// 创建节点卡片
+function createNodeCard(nodeName, group) {
+  const card = document.createElement('div');
+  const isSelected = nodeName === group.now;
+
+  card.className = `node-card ${isSelected ? 'selected' : ''}`;
+
+  const flag = getNodeFlag(nodeName);
+  const protocol = getProtocolType(nodeName);
+  const latency = nodeLatencies.get(nodeName);
+  const latencyClass = getLatencyClass(latency);
+  const providerName = String(nodeProviderMap.get(nodeName) || "").trim() || "-";
+
+  card.innerHTML = `
+    <div class="node-header">
+      <span class="node-flag">${flag}</span>
+      <span class="node-type">${protocol}</span>
+    </div>
+    <div class="node-name-row">
+      <span class="node-name node-name-right" title="${nodeName}">${nodeName}</span>
+    </div>
+    <div class="node-meta-row">
+      <div class="node-latency ${latencyClass}" data-node="${nodeName}">
+        ${formatLatency(latency)}
+      </div>
+      <span class="node-provider" title="Provider: ${providerName}">${providerName}</span>
+    </div>
+  `;
+
+  card.onclick = async () => {
+    if (isSelected) return;
+
     try {
       await api(`/clash/groups/${encodeURIComponent(group.name)}/select`, {
-        method: "POST",
-        body: { name: sel.value },
+        method: 'POST',
+        body: { name: nodeName },
       });
-      showToast(`${group.name} 已切换`);
-      await loadGroups();
+      showToast(`已切换到: ${nodeName}`);
+
+      // 更新本地状态并重新渲染
+      group.now = nodeName;
+      renderNodesGrid();
     } catch (err) {
       showToast(`切换失败: ${err.message}`);
     }
   };
-  row.appendChild(sel);
-  row.appendChild(btn);
-  box.appendChild(row);
 
-  return box;
+  return card;
+}
+
+// 测试单个节点延迟
+async function testSingleNodeLatency(nodeName) {
+  try {
+    const res = await testProxyDelay(nodeName, { timeout: 5000 });
+    const delay = Number(res.delay);
+    return Number.isFinite(delay) && delay >= 0 ? delay : -1;
+  } catch (err) {
+    return -1;
+  }
+}
+
+// 批量测试节点延迟
+async function testAllNodeLatencies() {
+  if (isLatencyTesting) {
+    return;
+  }
+  const group = proxyGroups[activeGroupIndex];
+  if (!group) return;
+
+  isLatencyTesting = true;
+  const testBtn = document.getElementById("btn-test-latency");
+  if (testBtn) {
+    testBtn.disabled = true;
+    testBtn.textContent = "测试中...";
+  }
+
+  const nodes = group.all || [];
+  const infoText = document.getElementById('node-info-text');
+
+  try {
+    if (infoText) {
+      infoText.textContent = `${group.name} · 正在测试延迟...`;
+    }
+
+    // 显示加载状态
+    nodes.forEach(nodeName => {
+      nodeLatencies.set(nodeName, null); // null 表示加载中
+    });
+    renderNodesGrid();
+
+    // 并行测试所有节点（限制并发数）
+    const batchSize = LATENCY_TEST_CONCURRENCY;
+    for (let i = 0; i < nodes.length; i += batchSize) {
+      const batch = nodes.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (nodeName) => {
+          const delay = await testSingleNodeLatency(nodeName);
+          nodeLatencies.set(nodeName, delay);
+          updateNodeLatencyDisplay(nodeName, delay);
+        })
+      );
+    }
+
+    if (infoText) {
+      const validLatencies = nodes
+        .map(n => nodeLatencies.get(n))
+        .filter(d => d !== null && d !== -1);
+      const avgLatency = validLatencies.length > 0
+        ? Math.round(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length)
+        : 0;
+      infoText.textContent = `${group.name} · ${nodes.length} 个节点 · 平均延迟: ${avgLatency}ms`;
+    }
+  } finally {
+    isLatencyTesting = false;
+    if (testBtn) {
+      testBtn.disabled = false;
+      testBtn.textContent = "测延时";
+    }
+  }
+}
+
+// 更新单个节点延迟显示
+function updateNodeLatencyDisplay(nodeName, delay) {
+  const grid = document.getElementById('nodes-grid');
+  if (!grid) return;
+
+  const latencyEl = grid.querySelector(`.node-latency[data-node="${CSS.escape(nodeName)}"]`);
+  if (latencyEl) {
+    latencyEl.className = `node-latency ${getLatencyClass(delay)}`;
+    latencyEl.textContent = formatLatency(delay);
+  }
+}
+
+// 保留旧的 groupCard 函数以兼容其他代码（返回空元素）
+function groupCard(group) {
+  return document.createElement('div');
 }
 
 async function loadGroups() {
-  const root = document.getElementById("groups-list");
-  root.innerHTML = "";
   try {
-    const res = await api("/clash/groups");
-    const groups = res.data || [];
-    if (!groups.length) {
-      root.innerHTML = `<div class="muted">当前没有可切换组</div>`;
+    const [groupsRes, proxyMetaRes] = await Promise.all([
+      api('/clash/groups'),
+      api('/clash/proxy-meta').catch(() => ({ data: {} })),
+    ]);
+    const proxyMetaRows =
+      proxyMetaRes && proxyMetaRes.data && typeof proxyMetaRes.data === "object"
+        ? proxyMetaRes.data
+        : {};
+    nodeProviderMap = new Map(Object.entries(proxyMetaRows));
+    proxyGroups = groupsRes.data || [];
+
+    if (!proxyGroups.length) {
+      const grid = document.getElementById('nodes-grid');
+      if (grid) grid.innerHTML = '<div class="muted">当前没有可用的代理组</div>';
       return;
     }
-    groups.forEach((group) => root.appendChild(groupCard(group)));
+
+    // 优先按名称恢复用户选择；首次加载时选择更有节点价值的分组。
+    const nameMatchedIndex = activeGroupName
+      ? proxyGroups.findIndex((item) => String(item.name || "") === activeGroupName)
+      : -1;
+    if (nameMatchedIndex >= 0) {
+      activeGroupIndex = nameMatchedIndex;
+    } else if (!autoSelectGroupDone || activeGroupIndex >= proxyGroups.length || activeGroupIndex < 0) {
+      activeGroupIndex = pickBestGroupIndex(proxyGroups);
+      autoSelectGroupDone = true;
+    }
+    activeGroupName = String(proxyGroups[activeGroupIndex]?.name || "");
+
+    renderProxyTabs();
+    renderNodesGrid();
+
+    // 自动测试延迟
+    setTimeout(() => testAllNodeLatencies(), 500);
   } catch (err) {
-    root.innerHTML = `<div class="muted">加载失败: ${err.message}</div>`;
+    const grid = document.getElementById('nodes-grid');
+    if (grid) grid.innerHTML = `<div class="muted">加载失败: ${err.message}</div>`;
   }
 }
 
@@ -674,11 +1278,16 @@ function bindEvents() {
     await loadSubscriptions();
     await loadGroups();
     await loadSubscriptionSets();
+    await loadProviderStatus();
     await loadSchedule();
     await loadScheduleHistory();
   };
   document.getElementById("reload-subs").onclick = loadSubscriptions;
+  document.getElementById("reload-providers").onclick = loadProviderStatus;
   document.getElementById("reload-groups").onclick = loadGroups;
+  document.getElementById("btn-test-latency").onclick = () => {
+    testAllNodeLatencies();
+  };
   document.getElementById("btn-load-editor").onclick = loadEditor;
   document.getElementById("btn-save-editor").onclick = saveEditor;
   document.getElementById("sub-reset").onclick = resetSubForm;
@@ -719,8 +1328,9 @@ async function boot() {
   initLogs();
   await refreshStatus();
   await loadSubscriptions();
-  await loadGroups();
   await loadSubscriptionSets();
+  await loadProviderStatus();
+  await loadGroups();
   await loadSchedule();
   await loadScheduleHistory();
   await loadEditor();
