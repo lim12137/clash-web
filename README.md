@@ -11,7 +11,7 @@
 ## 架构
 
 - `nginx`：对外提供页面与 API 反向代理（端口 `80`）
-- `api_server.py`（Flask）：管理接口（容器内 `9092`）
+- `api_server.py`（Flask）：管理接口（容器内 `19092`）
 - `mihomo`：代理核心（控制接口 `9090`，代理端口 `7890/7891`）
 
 ## 快速启动
@@ -32,6 +32,7 @@ docker compose up -d --build
 ```powershell
 $env:CLASH_SECRET = "change_me"
 $env:ADMIN_TOKEN = "change_me_too"
+$env:API_PORT = "19092"
 docker compose up -d --build
 ```
 
@@ -53,7 +54,7 @@ scripts\restart_local_api.bat
 
 脚本行为：
 
-- 结束当前 `API_PORT`（默认 `9092`）上的监听进程
+- 结束当前 `API_PORT`（默认 `19092`）上的监听进程
 - 执行一次 `scripts/merge.py merge`
 - 新开 `cmd` 窗口启动 `scripts/api_server.py`
 
@@ -63,7 +64,7 @@ scripts\restart_local_api.bat
 set PYTHON_BIN=D:\py311\python.exe
 set CLASH_API=http://127.0.0.1:9090
 set API_HOST=0.0.0.0
-set API_PORT=9092
+set API_PORT=19092
 set ADMIN_TOKEN=your_admin_token
 set CLASH_SECRET=your_clash_secret
 scripts\restart_local_api.bat
@@ -72,7 +73,50 @@ scripts\restart_local_api.bat
 验证接口：
 
 ```powershell
-Invoke-WebRequest http://127.0.0.1:9092/api/health
+Invoke-WebRequest http://127.0.0.1:19092/api/health
+```
+
+## 无 Docker 本地测试（BAT，专用测试内核 + API）
+
+适用场景：本机没有现成 Clash 内核，或不希望复用现有 FlClash/Clash 进程，使用独立测试内核联调。
+
+一键启动：
+
+```bat
+scripts\restart_local_api_with_test_kernel.bat
+```
+
+脚本行为：
+
+- 自动下载/更新 `mihomo` Windows 内核到 `tools\mihomo-test\mihomo.exe`
+- 使用独立目录 `config-test\` 生成并加载配置
+- 启动专用测试内核（默认控制端口 `19090`）
+- 启动本地 API，并将 `CLASH_API` 指向 `http://127.0.0.1:19090`
+- 记录启动步骤日志与耗时到：
+  - `tools\mihomo-test\start_test_kernel.latest.log`（本次）
+  - `tools\mihomo-test\start_test_kernel.log`（历史追加）
+
+可覆盖环境变量（示例）：
+
+```bat
+set PYTHON_BIN=D:\py311\python.exe
+set API_PORT=19092
+set TEST_CONTROLLER_PORT=19090
+set TEST_MIXED_PORT=17891
+set TEST_SOCKS_PORT=17892
+set TEST_MIHOMO_DIR=%cd%\config-test
+set TEST_CORE_DIR=%cd%\tools\mihomo-test
+set CLASH_DISABLE_GEOIP=1
+set FORCE_UPDATE_TEST_CORE=1
+scripts\restart_local_api_with_test_kernel.bat
+```
+
+说明：`CLASH_DISABLE_GEOIP` 默认就是 `1`，用于在本地网络无法下载 `geoip.metadb` 时避免测试内核启动失败。
+
+停止专用测试内核：
+
+```bat
+scripts\stop_test_kernel.bat
 ```
 
 ## 目录说明
@@ -155,6 +199,7 @@ Clash 交互：
 - `GET /api/clash/status`
 - `GET /api/clash/groups`
 - `POST /api/clash/groups/<group_name>/select`
+- `POST /api/clash/proxies/delay`
 
 文件与备份：
 

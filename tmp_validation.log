@@ -1,0 +1,92 @@
+== clash-web local API restart (with test kernel) ==
+Project             : M:\Agent\nexent
+API listen          : 0.0.0.0:19092
+CLASH_API           : http://127.0.0.1:19090
+MIHOMO_DIR          : M:\Agent\nexent\config-test
+TEST_CONTROLLER_PORT: 19090
+
+[1/2] Start dedicated test kernel...
+[2026-02-26 06:21:46.542] ========================================
+[2026-02-26 06:21:46.556] start_test_kernel begin
+[2026-02-26 06:21:46.559] Project=M:\Agent\nexent
+[2026-02-26 06:21:46.560] Python=D:\py311\python.exe
+[2026-02-26 06:21:46.562] TEST_CORE_DIR=M:\Agent\nexent\tools\mihomo-test
+[2026-02-26 06:21:46.563] TEST_MIHOMO_DIR=M:\Agent\nexent\config-test
+[2026-02-26 06:21:46.565] TEST_CONTROLLER_PORT=19090
+[2026-02-26 06:21:46.566] TEST_MIXED_PORT=17891
+[2026-02-26 06:21:46.567] TEST_SOCKS_PORT=17892
+[2026-02-26 06:21:46.569] CLASH_DISABLE_GEOIP=1
+== clash-web start test kernel ==
+Project             : M:\Agent\nexent
+Python              : D:\py311\python.exe
+TEST_CORE_DIR       : M:\Agent\nexent\tools\mihomo-test
+TEST_MIHOMO_DIR     : M:\Agent\nexent\config-test
+TEST_CONTROLLER_PORT: 19090
+TEST_MIXED_PORT     : 17891
+TEST_SOCKS_PORT     : 17892
+CLASH_DISABLE_GEOIP : 1
+[2026-02-26 06:21:46.576] step1 ensure kernel begin
+[kernel] use installed mihomo: v1.19.20
+[kernel] skip online update check (set FORCE_UPDATE_TEST_CORE=1 to refresh)
+[2026-02-26 06:21:46.782] step1 ensure kernel end rc=0 duration_ms=203
+[2026-02-26 06:21:46.783] step2 stop kernel begin
+== stop clash-web test kernel ==
+TEST_MIHOMO_DIR : M:\Agent\nexent\config-test
+PID_FILE        : M:\Agent\nexent\tools\mihomo-test\mihomo-test.pid
+  stopped pid 22180 (pid file)
+done.
+[2026-02-26 06:21:47.321] step2 stop kernel end rc=0 duration_ms=537
+[2026-02-26 06:21:47.323] step3 merge config begin
+[merge] demo: failed -> HTTPSConnectionPool(host='example.com', port=443): Max retries exceeded with url: /subscription.yaml (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1002)')))
+[merge] enabled_subscriptions=1, merged_proxies=0
+[merge] applying override.js
+[merge] CLASH_DISABLE_GEOIP enabled, removed 1 GEOIP rule(s)
+[merge] backup created: config_20260226_062147.yaml
+[merge] config written -> M:\Agent\nexent\config-test\config.yaml
+[2026-02-26 06:21:47.996] step3 merge config end rc=0 duration_ms=673
+[2026-02-26 06:21:47.998] step4 start process begin
+  started pid 22240
+[2026-02-26 06:21:48.040] step4 start process end rc=0 duration_ms=41
+[2026-02-26 06:21:48.042] step5 wait api begin
+[2026-02-26 06:21:48.607] step5 wait api end rc=0 duration_ms=564
+
+Test kernel is ready.
+Controller: http://127.0.0.1:19090
+HTTP proxy: 127.0.0.1:17891
+SOCKS proxy: 127.0.0.1:17892
+[2026-02-26 06:21:48.623] start_test_kernel end success
+
+[2/2] Restart local API...
+== clash-web local API restart ==
+Project    : M:\Agent\nexent
+Python     : D:\py311\python.exe
+MIHOMO_DIR : M:\Agent\nexent\config-test
+SCRIPTS_DIR: M:\Agent\nexent\scripts
+CLASH_API  : http://127.0.0.1:19090
+API listen : 0.0.0.0:19092
+
+[1/3] Stop existing listener on port 19092 (if any)...
+  killed pid 4132
+
+[2/3] Skip merge, SKIP_MERGE=1
+
+[3/3] Start api_server.py...
+
+Restart complete.
+Health URL: http://127.0.0.1:19092/api/health
+
+Local test environment is ready.
+API       : http://127.0.0.1:19092/api/health
+Clash API : http://127.0.0.1:19090
+19090/version status=200
+19090/version body={"meta":true,"version":"v1.19.20"}
+
+19092/health status=200
+19092/health body={"success":true,"time":"2026-02-26T06:21:51.070318"}
+
+19092/status status=200
+19092/status body={"admin_token_enabled":false,"paths":{"base":"M:\\Agent\\nexent\\config-test","config":"M:\\Agent\\nexent\\config-test\\config.yaml","scripts":"M:\\Agent\\nexent\\scripts"},"success":true}
+
+19092/subscriptions status=200
+19092/subscriptions body={"data":[{"cached":false,"cached_time":null,"enabled":true,"exclude_filter":"(?i)(expired|\u5269\u4f59|\u6d41\u91cf|\u5b98\u7f51)","include_filter":"","name":"demo","node_count":0,"prefix":"D_","url":"https://example.com/subscription.yaml"}],"success":true}
+

@@ -1,0 +1,26 @@
+mixed-port: 17890
+socks-port: 7891
+allow-lan: true
+bind-address: "*"
+mode: rule
+log-level: info
+external-controller: 0.0.0.0:9090
+external-ui: /ui
+secret: ""
+proxies: []
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - AUTO
+      - DIRECT
+    use_all_proxies: true
+  - name: AUTO
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies: []
+    use_all_proxies: true
+rules:
+  - MATCH,PROXY

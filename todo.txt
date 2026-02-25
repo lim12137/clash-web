@@ -1,0 +1,2321 @@
+
+
+# 可视化脚本管理方案
+
+在方案一基础上，增加一个 **Web 管理面板**，可以在浏览器中可视化管理订阅、编辑覆盖规则、实时查看日志等。
+
+---
+
+## 架构升级
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   Docker Container                    │
+│                                                      │
+│  ┌────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │ mihomo     │  │ metacubexd   │  │ 管理面板API   │ │
+│  │ :7890/7891 │  │ :9091        │  │ (Flask)      │ │
+│  │ API :9090  │  │ (节点切换)    │  │ :9092        │ │
+│  └─────▲──────┘  └──────────────┘  └──────▲───────┘ │
+│        │                                   │         │
+│        │         ┌──────────────┐          │         │
+│        └─────────│  config.yaml │◄─────────┘         │
+│                  └──────────────┘                     │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐    │
+│  │              Nginx 反向代理                    │    │
+│  │  /          → 管理面板前端                     │    │
+│  │  /api/      → Flask API (:9092)              │    │
+│  │  /clash-ui/ → metacubexd (:9091 静态文件)     │    │
+│  │  /clash-api/→ mihomo API (:9090)             │    │
+│  │  端口: 80                                     │    │
+│  └──────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+## 完整项目结构
+
+```
+clash-docker/
+├── docker-compose.yml
+├── Dockerfile
+├── nginx.conf
+├── entrypoint.sh
+├── config/
+│   ├── config.yaml
+│   └── subs/
+├── scripts/
+│   ├── subscriptions.json
+│   ├── override.yaml
+│   ├── template.yaml
+│   ├── merge.py              # 合并脚本（上一版）
+│   └── api_server.py         # Web API 服务
+├── web/                      # 管理面板前端
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+└── ui/                       # metacubexd (自动下载)
+```
+
+---
+
+## 1. Docker Compose
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  clash:
+    build: .
+    container_name: clash-meta
+    restart: unless-stopped
+    ports:
+      - "7890:7890"      # HTTP 代理
+      - "7891:7891"      # SOCKS5 代理
+      - "9090:9090"      # Clash API
+      - "80:80"          # 管理面板 + Clash UI
+    volumes:
+      - ./config:/root/.config/mihomo
+      - ./scripts:/scripts
+      - ./web:/web
+    environment:
+      - TZ=Asia/Shanghai
+      - CLASH_SECRET=your_secret_here
+    cap_add:
+      - NET_ADMIN
+```
+
+## 2. Dockerfile
+
+```dockerfile
+FROM alpine:3.19
+
+RUN apk add --no-cache \
+    curl jq bash nginx dcron tzdata \
+    python3 py3-pip py3-yaml py3-requests \
+    ca-certificates
+
+# Python 依赖
+RUN pip3 install --break-system-packages flask flask-cors
+
+# 下载 mihomo
+ARG TARGETARCH=amd64
+RUN LATEST=$(curl -sL https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -r '.tag_name') && \
+    ARCH=$(case "${TARGETARCH}" in "arm64") echo "arm64";; *) echo "amd64";; esac) && \
+    curl -Lo /tmp/mihomo.gz \
+      "https://github.com/MetaCubeX/mihomo/releases/download/${LATEST}/mihomo-linux-${ARCH}-${LATEST}.gz" && \
+    gunzip /tmp/mihomo.gz && mv /tmp/mihomo /usr/local/bin/mihomo && chmod +x /usr/local/bin/mihomo
+
+# 下载 metacubexd
+RUN LATEST_UI=$(curl -sL https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest | jq -r '.tag_name') && \
+    curl -Lo /tmp/ui.tgz \
+      "https://github.com/MetaCubeX/metacubexd/releases/download/${LATEST_UI}/compressed-dist.tgz" && \
+    mkdir -p /clash-ui && tar -xzf /tmp/ui.tgz -C /clash-ui && rm /tmp/ui.tgz
+
+COPY nginx.conf /etc/nginx/http.d/default.conf
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /root/.config/mihomo/ruleset
+
+EXPOSE 7890 7891 9090 80
+
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+## 3. Nginx 配置
+
+```nginx
+# nginx.conf
+server {
+    listen 80;
+    server_name _;
+
+    # 管理面板前端
+    location / {
+        root /web;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 管理面板 API
+    location /api/ {
+        proxy_pass http://127.0.0.1:9092/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+
+    # SSE 日志流
+    location /api/logs/stream {
+        proxy_pass http://127.0.0.1:9092/api/logs/stream;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+    }
+
+    # metacubexd (Clash 节点切换 UI)
+    location /clash-ui/ {
+        alias /clash-ui/;
+        index index.html;
+        try_files $uri $uri/ /clash-ui/index.html;
+    }
+
+    # Clash API 代理 (给前端 WebSocket 用)
+    location /clash-api/ {
+        proxy_pass http://127.0.0.1:9090/;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+## 4. 启动脚本
+
+```bash
+#!/bin/bash
+# entrypoint.sh
+set -e
+
+echo "=== Clash Meta + Visual Manager ==="
+
+# 初始化
+[ ! -f /scripts/subscriptions.json ] && echo '{"subscriptions":[]}' > /scripts/subscriptions.json
+[ ! -f /root/.config/mihomo/config.yaml ] && cp /scripts/template.yaml /root/.config/mihomo/config.yaml
+
+# 首次合并
+python3 /scripts/merge.py 2>&1 || true
+
+# 启动 nginx
+nginx
+
+# 启动管理 API
+python3 /scripts/api_server.py &
+echo "[OK] Management API started on :9092"
+
+# 启动 mihomo
+echo "[OK] Starting mihomo..."
+exec mihomo -d /root/.config/mihomo
+```
+
+---
+
+## 5. Web API 服务 (核心后端)
+
+```python
+#!/usr/bin/env python3
+"""
+scripts/api_server.py
+可视化管理面板 API 后端
+"""
+
+import json
+import os
+import re
+import sys
+import time
+import shutil
+import threading
+import subprocess
+import queue
+from pathlib import Path
+from datetime import datetime
+from functools import wraps
+
+import yaml
+import requests
+from flask import Flask, request, jsonify, Response, stream_with_context
+from flask_cors import CORS
+
+# ========== 路径 ==========
+BASE_DIR = Path("/root/.config/mihomo")
+SCRIPTS_DIR = Path("/scripts")
+SUBS_DIR = BASE_DIR / "subs"
+BACKUP_DIR = BASE_DIR / "backups"
+CONFIG_FILE = BASE_DIR / "config.yaml"
+SUBS_CONFIG = SCRIPTS_DIR / "subscriptions.json"
+OVERRIDE_FILE = SCRIPTS_DIR / "override.yaml"
+TEMPLATE_FILE = SCRIPTS_DIR / "template.yaml"
+
+CLASH_API = "http://127.0.0.1:9090"
+CLASH_SECRET = os.environ.get("CLASH_SECRET", "")
+
+# ========== App ==========
+app = Flask(__name__)
+CORS(app)
+
+# 日志队列 (SSE)
+log_queues = []
+log_history = []
+MAX_LOG_HISTORY = 500
+
+# 操作锁
+merge_lock = threading.Lock()
+
+
+def emit_log(msg, level="INFO"):
+    """发送日志到所有 SSE 客户端"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = {"time": timestamp, "level": level, "msg": msg}
+    log_history.append(entry)
+    if len(log_history) > MAX_LOG_HISTORY:
+        log_history.pop(0)
+    for q in log_queues:
+        try:
+            q.put_nowait(entry)
+        except:
+            pass
+    print(f"[{timestamp}] [{level}] {msg}", flush=True)
+
+
+def load_json(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
+
+
+def save_json(data, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def load_yaml_file(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    except:
+        return {}
+
+
+def save_yaml_file(data, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+def read_text(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except:
+        return ""
+
+
+def write_text(content, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+
+def reload_clash():
+    """通知 clash 重载"""
+    try:
+        headers = {"Authorization": f"Bearer {CLASH_SECRET}"} if CLASH_SECRET else {}
+        resp = requests.put(f"{CLASH_API}/configs",
+                            json={"path": str(CONFIG_FILE)},
+                            headers=headers, timeout=5)
+        return resp.status_code == 204
+    except:
+        return False
+
+
+# ==========================================
+#  API: 订阅管理
+# ==========================================
+
+@app.route('/api/subscriptions', methods=['GET'])
+def get_subscriptions():
+    """获取所有订阅"""
+    data = load_json(SUBS_CONFIG)
+    subs = data.get("subscriptions", [])
+
+    # 附加缓存信息
+    for sub in subs:
+        cached = SUBS_DIR / f"{sub['name']}.yaml"
+        if cached.exists():
+            sub["cached"] = True
+            sub["cached_time"] = datetime.fromtimestamp(
+                cached.stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M:%S")
+            cached_data = load_yaml_file(cached)
+            sub["node_count"] = len(cached_data.get("proxies", []))
+        else:
+            sub["cached"] = False
+            sub["node_count"] = 0
+
+    return jsonify({"success": True, "data": subs})
+
+
+@app.route('/api/subscriptions', methods=['POST'])
+def add_subscription():
+    """添加订阅"""
+    body = request.json
+    name = body.get("name", "").strip()
+    url = body.get("url", "").strip()
+
+    if not name or not url:
+        return jsonify({"success": False, "error": "Name and URL are required"}), 400
+
+    data = load_json(SUBS_CONFIG)
+    if not data.get("subscriptions"):
+        data["subscriptions"] = []
+
+    # 检查重名
+    existing = [s for s in data["subscriptions"] if s["name"] == name]
+    if existing:
+        return jsonify({"success": False, "error": f"Subscription '{name}' already exists"}), 409
+
+    new_sub = {
+        "name": name,
+        "url": url,
+        "enabled": body.get("enabled", True),
+        "prefix": body.get("prefix", f"{name[:2]}_"),
+        "exclude_filter": body.get("exclude_filter", "(?i)(过期|剩余|官网|流量)"),
+        "include_filter": body.get("include_filter", ""),
+        "emoji": body.get("emoji", True)
+    }
+    data["subscriptions"].append(new_sub)
+    save_json(data, SUBS_CONFIG)
+
+    emit_log(f"Subscription added: {name}")
+    return jsonify({"success": True, "data": new_sub})
+
+
+@app.route('/api/subscriptions/<name>', methods=['PUT'])
+def update_subscription(name):
+    """更新订阅"""
+    body = request.json
+    data = load_json(SUBS_CONFIG)
+
+    found = False
+    for sub in data.get("subscriptions", []):
+        if sub["name"] == name:
+            for key in ["url", "enabled", "prefix", "exclude_filter", "include_filter", "emoji"]:
+                if key in body:
+                    sub[key] = body[key]
+            # 支持重命名
+            if "new_name" in body and body["new_name"] != name:
+                old_cache = SUBS_DIR / f"{name}.yaml"
+                sub["name"] = body["new_name"]
+                if old_cache.exists():
+                    old_cache.rename(SUBS_DIR / f"{body['new_name']}.yaml")
+            found = True
+            break
+
+    if not found:
+        return jsonify({"success": False, "error": "Not found"}), 404
+
+    save_json(data, SUBS_CONFIG)
+    emit_log(f"Subscription updated: {name}")
+    return jsonify({"success": True})
+
+
+@app.route('/api/subscriptions/<name>', methods=['DELETE'])
+def delete_subscription(name):
+    """删除订阅"""
+    data = load_json(SUBS_CONFIG)
+    data["subscriptions"] = [s for s in data.get("subscriptions", []) if s["name"] != name]
+    save_json(data, SUBS_CONFIG)
+
+    cached = SUBS_DIR / f"{name}.yaml"
+    if cached.exists():
+        cached.unlink()
+
+    emit_log(f"Subscription removed: {name}")
+    return jsonify({"success": True})
+
+
+@app.route('/api/subscriptions/<name>/toggle', methods=['POST'])
+def toggle_subscription(name):
+    """启用/禁用"""
+    data = load_json(SUBS_CONFIG)
+    for sub in data.get("subscriptions", []):
+        if sub["name"] == name:
+            sub["enabled"] = not sub.get("enabled", True)
+            save_json(data, SUBS_CONFIG)
+            status = "enabled" if sub["enabled"] else "disabled"
+            emit_log(f"Subscription {status}: {name}")
+            return jsonify({"success": True, "enabled": sub["enabled"]})
+
+    return jsonify({"success": False, "error": "Not found"}), 404
+
+
+@app.route('/api/subscriptions/<name>/test', methods=['POST'])
+def test_subscription(name):
+    """测试拉取订阅"""
+    data = load_json(SUBS_CONFIG)
+    sub = next((s for s in data.get("subscriptions", []) if s["name"] == name), None)
+
+    if not sub:
+        return jsonify({"success": False, "error": "Not found"}), 404
+
+    try:
+        resp = requests.get(sub["url"],
+                            headers={"User-Agent": "clash.meta"},
+                            timeout=15)
+        resp.raise_for_status()
+        content = yaml.safe_load(resp.text)
+
+        if not content:
+            return jsonify({"success": False, "error": "Empty response"})
+
+        proxies = content.get("proxies", [])
+        return jsonify({
+            "success": True,
+            "node_count": len(proxies),
+            "sample_nodes": [p.get("name", "?") for p in proxies[:10]],
+            "response_size": len(resp.text)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/subscriptions/<name>/nodes', methods=['GET'])
+def get_subscription_nodes(name):
+    """查看订阅缓存的节点列表"""
+    cached = SUBS_DIR / f"{name}.yaml"
+    if not cached.exists():
+        return jsonify({"success": False, "error": "No cached data"}), 404
+
+    data = load_yaml_file(cached)
+    proxies = data.get("proxies", [])
+    nodes = []
+    for p in proxies:
+        nodes.append({
+            "name": p.get("name", ""),
+            "type": p.get("type", ""),
+            "server": p.get("server", ""),
+            "port": p.get("port", "")
+        })
+
+    return jsonify({"success": True, "data": nodes, "total": len(nodes)})
+
+
+# ==========================================
+#  API: 覆盖/脚本编辑
+# ==========================================
+
+@app.route('/api/override', methods=['GET'])
+def get_override():
+    """获取覆盖规则 (原始YAML文本)"""
+    content = read_text(OVERRIDE_FILE)
+    return jsonify({"success": True, "content": content})
+
+
+@app.route('/api/override', methods=['PUT'])
+def save_override():
+    """保存覆盖规则"""
+    body = request.json
+    content = body.get("content", "")
+
+    # 验证 YAML 语法
+    try:
+        yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        return jsonify({"success": False, "error": f"YAML syntax error: {e}"}), 400
+
+    # 备份
+    if OVERRIDE_FILE.exists():
+        backup = SCRIPTS_DIR / f"override.yaml.bak.{int(time.time())}"
+        shutil.copy2(OVERRIDE_FILE, backup)
+
+    write_text(content, OVERRIDE_FILE)
+    emit_log("Override config updated")
+    return jsonify({"success": True})
+
+
+@app.route('/api/override/validate', methods=['POST'])
+def validate_override():
+    """验证覆盖规则 YAML"""
+    body = request.json
+    content = body.get("content", "")
+    try:
+        parsed = yaml.safe_load(content)
+        return jsonify({
+            "success": True,
+            "valid": True,
+            "keys": list(parsed.keys()) if parsed else []
+        })
+    except yaml.YAMLError as e:
+        return jsonify({"success": True, "valid": False, "error": str(e)})
+
+
+@app.route('/api/template', methods=['GET'])
+def get_template():
+    """获取基础模板"""
+    content = read_text(TEMPLATE_FILE)
+    return jsonify({"success": True, "content": content})
+
+
+@app.route('/api/template', methods=['PUT'])
+def save_template():
+    """保存基础模板"""
+    body = request.json
+    content = body.get("content", "")
+    try:
+        yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        return jsonify({"success": False, "error": f"YAML error: {e}"}), 400
+
+    write_text(content, TEMPLATE_FILE)
+    emit_log("Template config updated")
+    return jsonify({"success": True})
+
+
+@app.route('/api/merge-script', methods=['GET'])
+def get_merge_script():
+    """获取合并脚本内容"""
+    content = read_text(SCRIPTS_DIR / "merge.py")
+    return jsonify({"success": True, "content": content})
+
+
+@app.route('/api/merge-script', methods=['PUT'])
+def save_merge_script():
+    """保存合并脚本"""
+    body = request.json
+    content = body.get("content", "")
+
+    # 基本的 Python 语法检查
+    try:
+        compile(content, "merge.py", "exec")
+    except SyntaxError as e:
+        return jsonify({"success": False, "error": f"Python syntax error: {e}"}), 400
+
+    backup = SCRIPTS_DIR / f"merge.py.bak.{int(time.time())}"
+    shutil.copy2(SCRIPTS_DIR / "merge.py", backup)
+
+    write_text(content, SCRIPTS_DIR / "merge.py")
+    emit_log("Merge script updated")
+    return jsonify({"success": True})
+
+
+# ==========================================
+#  API: 当前配置查看
+# ==========================================
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """获取当前生效的 config.yaml"""
+    content = read_text(CONFIG_FILE)
+    return jsonify({"success": True, "content": content})
+
+
+@app.route('/api/config/summary', methods=['GET'])
+def get_config_summary():
+    """获取配置摘要"""
+    config = load_yaml_file(CONFIG_FILE)
+    proxies = config.get("proxies", [])
+    groups = config.get("proxy-groups", [])
+    rules = config.get("rules", [])
+
+    # 统计节点类型
+    type_stats = {}
+    for p in proxies:
+        t = p.get("type", "unknown")
+        type_stats[t] = type_stats.get(t, 0) + 1
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "proxy_count": len(proxies),
+            "group_count": len(groups),
+            "rule_count": len(rules),
+            "proxy_types": type_stats,
+            "groups": [{"name": g.get("name"), "type": g.get("type"),
+                        "count": len(g.get("proxies", []) + g.get("use", []))}
+                       for g in groups],
+            "mode": config.get("mode", "unknown"),
+            "port": config.get("mixed-port", "unknown")
+        }
+    })
+
+
+# ==========================================
+#  API: 操作（合并、重载、备份）
+# ==========================================
+
+@app.route('/api/actions/merge', methods=['POST'])
+def do_merge():
+    """执行合并"""
+    if not merge_lock.acquire(blocking=False):
+        return jsonify({"success": False, "error": "Merge already in progress"}), 429
+
+    def run_merge():
+        try:
+            emit_log("Starting merge process...")
+            result = subprocess.run(
+                ["python3", str(SCRIPTS_DIR / "merge.py"), "merge"],
+                capture_output=True, text=True, timeout=120
+            )
+            for line in result.stdout.strip().split('\n'):
+                if line.strip():
+                    emit_log(line.strip())
+            if result.returncode != 0:
+                for line in result.stderr.strip().split('\n'):
+                    if line.strip():
+                        emit_log(line.strip(), "ERROR")
+                emit_log("Merge failed!", "ERROR")
+            else:
+                emit_log("Merge completed successfully", "SUCCESS")
+        except subprocess.TimeoutExpired:
+            emit_log("Merge timed out!", "ERROR")
+        except Exception as e:
+            emit_log(f"Merge error: {e}", "ERROR")
+        finally:
+            merge_lock.release()
+
+    thread = threading.Thread(target=run_merge, daemon=True)
+    thread.start()
+
+    return jsonify({"success": True, "message": "Merge started"})
+
+
+@app.route('/api/actions/reload', methods=['POST'])
+def do_reload():
+    """重载 Clash 配置"""
+    success = reload_clash()
+    if success:
+        emit_log("Clash config reloaded")
+    else:
+        emit_log("Failed to reload Clash config", "ERROR")
+    return jsonify({"success": success})
+
+
+@app.route('/api/actions/test-config', methods=['POST'])
+def do_test_config():
+    """测试配置有效性"""
+    try:
+        result = subprocess.run(
+            ["mihomo", "-t", "-d", str(BASE_DIR)],
+            capture_output=True, text=True, timeout=10
+        )
+        valid = result.returncode == 0
+        return jsonify({
+            "success": True,
+            "valid": valid,
+            "output": result.stdout + result.stderr
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+# ==========================================
+#  API: 备份管理
+# ==========================================
+
+@app.route('/api/backups', methods=['GET'])
+def list_backups():
+    """列出所有备份"""
+    BACKUP_DIR.mkdir(exist_ok=True)
+    backups = []
+    for f in sorted(BACKUP_DIR.glob("*.yaml"), reverse=True):
+        backups.append({
+            "name": f.name,
+            "size": f.stat().st_size,
+            "time": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return jsonify({"success": True, "data": backups})
+
+
+@app.route('/api/backups', methods=['POST'])
+def create_backup():
+    """手动创建备份"""
+    BACKUP_DIR.mkdir(exist_ok=True)
+    name = f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}.yaml"
+    shutil.copy2(CONFIG_FILE, BACKUP_DIR / name)
+    emit_log(f"Backup created: {name}")
+    return jsonify({"success": True, "name": name})
+
+
+@app.route('/api/backups/<name>/restore', methods=['POST'])
+def restore_backup(name):
+    """恢复备份"""
+    backup_file = BACKUP_DIR / name
+    if not backup_file.exists():
+        return jsonify({"success": False, "error": "Backup not found"}), 404
+
+    shutil.copy2(backup_file, CONFIG_FILE)
+    reload_clash()
+    emit_log(f"Restored from backup: {name}")
+    return jsonify({"success": True})
+
+
+@app.route('/api/backups/<name>', methods=['DELETE'])
+def delete_backup(name):
+    """删除备份"""
+    backup_file = BACKUP_DIR / name
+    if backup_file.exists():
+        backup_file.unlink()
+    return jsonify({"success": True})
+
+
+# ==========================================
+#  API: Clash 状态
+# ==========================================
+
+@app.route('/api/clash/status', methods=['GET'])
+def clash_status():
+    """获取 Clash 运行状态"""
+    try:
+        headers = {"Authorization": f"Bearer {CLASH_SECRET}"} if CLASH_SECRET else {}
+        resp = requests.get(f"{CLASH_API}", headers=headers, timeout=3)
+        info = resp.json()
+
+        # 获取流量信息
+        try:
+            traffic = requests.get(f"{CLASH_API}/traffic", headers=headers, timeout=1, stream=True)
+            line = next(traffic.iter_lines())
+            traffic_data = json.loads(line)
+        except:
+            traffic_data = {"up": 0, "down": 0}
+
+        # 获取连接数
+        try:
+            conns = requests.get(f"{CLASH_API}/connections", headers=headers, timeout=3)
+            conn_data = conns.json()
+            active_connections = len(conn_data.get("connections", []))
+        except:
+            active_connections = 0
+
+        return jsonify({
+            "success": True,
+            "running": True,
+            "version": info.get("version", "unknown"),
+            "mode": info.get("mode", "unknown"),
+            "upload": traffic_data.get("up", 0),
+            "download": traffic_data.get("down", 0),
+            "active_connections": active_connections
+        })
+    except:
+        return jsonify({"success": True, "running": False})
+
+
+# ==========================================
+#  API: 实时日志 (SSE)
+# ==========================================
+
+@app.route('/api/logs/stream')
+def log_stream():
+    """SSE 实时日志流"""
+    def generate():
+        q = queue.Queue(maxsize=100)
+        log_queues.append(q)
+        try:
+            # 先发送历史
+            for entry in log_history[-20:]:
+                yield f"data: {json.dumps(entry)}\n\n"
+
+            while True:
+                try:
+                    entry = q.get(timeout=30)
+                    yield f"data: {json.dumps(entry)}\n\n"
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        finally:
+            log_queues.remove(q)
+
+    return Response(
+        stream_with_context(generate()),
+        content_type='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """获取日志历史"""
+    return jsonify({"success": True, "data": log_history[-100:]})
+
+
+# ==========================================
+#  API: 文件浏览 (通用编辑)
+# ==========================================
+
+EDITABLE_FILES = {
+    "override": OVERRIDE_FILE,
+    "template": TEMPLATE_FILE,
+    "merge_script": SCRIPTS_DIR / "merge.py",
+    "subscriptions": SUBS_CONFIG,
+    "config": CONFIG_FILE,
+}
+
+
+@app.route('/api/files', methods=['GET'])
+def list_files():
+    """列出可编辑文件"""
+    files = []
+    for key, path in EDITABLE_FILES.items():
+        files.append({
+            "key": key,
+            "path": str(path),
+            "exists": path.exists(),
+            "size": path.stat().st_size if path.exists() else 0,
+            "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime(
+                "%Y-%m-%d %H:%M:%S") if path.exists() else None
+        })
+    return jsonify({"success": True, "data": files})
+
+
+@app.route('/api/files/<key>', methods=['GET'])
+def get_file(key):
+    """读取文件内容"""
+    path = EDITABLE_FILES.get(key)
+    if not path:
+        return jsonify({"success": False, "error": "Unknown file"}), 404
+    content = read_text(path)
+    return jsonify({"success": True, "content": content, "path": str(path)})
+
+
+@app.route('/api/files/<key>', methods=['PUT'])
+def save_file(key):
+    """保存文件内容"""
+    path = EDITABLE_FILES.get(key)
+    if not path:
+        return jsonify({"success": False, "error": "Unknown file"}), 404
+
+    body = request.json
+    content = body.get("content", "")
+
+    # 根据文件类型做验证
+    if str(path).endswith('.yaml') or str(path).endswith('.yml'):
+        try:
+            yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            return jsonify({"success": False, "error": f"YAML error: {e}"}), 400
+    elif str(path).endswith('.json'):
+        try:
+            json.loads(content)
+        except json.JSONDecodeError as e:
+            return jsonify({"success": False, "error": f"JSON error: {e}"}), 400
+    elif str(path).endswith('.py'):
+        try:
+            compile(content, path.name, "exec")
+        except SyntaxError as e:
+            return jsonify({"success": False, "error": f"Python error: {e}"}), 400
+
+    # 备份
+    if path.exists():
+        backup = path.parent / f"{path.name}.bak"
+        shutil.copy2(path, backup)
+
+    write_text(content, path)
+    emit_log(f"File saved: {key} ({path.name})")
+    return jsonify({"success": True})
+
+
+# ==========================================
+if __name__ == '__main__':
+    emit_log("Management API starting...")
+    app.run(host='0.0.0.0', port=9092, debug=False, threaded=True)
+```
+
+---
+
+## 6. 前端管理面板
+
+### index.html
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clash 订阅管理面板</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- CodeMirror 代码编辑器 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/dracula.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/yaml/yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="header-left">
+                <h1>⚡ Clash Meta 管理面板</h1>
+            </div>
+            <div class="header-right">
+                <span id="clash-status" class="status-badge offline">离线</span>
+                <span id="clash-version"></span>
+                <a href="/clash-ui/" target="_blank" class="btn btn-sm">节点切换 UI →</a>
+            </div>
+        </header>
+
+        <!-- 状态卡片 -->
+        <div class="status-cards">
+            <div class="card stat-card">
+                <div class="stat-icon">🌐</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-proxies">0</div>
+                    <div class="stat-label">总节点数</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">📂</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-groups">0</div>
+                    <div class="stat-label">代理组</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">📋</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-rules">0</div>
+                    <div class="stat-label">规则数</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-conns">0</div>
+                    <div class="stat-label">活跃连接</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导航标签 -->
+        <nav class="tabs">
+            <button class="tab active" data-tab="subscriptions">📡 订阅管理</button>
+            <button class="tab" data-tab="override">⚙️ 覆盖规则</button>
+            <button class="tab" data-tab="editor">📝 脚本编辑</button>
+            <button class="tab" data-tab="config">📄 当前配置</button>
+            <button class="tab" data-tab="backups">💾 备份管理</button>
+            <button class="tab" data-tab="logs">📋 实时日志</button>
+        </nav>
+
+        <!-- ========== 订阅管理 ========== -->
+        <div class="tab-content active" id="tab-subscriptions">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="showAddSubModal()">➕ 添加订阅</button>
+                <button class="btn btn-success" onclick="doMerge()">🔄 拉取并合并</button>
+                <button class="btn" onclick="doReload()">♻️ 重载配置</button>
+                <button class="btn" onclick="loadSubscriptions()">🔃 刷新列表</button>
+            </div>
+
+            <div id="sub-list" class="sub-list">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+
+        <!-- ========== 覆盖规则 ========== -->
+        <div class="tab-content" id="tab-override">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="saveOverride()">💾 保存覆盖规则</button>
+                <button class="btn" onclick="validateOverride()">✅ 验证 YAML</button>
+                <button class="btn btn-success" onclick="saveOverride().then(doMerge)">💾 保存并合并</button>
+                <span id="override-status" class="toolbar-status"></span>
+            </div>
+            <div class="editor-info">
+                <p>编辑覆盖规则：这里定义的内容会覆盖/合并到最终配置中，包括基础设置、代理组、规则等。</p>
+            </div>
+            <div id="override-editor" class="code-editor"></div>
+        </div>
+
+        <!-- ========== 脚本编辑器 ========== -->
+        <div class="tab-content" id="tab-editor">
+            <div class="toolbar">
+                <select id="file-selector" onchange="loadFile()">
+                    <option value="">-- 选择文件 --</option>
+                </select>
+                <button class="btn btn-primary" onclick="saveCurrentFile()">💾 保存文件</button>
+                <button class="btn" onclick="validateCurrentFile()">✅ 语法检查</button>
+                <span id="file-status" class="toolbar-status"></span>
+            </div>
+            <div id="file-info" class="editor-info"></div>
+            <div id="file-editor" class="code-editor"></div>
+        </div>
+
+        <!-- ========== 当前配置 ========== -->
+        <div class="tab-content" id="tab-config">
+            <div class="toolbar">
+                <button class="btn" onclick="loadConfig()">🔃 刷新</button>
+                <button class="btn" onclick="doTestConfig()">🧪 测试配置</button>
+                <span id="config-status" class="toolbar-status"></span>
+            </div>
+            <div id="config-summary" class="config-summary"></div>
+            <div id="config-editor" class="code-editor"></div>
+        </div>
+
+        <!-- ========== 备份管理 ========== -->
+        <div class="tab-content" id="tab-backups">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="createBackup()">📸 创建备份</button>
+                <button class="btn" onclick="loadBackups()">🔃 刷新</button>
+            </div>
+            <div id="backup-list" class="backup-list"></div>
+        </div>
+
+        <!-- ========== 实时日志 ========== -->
+        <div class="tab-content" id="tab-logs">
+            <div class="toolbar">
+                <button class="btn" onclick="clearLogs()">🗑️ 清空</button>
+                <label><input type="checkbox" id="log-autoscroll" checked> 自动滚动</label>
+                <label>
+                    过滤:
+                    <select id="log-filter">
+                        <option value="">全部</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="SUCCESS">SUCCESS</option>
+                    </select>
+                </label>
+            </div>
+            <div id="log-container" class="log-container"></div>
+        </div>
+
+        <!-- 添加订阅弹窗 -->
+        <div id="modal-overlay" class="modal-overlay" style="display:none;">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="modal-title">添加订阅</h3>
+                    <button class="modal-close" onclick="closeModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="sub-edit-original-name">
+                    <div class="form-group">
+                        <label>名称 *</label>
+                        <input type="text" id="sub-name" placeholder="如: Airport-A">
+                    </div>
+                    <div class="form-group">
+                        <label>订阅地址 *</label>
+                        <input type="text" id="sub-url" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>前缀</label>
+                        <input type="text" id="sub-prefix" placeholder="A_">
+                        <small>添加到节点名称前，便于区分来源</small>
+                    </div>
+                    <div class="form-group">
+                        <label>排除过滤 (正则)</label>
+                        <input type="text" id="sub-exclude" placeholder="(?i)(过期|剩余|官网)" 
+                               value="(?i)(过期|剩余|官网|流量)">
+                    </div>
+                    <div class="form-group">
+                        <label>包含过滤 (正则, 留空=全部)</label>
+                        <input type="text" id="sub-include" placeholder="">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitSubscription()">确认</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 节点列表弹窗 -->
+        <div id="nodes-modal" class="modal-overlay" style="display:none;">
+            <div class="modal modal-lg">
+                <div class="modal-header">
+                    <h3 id="nodes-modal-title">节点列表</h3>
+                    <button class="modal-close" onclick="closeNodesModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div id="nodes-list" class="nodes-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast 通知 -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+```
+
+### style.css
+
+```css
+/* style.css */
+:root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-tertiary: #243044;
+    --bg-card: #1e2d3d;
+    --text-primary: #e4e9f0;
+    --text-secondary: #8899aa;
+    --accent: #4fc3f7;
+    --accent-hover: #29b6f6;
+    --success: #66bb6a;
+    --warning: #ffa726;
+    --danger: #ef5350;
+    --border: #2d3f50;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --radius: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+#app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+}
+
+.header h1 { font-size: 1.3em; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.status-badge.online { background: var(--success); color: #fff; }
+.status-badge.offline { background: var(--danger); color: #fff; }
+
+/* Status Cards */
+.status-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.stat-icon { font-size: 2em; }
+.stat-value { font-size: 1.8em; font-weight: 700; color: var(--accent); }
+.stat-label { color: var(--text-secondary); font-size: 0.85em; margin-top: 2px; }
+
+/* Card */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--bg-secondary);
+    padding: 6px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+}
+
+.tab {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9em;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.tab:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.tab.active { background: var(--accent); color: #fff; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.toolbar select {
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.toolbar-status {
+    margin-left: auto;
+    font-size: 0.85em;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn:hover { background: var(--border); }
+.btn-sm { padding: 4px 10px; font-size: 0.8em; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-warning { background: var(--warning); color: #333; border-color: var(--warning); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Subscription List */
+.sub-list { display: flex; flex-direction: column; gap: 10px; }
+
+.sub-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.2s;
+}
+
+.sub-item:hover { border-color: var(--accent); }
+.sub-item.disabled { opacity: 0.5; }
+
+.sub-toggle {
+    width: 44px; height: 24px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.sub-toggle.active { background: var(--success); border-color: var(--success); }
+
+.sub-toggle::after {
+    content: '';
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 1px; left: 1px;
+    transition: transform 0.3s;
+}
+
+.sub-toggle.active::after { transform: translateX(20px); }
+
+.sub-info { flex: 1; min-width: 0; }
+.sub-name { font-weight: 600; font-size: 1.05em; margin-bottom: 4px; }
+
+.sub-meta {
+    display: flex;
+    gap: 16px;
+    color: var(--text-secondary);
+    font-size: 0.8em;
+    flex-wrap: wrap;
+}
+
+.sub-meta span { display: flex; align-items: center; gap: 4px; }
+.sub-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Code Editor */
+.code-editor {
+    height: 600px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.CodeMirror {
+    height: 100% !important;
+    font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+}
+
+.editor-info {
+    padding: 10px 16px;
+    margin-bottom: 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    border-left: 3px solid var(--accent);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+/* Config Summary */
+.config-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.summary-item {
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+/* Log Container */
+.log-container {
+    height: 500px;
+    overflow-y: auto;
+    background: #0a0e14;
+    border-radius: var(--radius);
+    padding: 12px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    border: 1px solid var(--border);
+}
+
+.log-entry { padding: 2px 0; white-space: pre-wrap; word-break: break-all; }
+.log-entry .time { color: #5c6773; }
+.log-entry .level-INFO { color: var(--accent); }
+.log-entry .level-WARN { color: var(--warning); }
+.log-entry .level-ERROR { color: var(--danger); }
+.log-entry .level-SUCCESS { color: var(--success); }
+
+/* Backup List */
+.backup-list { display: flex; flex-direction: column; gap: 8px; }
+
+.backup-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.backup-info { display: flex; gap: 20px; align-items: center; }
+.backup-name { font-weight: 500; }
+.backup-meta { color: var(--text-secondary); font-size: 0.85em; }
+
+/* Nodes List */
+.nodes-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.node-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9em;
+}
+
+.node-item:nth-child(odd) { background: var(--bg-tertiary); }
+.node-type { 
+    padding: 2px 8px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 540px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.modal-lg { max-width: 800px; }
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+.modal-body { padding: 20px; }
+.modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9em; }
+.form-group small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 0.8em; }
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9em;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Toast */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.9em;
+    animation: slideIn 0.3s ease;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.warning { background: var(--warning); color: #333; }
+.toast.info { background: var(--accent); }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .header { flex-direction: column; gap: 10px; }
+    .sub-item { flex-direction: column; align-items: flex-start; }
+    .sub-actions { width: 100%; justify-content: flex-end; }
+    .status-cards { grid-template-columns: repeat(2, 1fr); }
+    .tabs { flex-wrap: nowrap; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+```
+
+### app.js
+
+```javascript
+// app.js - 管理面板前端逻辑
+
+const API = '/api';
+let editors = {};
+let currentFileKey = '';
+let logEventSource = null;
+
+// ==========================================
+//  工具函数
+// ==========================================
+
+async function api(path, options = {}) {
+    const url = `${API}${path}`;
+    const config = {
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+    };
+    if (config.body && typeof config.body === 'object') {
+        config.body = JSON.stringify(config.body);
+    }
+    const resp = await fetch(url, config);
+    const data = await resp.json();
+    if (!resp.ok && !data.success) {
+        throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+    return data;
+}
+
+function toast(msg, type = 'info', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// ==========================================
+//  标签切换
+// ==========================================
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        document.getElementById(`tab-${target}`).classList.add('active');
+
+        // 懒加载
+        switch (target) {
+            case 'subscriptions': loadSubscriptions(); break;
+            case 'override': initOverrideEditor(); break;
+            case 'editor': initFileEditor(); break;
+            case 'config': loadConfig(); break;
+            case 'backups': loadBackups(); break;
+            case 'logs': initLogStream(); break;
+        }
+    });
+});
+
+// ==========================================
+//  状态刷新
+// ==========================================
+
+async function refreshStatus() {
+    try {
+        // Clash 状态
+        const status = await api('/clash/status');
+        const badge = document.getElementById('clash-status');
+        const version = document.getElementById('clash-version');
+
+        if (status.running) {
+            badge.className = 'status-badge online';
+            badge.textContent = '运行中';
+            version.textContent = `v${status.version} | ${status.mode}`;
+            document.getElementById('stat-conns').textContent = status.active_connections;
+        } else {
+            badge.className = 'status-badge offline';
+            badge.textContent = '离线';
+        }
+
+        // 配置概要
+        const summary = await api('/config/summary');
+        if (summary.success) {
+            document.getElementById('stat-proxies').textContent = summary.data.proxy_count;
+            document.getElementById('stat-groups').textContent = summary.data.group_count;
+            document.getElementById('stat-rules').textContent = summary.data.rule_count;
+        }
+    } catch (e) {
+        console.error('Status refresh failed:', e);
+    }
+}
+
+setInterval(refreshStatus, 5000);
+refreshStatus();
+
+// ==========================================
+//  订阅管理
+// ==========================================
+
+async function loadSubscriptions() {
+    try {
+        const result = await api('/subscriptions');
+        const list = document.getElementById('sub-list');
+
+        if (!result.data || result.data.length === 0) {
+            list.innerHTML = `
+                <div class="card" style="padding:40px;text-align:center;color:var(--text-secondary)">
+                    <p style="font-size:2em;margin-bottom:10px">📡</p>
+                    <p>暂无订阅，点击上方"添加订阅"开始</p>
+                </div>`;
+            return;
+        }
+
+        list.innerHTML = result.data.map(sub => `
+            <div class="sub-item ${sub.enabled ? '' : 'disabled'}">
+                <div class="sub-toggle ${sub.enabled ? 'active' : ''}" 
+                     onclick="toggleSub('${sub.name}')"></div>
+                <div class="sub-info">
+                    <div class="sub-name">${sub.name}</div>
+                    <div class="sub-meta">
+                        <span>🏷️ 前缀: ${sub.prefix || '无'}</span>
+                        <span>📊 节点: ${sub.node_count || 0}</span>
+                        ${sub.cached ? `<span>⏱️ 更新: ${sub.cached_time}</span>` : '<span>⚠️ 未缓存</span>'}
+                    </div>
+                </div>
+                <div class="sub-actions">
+                    <button class="btn btn-sm" onclick="testSub('${sub.name}')" title="测试">🧪</button>
+                    <button class="btn btn-sm" onclick="viewNodes('${sub.name}')" title="查看节点">👁️</button>
+                    <button class="btn btn-sm" onclick="editSub('${sub.name}')" title="编辑">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSub('${sub.name}')" title="删除">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        toast('加载订阅失败: ' + e.message, 'error');
+    }
+}
+
+function showAddSubModal() {
+    document.getElementById('modal-title').textContent = '添加订阅';
+    document.getElementById('sub-edit-original-name').value = '';
+    document.getElementById('sub-name').value = '';
+    document.getElementById('sub-url').value = '';
+    document.getElementById('sub-prefix').value = '';
+    document.getElementById('sub-exclude').value = '(?i)(过期|剩余|官网|流量)';
+    document.getElementById('sub-include').value = '';
+    document.getElementById('sub-name').disabled = false;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+async function editSub(name) {
+    try {
+        const result = await api('/subscriptions');
+        const sub = result.data.find(s => s.name === name);
+        if (!sub) return;
+
+        document.getElementById('modal-title').textContent = '编辑订阅';
+        document.getElementById('sub-edit-original-name').value = name;
+        document.getElementById('sub-name').value = sub.name;
+        document.getElementById('sub-name').disabled = true;
+        document.getElementById('sub-url').value = sub.url;
+        document.getElementById('sub-prefix').value = sub.prefix || '';
+        document.getElementById('sub-exclude').value = sub.exclude_filter || '';
+        document.getElementById('sub-include').value = sub.include_filter || '';
+        document.getElementById('modal-overlay').style.display = 'flex';
+    } catch (e) {
+        toast('加载订阅信息失败', 'error');
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+}
+
+async function submitSubscription() {
+    const originalName = document.getElementById('sub-edit-original-name').value;
+    const name = document.getElementById('sub-name').value.trim();
+    const url = document.getElementById('sub-url').value.trim();
+    const prefix = document.getElementById('sub-prefix').value.trim();
+    const exclude = document.getElementById('sub-exclude').value.trim();
+    const include = document.getElementById('sub-include').value.trim();
+
+    if (!name || !url) {
+        toast('名称和地址不能为空', 'warning');
+        return;
+    }
+
+    try {
+        const body = {
+            name, url, prefix,
+            exclude_filter: exclude,
+            include_filter: include,
+            enabled: true
+        };
+
+        if (originalName) {
+            // 编辑模式
+            await api(`/subscriptions/${originalName}`, {
+                method: 'PUT',
+                body: { ...body, url, prefix, exclude_filter: exclude, include_filter: include }
+            });
+            toast('订阅已更新', 'success');
+        } else {
+            // 添加模式
+            await api('/subscriptions', { method: 'POST', body });
+            toast('订阅已添加', 'success');
+        }
+
+        closeModal();
+        loadSubscriptions();
+    } catch (e) {
+        toast('操作失败: ' + e.message, 'error');
+    }
+}
+
+async function toggleSub(name) {
+    try {
+        const result = await api(`/subscriptions/${name}/toggle`, { method: 'POST' });
+        toast(`${name} 已${result.enabled ? '启用' : '禁用'}`, 'success');
+        loadSubscriptions();
+    } catch (e) {
+        toast('切换失败', 'error');
+    }
+}
+
+async function deleteSub(name) {
+    if (!confirm(`确定删除订阅 "${name}"？`)) return;
+    try {
+        await api(`/subscriptions/${name}`, { method: 'DELETE' });
+        toast('订阅已删除', 'success');
+        loadSubscriptions();
+    } catch (e) {
+        toast('删除失败', 'error');
+    }
+}
+
+async function testSub(name) {
+    toast(`正在测试 ${name}...`, 'info');
+    try {
+        const result = await api(`/subscriptions/${name}/test`, { method: 'POST' });
+        if (result.success) {
+            toast(`${name}: 找到 ${result.node_count} 个节点`, 'success');
+        } else {
+            toast(`测试失败: ${result.error}`, 'error');
+        }
+    } catch (e) {
+        toast('测试失败: ' + e.message, 'error');
+    }
+}
+
+async function viewNodes(name) {
+    try {
+        const result = await api(`/subscriptions/${name}/nodes`);
+        document.getElementById('nodes-modal-title').textContent = `${name} - ${result.total} 个节点`;
+
+        document.getElementById('nodes-list').innerHTML = result.data.map(n => `
+            <div class="node-item">
+                <span>${n.name}</span>
+                <span>
+                    <span class="node-type">${n.type}</span>
+                    ${n.server}:${n.port}
+                </span>
+            </div>
+        `).join('');
+
+        document.getElementById('nodes-modal').style.display = 'flex';
+    } catch (e) {
+        toast('加载节点失败: ' + e.message, 'error');
+    }
+}
+
+function closeNodesModal() {
+    document.getElementById('nodes-modal').style.display = 'none';
+}
+
+// ==========================================
+//  操作按钮
+// ==========================================
+
+async function doMerge() {
+    try {
+        await api('/actions/merge', { method: 'POST' });
+        toast('合并任务已启动，查看日志了解进度', 'info');
+        // 自动跳到日志页
+        document.querySelector('[data-tab="logs"]').click();
+    } catch (e) {
+        toast('启动合并失败: ' + e.message, 'error');
+    }
+}
+
+async function doReload() {
+    try {
+        const result = await api('/actions/reload', { method: 'POST' });
+        toast(result.success ? '配置已重载' : '重载失败', result.success ? 'success' : 'error');
+        refreshStatus();
+    } catch (e) {
+        toast('重载失败: ' + e.message, 'error');
+    }
+}
+
+async function doTestConfig() {
+    try {
+        const result = await api('/actions/test-config', { method: 'POST' });
+        const status = document.getElementById('config-status');
+        if (result.valid) {
+            status.textContent = '✅ 配置有效';
+            status.style.color = 'var(--success)';
+            toast('配置验证通过', 'success');
+        } else {
+            status.textContent = '❌ 配置有误';
+            status.style.color = 'var(--danger)';
+            toast('配置验证失败:\n' + result.output, 'error', 5000);
+        }
+    } catch (e) {
+        toast('测试失败', 'error');
+    }
+}
+
+// ==========================================
+//  覆盖规则编辑器
+// ==========================================
+
+let overrideEditorInit = false;
+
+async function initOverrideEditor() {
+    if (!overrideEditorInit) {
+        editors.override = CodeMirror(document.getElementById('override-editor'), {
+            mode: 'yaml',
+            theme: 'dracula',
+            lineNumbers: true,
+            lineWrapping: true,
+            tabSize: 2,
+            indentWithTabs: false,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+        });
+        overrideEditorInit = true;
+    }
+
+    try {
+        const result = await api('/override');
+        editors.override.setValue(result.content || '# 覆盖规则\n');
+    } catch (e) {
+        toast('加载覆盖规则失败', 'error');
+    }
+}
+
+async function saveOverride() {
+    try {
+        const content = editors.override.getValue();
+        await api('/override', { method: 'PUT', body: { content } });
+        toast('覆盖规则已保存', 'success');
+        document.getElementById('override-status').textContent = '✅ 已保存';
+        document.getElementById('override-status').style.color = 'var(--success)';
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error');
+        document.getElementById('override-status').textContent = '❌ ' + e.message;
+        document.getElementById('override-status').style.color = 'var(--danger)';
+    }
+}
+
+async function validateOverride() {
+    try {
+        const content = editors.override.getValue();
+        const result = await api('/override/validate', { method: 'POST', body: { content } });
+        if (result.valid) {
+            toast(`YAML 有效，包含 keys: ${result.keys.join(', ')}`, 'success');
+        } else {
+            toast('YAML 错误: ' + result.error, 'error', 5000);
+        }
+    } catch (e) {
+        toast('验证失败', 'error');
+    }
+}
+
+// ==========================================
+//  通用文件编辑器
+// ==========================================
+
+let fileEditorInit = false;
+
+async function initFileEditor() {
+    if (!fileEditorInit) {
+        editors.file = CodeMirror(document.getElementById('file-editor'), {
+            mode: 'yaml',
+            theme: 'dracula',
+            lineNumbers: true,
+            lineWrapping: true,
+            tabSize: 2,
+            indentWithTabs: false,
+        });
+        fileEditorInit = true;
+    }
+
+    // 加载文件列表
+    try {
+        const result = await api('/files');
+        const selector = document.getElementById('file-selector');
+        const modeMap = {
+            'override': 'yaml',
+            'template': 'yaml',
+            'merge_script': 'python',
+            'subscriptions': 'javascript',
+            'config': 'yaml'
+        };
+        const labelMap = {
+            'override': '⚙️ 覆盖规则 (override.yaml)',
+            'template': '📋 基础模板 (template.yaml)',
+            'merge_script': '🐍 合并脚本 (merge.py)',
+            'subscriptions': '📡 订阅配置 (subscriptions.json)',
+            'config': '📄 当前配置 (config.yaml) [只读推荐]'
+        };
+
+        selector.innerHTML = '<option value="">-- 选择文件 --</option>';
+        result.data.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.key;
+            opt.textContent = labelMap[f.key] || f.key;
+            opt.dataset.mode = modeMap[f.key] || 'yaml';
+            selector.appendChild(opt);
+        });
+    } catch (e) {
+        toast('加载文件列表失败', 'error');
+    }
+}
+
+async function loadFile() {
+    const selector = document.getElementById('file-selector');
+    const key = selector.value;
+    if (!key) return;
+
+    currentFileKey = key;
+
+    try {
+        const result = await api(`/files/${key}`);
+        const mode = selector.selectedOptions[0].dataset.mode || 'yaml';
+        editors.file.setOption('mode', mode);
+        editors.file.setValue(result.content || '');
+
+        document.getElementById('file-info').innerHTML =
+            `<strong>文件:</strong> ${result.path} | <strong>模式:</strong> ${mode}`;
+        document.getElementById('file-status').textContent = '';
+    } catch (e) {
+        toast('加载文件失败', 'error');
+    }
+}
+
+async function saveCurrentFile() {
+    if (!currentFileKey) {
+        toast('请先选择文件', 'warning');
+        return;
+    }
+
+    try {
+        const content = editors.file.getValue();
+        await api(`/files/${currentFileKey}`, {
+            method: 'PUT',
+            body: { content }
+        });
+        toast('文件已保存', 'success');
+        document.getElementById('file-status').textContent = '✅ 已保存';
+        document.getElementById('file-status').style.color = 'var(--success)';
+    } catch (e) {
+        toast('保存失败: ' + e.message, 'error', 5000);
+        document.getElementById('file-status').textContent = '❌ ' + e.message;
+        document.getElementById('file-status').style.color = 'var(--danger)';
+    }
+}
+
+function validateCurrentFile() {
+    if (!currentFileKey) return;
+    const content = editors.file.getValue();
+    const selector = document.getElementById('file-selector');
+    const mode = selector.selectedOptions[0]?.dataset.mode || 'yaml';
+
+    try {
+        if (mode === 'python') {
+            // 简单的语法提示（实际验证在后端）
+            toast('Python 语法将在保存时由后端验证', 'info');
+        } else if (mode === 'javascript') {
+            JSON.parse(content);
+            toast('JSON 格式正确', 'success');
+        } else {
+            // YAML 前端简单校验
+            toast('YAML 格式将在保存时由后端验证', 'info');
+        }
+    } catch (e) {
+        toast('语法错误: ' + e.message, 'error');
+    }
+}
+
+// ==========================================
+//  当前配置查看
+// ==========================================
+
+let configEditorInit = false;
+
+async function loadConfig() {
+    if (!configEditorInit) {
+        editors.config = CodeMirror(document.getElementById('config-editor'), {
+            mode: 'yaml',
+            theme: 'dracula',
+            lineNumbers: true,
+            lineWrapping: true,
+            readOnly: true,
+            tabSize: 2,
+        });
+        configEditorInit = true;
+    }
+
+    try {
+        const [configResult, summaryResult] = await Promise.all([
+            api('/config'),
+            api('/config/summary')
+        ]);
+
+        editors.config.setValue(configResult.content || '');
+
+        if (summaryResult.success) {
+            const d = summaryResult.data;
+            const typeHtml = Object.entries(d.proxy_types || {})
+                .map(([k, v]) => `<span class="node-type">${k}: ${v}</span>`).join(' ');
+
+            document.getElementById('config-summary').innerHTML = `
+                <div class="summary-item">
+                    <strong>📊 节点统计:</strong> ${d.proxy_count} 个节点 ${typeHtml}
+                </div>
+                <div class="summary-item">
+                    <strong>📂 代理组:</strong> ${d.groups.map(g => `${g.name}(${g.type})`).join(', ')}
+                </div>
+                <div class="summary-item">
+                    <strong>🌐 模式:</strong> ${d.mode} | <strong>端口:</strong> ${d.port}
+                </div>
+            `;
+        }
+    } catch (e) {
+        toast('加载配置失败', 'error');
+    }
+}
+
+// ==========================================
+//  备份管理
+// ==========================================
+
+async function loadBackups() {
+    try {
+        const result = await api('/backups');
+        const list = document.getElementById('backup-list');
+
+        if (!result.data || result.data.length === 0) {
+            list.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--text-secondary)">暂无备份</div>';
+            return;
+        }
+
+        list.innerHTML = result.data.map(b => `
+            <div class="backup-item">
+                <div class="backup-info">
+                    <span class="backup-name">📁 ${b.name}</span>
+                    <span class="backup-meta">${b.time} · ${formatBytes(b.size)}</span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm btn-warning" onclick="restoreBackup('${b.name}')">恢复</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBackup('${b.name}')">删除</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        toast('加载备份失败', 'error');
+    }
+}
+
+async function createBackup() {
+    try {
+        const result = await api('/backups', { method: 'POST' });
+        toast(`备份已创建: ${result.name}`, 'success');
+        loadBackups();
+    } catch (e) {
+        toast('创建备份失败', 'error');
+    }
+}
+
+async function restoreBackup(name) {
+    if (!confirm(`确定从 "${name}" 恢复？当前配置将被覆盖。`)) return;
+    try {
+        await api(`/backups/${name}/restore`, { method: 'POST' });
+        toast('已从备份恢复', 'success');
+        refreshStatus();
+    } catch (e) {
+        toast('恢复失败', 'error');
+    }
+}
+
+async function deleteBackup(name) {
+    if (!confirm(`确定删除备份 "${name}"？`)) return;
+    try {
+        await api(`/backups/${name}`, { method: 'DELETE' });
+        toast('备份已删除', 'success');
+        loadBackups();
+    } catch (e) {
+        toast('删除失败', 'error');
+    }
+}
+
+// ==========================================
+//  实时日志 (SSE)
+// ==========================================
+
+let logStreamInit = false;
+
+function initLogStream() {
+    if (logStreamInit) return;
+    logStreamInit = true;
+
+    const container = document.getElementById('log-container');
+
+    logEventSource = new EventSource('/api/logs/stream');
+
+    logEventSource.onmessage = function (event) {
+        const entry = JSON.parse(event.data);
+        const filter = document.getElementById('log-filter').value;
+
+        if (filter && entry.level !== filter) return;
+
+        const el = document.createElement('div');
+        el.className = 'log-entry';
+        el.innerHTML = `<span class="time">${entry.time}</span> <span class="level-${entry.level}">[${entry.level}]</span> ${escapeHtml(entry.msg)}`;
+        container.appendChild(el);
+
+        // 限制显示行数
+        while (container.children.length > 500) {
+            container.removeChild(container.firstChild);
+        }
+
+        // 自动滚动
+        if (document.getElementById('log-autoscroll').checked) {
+            container.scrollTop = container.scrollHeight;
+        }
+    };
+
+    logEventSource.onerror = function () {
+        setTimeout(() => {
+            logStreamInit = false;
+            initLogStream();
+        }, 3000);
+    };
+}
+
+function clearLogs() {
+    document.getElementById('log-container').innerHTML = '';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 日志过滤器变化时清空重新连接
+document.getElementById('log-filter')?.addEventListener('change', () => {
+    clearLogs();
+});
+
+// ==========================================
+//  初始加载
+// ==========================================
+
+loadSubscriptions();
+```
+
+---
+
+## 部署与使用
+
+```bash
+# 构建启动
+docker-compose up -d --build
+
+# 查看日志
+docker-compose logs -f
+```
+
+### 访问地址
+
+| 地址 | 功能 |
+|------|------|
+| `http://IP:80` | **管理面板**（订阅管理、脚本编辑、日志） |
+| `http://IP:80/clash-ui/` | **metacubexd**（节点切换、连接查看） |
+| `http://IP:7890` | HTTP 代理 |
+| `http://IP:7891` | SOCKS5 代理 |
+
+### 管理面板功能截图描述
+
+```
+┌─────────────────────────────────────────────────────┐
+│ ⚡ Clash Meta 管理面板              🟢 运行中 v1.18  │
+├──────┬──────┬──────┬──────┬──────┬──────────────────┤
+│ 🌐   │ 📂   │ 📋   │ 🔗   │      │                  │
+│ 128  │  8   │ 256  │ 42   │      │                  │
+│ 节点 │ 分组 │ 规则 │ 连接  │      │                  │
+├──────┴──────┴──────┴──────┴──────┴──────────────────┤
+│ [📡订阅管理] [⚙️覆盖规则] [📝脚本编辑] [📋日志]      │
+├─────────────────────────────────────────────────────┤
+│ ➕添加订阅  🔄拉取并合并  ♻️重载配置                  │
+│                                                     │
+│ ┌─ ✅ Airport-A ────────────────── 🧪 👁️ ✏️ 🗑️ ──┐ │
+│ │   🏷️ A_  📊 56节点  ⏱️ 2024-01-15 10:30        │ │
+│ └──────────────────────────────────────────────────┘ │
+│ ┌─ ✅ Airport-B ────────────────── 🧪 👁️ ✏️ 🗑️ ──┐ │
+│ │   🏷️ B_  📊 72节点  ⏱️ 2024-01-15 10:30        │ │
+│ └──────────────────────────────────────────────────┘ │
+│ ┌─ ❌ Airport-C (已禁用)────────── 🧪 👁️ ✏️ 🗑️ ──┐ │
+│ │   🏷️ C_  📊 30节点  ⏱️ 2024-01-14 08:00        │ │
+│ └──────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+### 面板核心功能总结
+
+| Tab | 功能 |
+|-----|------|
+| **📡 订阅管理** | 添加/删除/启用禁用/测试/查看节点，一键合并 |
+| **⚙️ 覆盖规则** | 可视化编辑 override.yaml（代理组、规则、DNS 等） |
+| **📝 脚本编辑** | 在线编辑 merge.py / template.yaml / subscriptions.json 等所有配置文件，带语法高亮和验证 |
+| **📄 当前配置** | 查看最终生成的 config.yaml，配置摘要统计 |
+| **💾 备份管理** | 手动/自动备份，一键恢复 |
+| **📋 实时日志** | SSE 实时推送合并过程日志，支持过滤 |

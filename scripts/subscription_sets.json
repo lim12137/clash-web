@@ -1,0 +1,22 @@
+{
+  "set1": [
+    {
+      "name": "A",
+      "url": "http://49.233.252.141:33666/s/a8c260a412e05afda443a15718e7841c"
+    },
+    {
+      "name": "B",
+      "url": "https://sss.xlajiao.xyz/user/profile/data/644f13d6046ad51e53dd561e2d4cf686"
+    }
+  ],
+  "set2": [
+    {
+      "name": "a",
+      "url": "http://132.226.169.119/clash.yaml"
+    },
+    {
+      "name": "b",
+      "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg"
+    }
+  ]
+}
