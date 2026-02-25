@@ -41,6 +41,40 @@ docker compose up -d --build
 - HTTP 代理：`<主机IP>:7890`
 - SOCKS5 代理：`<主机IP>:7891`
 
+## 无 Docker 本地重启（BAT，仅 API）
+
+适用场景：本机快速重启管理 API，不依赖 Docker。
+
+执行脚本：
+
+```bat
+scripts\restart_local_api.bat
+```
+
+脚本行为：
+
+- 结束当前 `API_PORT`（默认 `9092`）上的监听进程
+- 执行一次 `scripts/merge.py merge`
+- 新开 `cmd` 窗口启动 `scripts/api_server.py`
+
+可覆盖环境变量：
+
+```bat
+set PYTHON_BIN=D:\py311\python.exe
+set CLASH_API=http://127.0.0.1:9090
+set API_HOST=0.0.0.0
+set API_PORT=9092
+set ADMIN_TOKEN=your_admin_token
+set CLASH_SECRET=your_clash_secret
+scripts\restart_local_api.bat
+```
+
+验证接口：
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:9092/api/health
+```
+
 ## 目录说明
 
 - `docker-compose.yml`：单容器部署定义
