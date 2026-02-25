@@ -1263,6 +1263,30 @@ function initLogs() {
   };
 }
 
+function initProxySettingCardToggles() {
+  const toggles = Array.from(document.querySelectorAll(".proxy-settings-toggle"));
+  toggles.forEach((btn) => {
+    const targetId = String(btn.dataset.toggleCard || "").trim();
+    const card = targetId ? document.getElementById(targetId) : btn.closest(".proxy-setting-card");
+    const content = card?.querySelector(".proxy-setting-content");
+    if (!card || !content) return;
+
+    const applyState = () => {
+      const collapsed = card.classList.contains("is-collapsed");
+      content.hidden = collapsed;
+      btn.textContent = collapsed ? "展开设置" : "收起设置";
+      btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    };
+
+    btn.onclick = () => {
+      card.classList.toggle("is-collapsed");
+      applyState();
+    };
+
+    applyState();
+  });
+}
+
 function bindEvents() {
   document.getElementById("save-token").onclick = () => {
     const val = document.getElementById("admin-token").value.trim();
@@ -1323,6 +1347,7 @@ function bindEvents() {
 async function boot() {
   document.getElementById("admin-token").value = getToken();
   bindEvents();
+  initProxySettingCardToggles();
   bindTabs();
   bindSidebarNav();
   initLogs();
