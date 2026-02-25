@@ -11,10 +11,10 @@ if "%PYTHON_BIN%"=="" set "PYTHON_BIN=D:\py311\python.exe"
 if not exist "%PYTHON_BIN%" set "PYTHON_BIN=python"
 if "%CLASH_API%"=="" set "CLASH_API=http://127.0.0.1:9090"
 if "%API_HOST%"=="" set "API_HOST=0.0.0.0"
-if "%API_PORT%"=="" set "API_PORT=9092"
+if "%API_PORT%"=="" set "API_PORT=19092"
 
-set "MIHOMO_DIR=%PROJECT_ROOT%\config"
-set "SCRIPTS_DIR=%PROJECT_ROOT%\scripts"
+if "%MIHOMO_DIR%"=="" set "MIHOMO_DIR=%PROJECT_ROOT%\config"
+if "%SCRIPTS_DIR%"=="" set "SCRIPTS_DIR=%PROJECT_ROOT%\scripts"
 
 if not exist "%MIHOMO_DIR%" mkdir "%MIHOMO_DIR%"
 if not exist "%MIHOMO_DIR%\subs" mkdir "%MIHOMO_DIR%\subs"
@@ -41,11 +41,15 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:":%API_PORT% .*LISTENIN
 if "%KILLED_ANY%"=="0" echo   no existing listener found
 
 echo.
-echo [2/3] Run merge once...
-"%PYTHON_BIN%" "%SCRIPTS_DIR%\merge.py" merge
-if errorlevel 1 (
-  echo merge failed, restart aborted.
-  exit /b 1
+if "%SKIP_MERGE%"=="1" (
+  echo [2/3] Skip merge, SKIP_MERGE=1
+) else (
+  echo [2/3] Run merge once...
+  "%PYTHON_BIN%" "%SCRIPTS_DIR%\merge.py" merge
+  if errorlevel 1 (
+    echo merge failed, restart aborted.
+    exit /b 1
+  )
 )
 
 echo.

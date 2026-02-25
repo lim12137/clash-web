@@ -1,25 +1,7 @@
 // === AUTO-SUB-SETS:START ===
 // 自动生成区块：请在管理面板的“订阅集合”里维护，不建议手工改这里。
-const SUB_SET1 = [
-  {
-    "name": "A",
-    "url": "https://example.com/subscription-a.yaml"
-  },
-  {
-    "name": "B",
-    "url": "https://example.com/subscription-b.yaml"
-  }
-];
-const SUB_SET2 = [
-  {
-    "name": "a",
-    "url": "https://example.com/subscription-c.yaml"
-  },
-  {
-    "name": "b",
-    "url": "https://example.com/subscription-d.yaml"
-  }
-];
+const SUB_SET1 = [];
+const SUB_SET2 = [];
 const SUB_SET1_URLS = SUB_SET1.map((x) => x.url).filter(Boolean);
 const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);
 // === AUTO-SUB-SETS:END ===
@@ -27,7 +9,7 @@ const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);
 // ==================== 过滤器 ====================
 // 付费集合中用于 Google/YouTube 的美国优选节点过滤器
 const US_FILTER =
-  "(?i)(\\bUS\\b|\\bUSA\\b|United\\s*States|UnitedStates|America|美国|美國|美西|美东|洛杉矶|圣何塞|硅谷|西雅图|达拉斯|芝加哥|纽约|华盛顿|🇺🇸)";
+  "(?i)(\\bUS\\b|United States|America|美国|美西|美东|洛杉矶|圣何塞|硅谷|西雅图|达拉斯|芝加哥|纽约|华盛顿)";
 
 // ==================== 工具函数 ====================
 function safeProviderName(raw, fallback) {

@@ -36,32 +36,10 @@ SITE_POLICY_FILE = SCRIPTS_DIR / "site_policy.yaml"
 REQUEST_TIMEOUT = int(os.environ.get("SUB_REQUEST_TIMEOUT", "20"))
 JS_OVERRIDE_TIMEOUT = int(os.environ.get("JS_OVERRIDE_TIMEOUT", "20"))
 NODE_BIN = os.environ.get("NODE_BIN", "node")
-DEFAULT_EXTERNAL_CONTROLLER = "0.0.0.0:9090"
 
 
 def log(message: str) -> None:
     print(f"[merge] {message}", flush=True)
-
-
-def read_int_env(var_name: str) -> int | None:
-    raw = os.environ.get(var_name, "").strip()
-    if not raw:
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        log(f"invalid {var_name}={raw!r}, ignored")
-        return None
-
-
-def get_external_controller() -> str:
-    configured = os.environ.get("CLASH_EXTERNAL_CONTROLLER", "").strip()
-    return configured or DEFAULT_EXTERNAL_CONTROLLER
-
-
-def env_flag(var_name: str) -> bool:
-    value = os.environ.get(var_name, "").strip().lower()
-    return value in {"1", "true", "yes", "on"}
 
 
 def ensure_dirs() -> None:
@@ -337,13 +315,13 @@ def deep_merge_config(base: dict[str, Any], override: dict[str, Any]) -> dict[st
 
 def build_default_template() -> dict[str, Any]:
     return {
-        "mixed-port": 17890,
+        "mixed-port": 7890,
         "socks-port": 7891,
         "allow-lan": True,
         "bind-address": "*",
         "mode": "rule",
         "log-level": "info",
-        "external-controller": DEFAULT_EXTERNAL_CONTROLLER,
+        "external-controller": "0.0.0.0:9090",
         "secret": "",
         "proxies": [],
         "proxy-groups": [
@@ -423,99 +401,11 @@ def ensure_runtime_values(config: dict[str, Any]) -> dict[str, Any]:
     output = copy.deepcopy(config)
     output["allow-lan"] = True
     output["bind-address"] = "*"
-    output["external-controller"] = get_external_controller()
-
-    mixed_port = read_int_env("CLASH_MIXED_PORT")
-    if mixed_port is not None:
-        output["mixed-port"] = mixed_port
-
-    socks_port = read_int_env("CLASH_SOCKS_PORT")
-    if socks_port is not None:
-        output["socks-port"] = socks_port
+    output["external-controller"] = "0.0.0.0:9090"
 
     secret = os.environ.get("CLASH_SECRET")
     if secret:
         output["secret"] = secret
-    return output
-
-
-def list_proxy_names(config: dict[str, Any]) -> list[str]:
-    proxies = config.get("proxies", [])
-    if not isinstance(proxies, list):
-        return []
-    names: list[str] = []
-    for item in proxies:
-        if not isinstance(item, dict):
-            continue
-        name = str(item.get("name", "")).strip()
-        if not name:
-            continue
-        names.append(name)
-    return unique_items(names)
-
-
-def sanitize_proxy_groups(config: dict[str, Any]) -> dict[str, Any]:
-    output = copy.deepcopy(config)
-    groups = output.get("proxy-groups", [])
-    if not isinstance(groups, list):
-        return output
-
-    available_proxies = list_proxy_names(output)
-    fallback_proxies = unique_items(available_proxies + ["DIRECT"])
-
-    fixed_groups: list[dict[str, Any]] = []
-    for group in groups:
-        if not isinstance(group, dict):
-            continue
-        current = copy.deepcopy(group)
-
-        use_items = current.get("use")
-        if isinstance(use_items, list):
-            cleaned_use = [str(item).strip() for item in use_items if str(item).strip()]
-            if cleaned_use:
-                current["use"] = unique_items(cleaned_use)
-            else:
-                current.pop("use", None)
-
-        proxy_items = current.get("proxies")
-        if isinstance(proxy_items, list):
-            cleaned_proxies = [str(item).strip() for item in proxy_items if str(item).strip()]
-            if cleaned_proxies:
-                current["proxies"] = unique_items(cleaned_proxies)
-            else:
-                current.pop("proxies", None)
-
-        # Clash requires proxy groups to define at least one source:
-        # non-empty `use` or non-empty `proxies`.
-        if not current.get("use") and not current.get("proxies"):
-            current["proxies"] = fallback_proxies
-
-        fixed_groups.append(current)
-
-    output["proxy-groups"] = fixed_groups
-    return output
-
-
-def maybe_disable_geoip_rules(config: dict[str, Any]) -> dict[str, Any]:
-    if not env_flag("CLASH_DISABLE_GEOIP"):
-        return config
-
-    output = copy.deepcopy(config)
-    rules = output.get("rules", [])
-    if not isinstance(rules, list):
-        return output
-
-    filtered_rules: list[Any] = []
-    removed = 0
-    for rule in rules:
-        if isinstance(rule, str) and rule.strip().upper().startswith("GEOIP,"):
-            removed += 1
-            continue
-        filtered_rules.append(rule)
-
-    if removed:
-        output["rules"] = filtered_rules
-        log(f"CLASH_DISABLE_GEOIP enabled, removed {removed} GEOIP rule(s)")
     return output
 
 
@@ -627,8 +517,6 @@ def merge_subscriptions() -> int:
         log("applying override.js")
         config = apply_js_override(config, override_script)
     config = ensure_runtime_values(config)
-    config = sanitize_proxy_groups(config)
-    config = maybe_disable_geoip_rules(config)
 
     make_backup(CONFIG_FILE)
     save_yaml(CONFIG_FILE, config)
