@@ -216,6 +216,20 @@ body {
   margin-bottom: var(--space-md);
 }
 
+.proxy-setting-card.is-collapsed .proxy-setting-content {
+  display: none;
+}
+
+.proxy-settings-toggle {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.proxy-settings-toggle:hover {
+  color: var(--text-primary);
+}
+
 .card-title {
   font-size: 16px;
   font-weight: 600;
