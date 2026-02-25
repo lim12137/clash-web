@@ -4,6 +4,46 @@ let activeTab = "override-script";
 let eventSource = null;
 let scheduleHistoryRows = [];
 let bulkImportTarget = null;
+let activeSection = "dashboard";
+
+const SECTION_TITLES = {
+  dashboard: "仪表盘",
+  proxy: "代理",
+  config: "配置",
+  logs: "日志",
+  connections: "连接",
+  settings: "设置",
+};
+
+function setActiveSection(section) {
+  if (!SECTION_TITLES[section]) return;
+  activeSection = section;
+
+  document.querySelectorAll(".nav-item[data-section]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.section === section);
+  });
+
+  const headerTitle = document.querySelector(".header h1");
+  if (headerTitle) {
+    headerTitle.textContent = SECTION_TITLES[section];
+  }
+
+  document.querySelectorAll(".content-grid .card[data-page]").forEach((card) => {
+    card.classList.toggle("is-hidden", card.dataset.page !== section);
+  });
+}
+
+function bindSidebarNav() {
+  const navItems = Array.from(document.querySelectorAll(".nav-item[data-section]"));
+  navItems.forEach((item) => {
+    item.onclick = () => {
+      setActiveSection(item.dataset.section || "dashboard");
+    };
+  });
+
+  const defaultSection = navItems.find((item) => item.classList.contains("active"))?.dataset.section;
+  setActiveSection(defaultSection || "dashboard");
+}
 
 function createSetRowElement(setKey, item = {}) {
   const tr = document.createElement("tr");
@@ -675,6 +715,7 @@ async function boot() {
   document.getElementById("admin-token").value = getToken();
   bindEvents();
   bindTabs();
+  bindSidebarNav();
   initLogs();
   await refreshStatus();
   await loadSubscriptions();
