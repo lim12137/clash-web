@@ -1,0 +1,12 @@
+{
+  "subscriptions": [
+    {
+      "name": "demo",
+      "url": "https://example.com/subscription.yaml",
+      "enabled": true,
+      "prefix": "D_",
+      "exclude_filter": "(?i)(expired|剩余|流量|官网)",
+      "include_filter": ""
+    }
+  ]
+}

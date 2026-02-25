@@ -28,6 +28,10 @@ frontend-dist/
 
 model-assets/
 
+# Local test kernel runtime
+tools/mihomo-test/
+config-test/
+
 # Test coverage reports
 *coverage_html
 *.pytest_cache

@@ -1,0 +1,22 @@
+{
+  "set1": [
+    {
+      "name": "A",
+      "url": "https://example.com/subscription-a.yaml"
+    },
+    {
+      "name": "B",
+      "url": "https://example.com/subscription-b.yaml"
+    }
+  ],
+  "set2": [
+    {
+      "name": "a",
+      "url": "https://example.com/subscription-c.yaml"
+    },
+    {
+      "name": "b",
+      "url": "https://example.com/subscription-d.yaml"
+    }
+  ]
+}
