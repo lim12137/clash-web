@@ -136,8 +136,8 @@ function buildProviderSourceIndex() {
     });
   }
 
-  addSetItems("set1", "集合1", currentSubscriptionSets.set1 || [], "Paid");
-  addSetItems("set2", "集合2", currentSubscriptionSets.set2 || [], "Free");
+  addSetItems("set1", "付费", currentSubscriptionSets.set1 || [], "Paid");
+  addSetItems("set2", "免费", currentSubscriptionSets.set2 || [], "Free");
   return { byName, orderByName };
 }
 
@@ -158,8 +158,8 @@ function resolveProviderSource(providerName, sourceIndex) {
   }
   if (lower === "free-auto") {
     return {
-      source: "集合2聚合组",
-      sourceItem: "由集合2 provider 自动聚合",
+      source: "免费聚合组",
+      sourceItem: "由免费 provider 自动聚合",
       sortRank: 30,
       sortOrder: 1,
       matchedSet: "set2",
@@ -168,8 +168,8 @@ function resolveProviderSource(providerName, sourceIndex) {
   }
   if (lower === "us-auto") {
     return {
-      source: "集合1筛选组",
-      sourceItem: "由集合1按美国过滤生成",
+      source: "付费筛选组",
+      sourceItem: "由付费按美国过滤生成",
       sortRank: 31,
       sortOrder: 2,
       matchedSet: "set1",
@@ -226,12 +226,12 @@ function renderProviderSummaryHeader(sourceIndex = buildProviderSourceIndex()) {
     return !sourceIndex.byName.has(name) && !BUILTIN_PROVIDER_NAMES.has(lower);
   }).length;
 
-  let text = `集合1: ${set1Count} 条(${set1Nodes}节点) | 集合2: ${set2Count} 条(${set2Nodes}节点) | Provider: ${providerCount} | 总节点: ${totalNodes}`;
+  let text = `付费: ${set1Count} 条(${set1Nodes}节点) | 免费: ${set2Count} 条(${set2Nodes}节点) | Provider: ${providerCount} | 总节点: ${totalNodes}`;
   if (unmatched > 0) {
     text += ` | 未匹配Provider: ${unmatched}`;
   }
   if (set2Count === 0) {
-    text += " | 集合2为空时 Free-Auto 仅有 DIRECT";
+    text += " | 免费为空时 Free-Auto 仅有 DIRECT";
   }
   summaryEl.textContent = text;
 }
@@ -1010,7 +1010,7 @@ function renderNodesGrid() {
       currentNodes.length === 1 &&
       String(currentNodes[0] || "").toUpperCase() === "DIRECT"
     ) {
-      text += " · 集合2为空，当前仅DIRECT";
+      text += " · 免费为空，当前仅DIRECT";
     }
     infoText.textContent = text;
   }
@@ -1300,9 +1300,9 @@ function bindEvents() {
   document.getElementById("add-set1-row").onclick = () => addSetRow("set1", {});
   document.getElementById("add-set2-row").onclick = () => addSetRow("set2", {});
   document.getElementById("import-set1-bulk").onclick = () =>
-    importSetRows("set1", "Paid", "集合1（付费）");
+    importSetRows("set1", "Paid", "付费");
   document.getElementById("import-set2-bulk").onclick = () =>
-    importSetRows("set2", "Free", "集合2（免费）");
+    importSetRows("set2", "Free", "免费");
   document.getElementById("reload-schedule-history").onclick = loadScheduleHistory;
   document.getElementById("clear-schedule-history").onclick = clearScheduleHistory;
   document.getElementById("history-only-scheduler").onchange = renderScheduleHistory;

@@ -185,6 +185,38 @@
             </div>
           </section>
 
+          <!-- Provider Status Card -->
+          <section class="card wide" data-page="proxy">
+            <div class="card-header">
+              <h2 class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12h18"/>
+                  <path d="M12 3v18"/>
+                  <circle cx="12" cy="12" r="9"/>
+                </svg>
+                Provider 状态（集合模式）
+              </h2>
+              <button id="reload-providers">刷新 Provider</button>
+            </div>
+            <p id="provider-summary" class="muted" style="margin-bottom: 12px;">付费: - | 免费: -</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>来源</th>
+                    <th>来源项</th>
+                    <th>节点总数</th>
+                    <th>在线数</th>
+                    <th>更新</th>
+                    <th>订阅信息</th>
+                  </tr>
+                </thead>
+                <tbody id="provider-table"></tbody>
+              </table>
+            </div>
+          </section>
+
           <!-- Subscription Management Card -->
           <section class="card wide" data-page="proxy">
             <div class="card-header">
@@ -212,7 +244,7 @@
               <button type="submit">保存订阅</button>
               <button type="button" id="sub-reset">清空表单</button>
             </form>
-            <p class="muted" style="margin-bottom: 12px;">提示：此处节点数仅统计“订阅管理”中的 URL。若使用“订阅集合 + override.js provider”模式，请查看下方 Provider 状态。</p>
+            <p class="muted" style="margin-bottom: 12px;">提示：此处节点数仅统计“订阅管理”中的 URL。若使用“订阅集合 + override.js provider”模式，请查看上方 Provider 状态。</p>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -243,11 +275,11 @@
               </h2>
               <button id="save-sub-sets">保存集合</button>
             </div>
-            <p class="muted" style="margin-bottom: 16px;">集合1=付费，集合2=免费。支持新增、删除行，以及批量粘贴导入（每行：名称,URL）。保存后自动写入脚本头部。</p>
+            <p class="muted" style="margin-bottom: 16px;">付费与免费两个集合支持新增、删除行，以及批量粘贴导入（每行：名称,URL）。保存后自动写入脚本头部。</p>
             <div class="set-grid">
               <div class="set-panel">
                 <div class="section-title">
-                  <h3>集合1（付费）</h3>
+                  <h3>付费</h3>
                   <div class="row">
                     <button id="add-set1-row">新增行</button>
                     <button id="import-set1-bulk">批量导入</button>
@@ -269,7 +301,7 @@
               </div>
               <div class="set-panel">
                 <div class="section-title">
-                  <h3>集合2（免费）</h3>
+                  <h3>免费</h3>
                   <div class="row">
                     <button id="add-set2-row">新增行</button>
                     <button id="import-set2-bulk">批量导入</button>
@@ -289,38 +321,6 @@
                   </table>
                 </div>
               </div>
-            </div>
-          </section>
-
-          <!-- Provider Status Card -->
-          <section class="card wide" data-page="proxy">
-            <div class="card-header">
-              <h2 class="card-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 12h18"/>
-                  <path d="M12 3v18"/>
-                  <circle cx="12" cy="12" r="9"/>
-                </svg>
-                Provider 状态（集合模式）
-              </h2>
-              <button id="reload-providers">刷新 Provider</button>
-            </div>
-            <p id="provider-summary" class="muted" style="margin-bottom: 12px;">集合1: - | 集合2: -</p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Provider</th>
-                    <th>来源</th>
-                    <th>来源项</th>
-                    <th>节点总数</th>
-                    <th>在线数</th>
-                    <th>更新</th>
-                    <th>订阅信息</th>
-                  </tr>
-                </thead>
-                <tbody id="provider-table"></tbody>
-              </table>
             </div>
           </section>
 
