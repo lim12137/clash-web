@@ -62,8 +62,8 @@ if (-not (Test-Path -LiteralPath $pythonBin)) {
 
 $scriptsDir = Get-EnvOrDefault -Name "SCRIPTS_DIR" -DefaultValue (Join-Path $projectRoot "scripts")
 $testControllerPort = Get-EnvOrDefault -Name "TEST_CONTROLLER_PORT" -DefaultValue "19090"
-$testMixedPort = Get-EnvOrDefault -Name "TEST_MIXED_PORT" -DefaultValue "17891"
-$testSocksPort = Get-EnvOrDefault -Name "TEST_SOCKS_PORT" -DefaultValue "17892"
+$testMixedPort = Get-EnvOrDefault -Name "TEST_MIXED_PORT" -DefaultValue "17890"
+$testSocksPort = Get-EnvOrDefault -Name "TEST_SOCKS_PORT" -DefaultValue "0"
 $testMihomoDir = Get-EnvOrDefault -Name "TEST_MIHOMO_DIR" -DefaultValue (Join-Path $projectRoot "config-test")
 $testCoreDir = Get-EnvOrDefault -Name "TEST_CORE_DIR" -DefaultValue (Join-Path $projectRoot "tools\mihomo-test")
 $clashDisableGeoip = Get-EnvOrDefault -Name "CLASH_DISABLE_GEOIP" -DefaultValue "1"
