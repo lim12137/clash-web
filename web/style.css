@@ -1020,6 +1020,33 @@ tr.provider-row-unmatched td {
 .node-info-text {
   font-size: 13px;
   color: var(--text-secondary);
+  flex: 1;
+  min-width: 220px;
+}
+
+.node-priority-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.node-priority-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.node-priority-field select {
+  min-width: 180px;
+}
+
+.node-priority-controls #save-node-settings {
+  white-space: nowrap;
 }
 
 /* 分组标签 */
@@ -1053,6 +1080,26 @@ tr.provider-row-unmatched td {
   .proxy-tab {
     padding: 8px 14px;
     font-size: 13px;
+  }
+
+  .node-info-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+  }
+
+  .node-info-text {
+    min-width: 0;
+  }
+
+  .node-priority-controls {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .node-priority-field {
+    flex: 1;
+    min-width: 140px;
   }
 }
 
