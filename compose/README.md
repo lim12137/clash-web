@@ -37,5 +37,6 @@
 - `core_data`：持久化 mihomo 内核文件（`/opt/mihomo-core/mihomo`）
 
 首次启动时，Docker 会将镜像内置的 `/scripts` 初始化到 `scripts_data` 卷中。
-默认开启 `CLASH_DISABLE_GEOIP=1`，用于在受限网络下避免 GEOIP 下载失败导致内核无法启动。
+镜像内置 `geoip.metadb`，容器启动时会自动写入运行目录（缺失时补齐），避免运行期访问 GitHub 下载失败。
+默认开启 `CLASH_DISABLE_GEOIP=1`，作为额外兜底。
 默认开启 `CORE_UPDATE_REQUIRE_CHECKSUM=1`，用于在线更新时强制校验 SHA256。

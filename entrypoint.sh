@@ -15,9 +15,20 @@ MIHOMO_DIR="/root/.config/mihomo"
 MIHOMO_CORE_DIR="${MIHOMO_CORE_DIR:-/opt/mihomo-core}"
 MIHOMO_BIN="${MIHOMO_BIN:-${MIHOMO_CORE_DIR}/mihomo}"
 MIHOMO_PREV_BIN="${MIHOMO_PREV_BIN:-${MIHOMO_CORE_DIR}/mihomo.prev}"
-export MIHOMO_DIR MIHOMO_CORE_DIR MIHOMO_BIN MIHOMO_PREV_BIN
+GEOIP_METADB_SEED="${GEOIP_METADB_SEED:-/usr/local/share/mihomo/geoip.metadb}"
+GEOIP_METADB_TARGET="${MIHOMO_DIR}/geoip.metadb"
+export MIHOMO_DIR MIHOMO_CORE_DIR MIHOMO_BIN MIHOMO_PREV_BIN GEOIP_METADB_SEED GEOIP_METADB_TARGET
 
 mkdir -p "${MIHOMO_DIR}/subs" "${MIHOMO_DIR}/backups" "${MIHOMO_DIR}/ui" "${MIHOMO_CORE_DIR}" /scripts /web
+
+if [ -s "${GEOIP_METADB_SEED}" ] && [ ! -s "${GEOIP_METADB_TARGET}" ]; then
+  if cp "${GEOIP_METADB_SEED}" "${GEOIP_METADB_TARGET}"; then
+    chmod 0644 "${GEOIP_METADB_TARGET}" || true
+    echo "[ok] seeded geoip.metadb to ${GEOIP_METADB_TARGET}"
+  else
+    echo "[warn] failed to seed geoip.metadb to ${GEOIP_METADB_TARGET}" >&2
+  fi
+fi
 
 if [ ! -x "${MIHOMO_BIN}" ]; then
   if [ -x /usr/local/bin/mihomo ]; then

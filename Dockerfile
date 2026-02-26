@@ -18,13 +18,19 @@ RUN set -eux; \
     mv /tmp/mihomo /usr/local/bin/mihomo; \
     chmod +x /usr/local/bin/mihomo
 
+ARG GEOIP_METADB_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/geoip.metadb"
+RUN set -eux; \
+    mkdir -p /usr/local/share/mihomo; \
+    curl -fL "${GEOIP_METADB_URL}" -o /usr/local/share/mihomo/geoip.metadb; \
+    test -s /usr/local/share/mihomo/geoip.metadb
+
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
 COPY scripts/ /scripts/
 COPY web/ /web/
 RUN chmod +x /entrypoint.sh
 
-RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /scripts /web
+RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /scripts /web /usr/local/share/mihomo
 
 EXPOSE 80 7890 7891 9090
 
