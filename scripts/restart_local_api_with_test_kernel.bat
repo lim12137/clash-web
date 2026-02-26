@@ -17,9 +17,10 @@ if "%TEST_SOCKS_PORT%"=="" set "TEST_SOCKS_PORT=0"
 if "%TEST_MIHOMO_DIR%"=="" set "TEST_MIHOMO_DIR=%PROJECT_ROOT%\config-test"
 if "%TEST_CORE_DIR%"=="" set "TEST_CORE_DIR=%PROJECT_ROOT%\tools\mihomo-test"
 
-if "%CLASH_API%"=="" set "CLASH_API=http://127.0.0.1:%TEST_CONTROLLER_PORT%"
+set "CLASH_API=http://127.0.0.1:%TEST_CONTROLLER_PORT%"
 if "%MIHOMO_DIR%"=="" set "MIHOMO_DIR=%TEST_MIHOMO_DIR%"
 if "%SKIP_MERGE%"=="" set "SKIP_MERGE=1"
+set "SKIP_TEST_KERNEL=1"
 
 echo == clash-web local API restart (with test kernel) ==
 echo Project             : %PROJECT_ROOT%
