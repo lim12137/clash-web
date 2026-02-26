@@ -37,3 +37,7 @@ config-test/
 *.pytest_cache
 *.coverage
 *coverage.xml
+
+# Runtime artifacts
+tmp_provider_restart.log
+config/backups/config_*.yaml
