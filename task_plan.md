@@ -163,3 +163,33 @@
 ### 当前状态
 - 运行状态：已恢复在线，可继续前端联调。
 - Git 状态：`git push origin main` 返回 `Everything up-to-date`；当前仍有未提交改动，尚未形成新提交。
+
+## 增量记录（2026-02-26 内核在线更新）
+
+### 本轮目标
+- 实现“仅内核在线更新”能力，核心二进制独立到持久卷，不触及配置与脚本数据。
+- 升级链路覆盖：查询 release、下载、校验、`mihomo -v`、`mihomo -t`、原子替换、触发容器重启。
+- 提供回滚保障：保留 `mihomo.prev`，容器启动时若内核自检失败自动回退。
+- 增加安全边界：仅写接口可操作、限制更新源仓库、记录更新日志。
+
+### 执行步骤
+1. 入口脚本改造（已完成）
+2. API 内核更新接口实现（已完成）
+3. Compose 持久卷与环境变量补齐（已完成）
+4. 文档更新与语法校验（已完成）
+
+### 验证记录
+- `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py` 通过。
+- `node --check web/app.js` 通过。
+- `D:\py311\python.exe scripts/merge.py merge` 失败：当前本机环境路径指向 `\\root\\.config\\mihomo\\backups`，写备份权限不足（`PermissionError: [Errno 13] Permission denied`）。
+- `sh -n entrypoint.sh` 未执行：当前 PowerShell 环境缺少 `sh` 命令。
+
+### 当前状态
+- “仅内核在线更新”功能已完成代码落地（内核独立卷、在线更新 API、校验、自检、原子替换、重启触发、启动回滚、更新审计）。
+
+### 增量实现（前端接入）
+- 新增“内核在线更新”设置卡片（仓库输入、检查最新版本、执行更新、更新历史）。
+- 前端已接入接口：`/api/kernel/status`、`/api/kernel/release/latest`、`/api/kernel/updates`、`/api/actions/kernel/update`。
+- 更新成功后会显示版本变更和重启状态，失败时显示错误原因。
+- 内核卡片新增“更新过程日志”，通过 SSE 日志流实时展示内核更新关键阶段。
+- 更新过程日志已升级为“阶段标签 + 颜色分级”（请求/准备/下载/校验/自检/完成/重启/失败）。
