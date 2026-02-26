@@ -104,7 +104,7 @@
                 </div>
               </div>
 
-              <!-- 系统代理 -->
+              <!-- 局域网代理 -->
               <div class="dash-card">
                 <div class="dash-card-header">
                   <div class="dash-card-title">
@@ -113,13 +113,13 @@
                       <path d="M2 17l10 5 10-5"/>
                       <path d="M2 12l10 5 10-5"/>
                     </svg>
-                    系统代理
+                    局域网代理
                   </div>
                 </div>
                 <div class="dash-card-content">
-                  <span class="dash-label">选项</span>
+                  <span class="dash-label">允许内网设备接入</span>
                   <label class="switch">
-                    <input type="checkbox" id="system-proxy-toggle">
+                    <input type="checkbox" id="lan-proxy-toggle">
                     <span class="slider"></span>
                   </label>
                 </div>
@@ -308,6 +308,62 @@
               <button id="save-token">保存令牌</button>
             </div>
             <p class="muted">未设置令牌时，写操作默认开放给内网访问者。</p>
+          </section>
+
+          <!-- GEO Update Card -->
+          <section class="card wide" data-page="settings">
+            <div class="card-header">
+              <h2 class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+                  <path d="M2 12h20"/>
+                  <path d="M12 2a15 15 0 0 1 0 20"/>
+                  <path d="M12 2a15 15 0 0 0 0 20"/>
+                </svg>
+                GEO 数据更新
+              </h2>
+              <div class="row wrap">
+                <button id="btn-geo-refresh">刷新状态</button>
+                <button id="btn-geo-check">检查代理</button>
+                <button id="btn-geo-update" class="primary">更新 GEO</button>
+              </div>
+            </div>
+            <div class="row wrap" style="margin-bottom: 10px;">
+              <label class="check">
+                <input type="checkbox" id="geo-update-check-first" checked>
+                更新前先检查代理连通性
+              </label>
+              <span id="geo-check-result" class="muted">代理检查：未执行</span>
+            </div>
+            <div class="row wrap" style="margin-bottom: 10px;">
+              <label class="check">
+                <input type="checkbox" id="geo-auto-update-enabled">
+                自动更新 GEO 数据
+              </label>
+              <label class="check">
+                间隔(小时)
+                <input id="geo-auto-update-interval" type="number" min="1" max="720" value="24" style="width: 90px;">
+              </label>
+              <button id="btn-geo-save-settings">保存自动更新设置</button>
+            </div>
+            <p id="geo-config-summary" class="muted" style="margin-bottom: 12px;">GEO 配置：-</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>规则提供者</th>
+                    <th>类型</th>
+                    <th>规则数</th>
+                    <th>更新时间</th>
+                  </tr>
+                </thead>
+                <tbody id="geo-providers-table">
+                  <tr>
+                    <td colspan="4" class="muted">暂无数据</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <!-- Schedule Card -->
