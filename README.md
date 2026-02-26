@@ -12,7 +12,7 @@
 
 - `nginx`：对外提供页面与 API 反向代理（端口 `80`）
 - `api_server.py`（Flask）：管理接口（容器内 `19092`）
-- `mihomo`：代理核心（控制接口 `9090`，代理端口 `7890/7891`）
+- `mihomo`：代理核心（控制接口 `9090`，代理端口 `7890/7891`，内核文件位于 `/opt/mihomo-core/mihomo`）
 
 ## 快速启动
 
@@ -33,6 +33,8 @@ docker compose up -d --build
 $env:CLASH_SECRET = "change_me"
 $env:ADMIN_TOKEN = "change_me_too"
 $env:API_PORT = "19092"
+$env:CORE_UPDATE_ALLOWED_REPOS = "MetaCubeX/mihomo"
+$env:CORE_UPDATE_REQUIRE_CHECKSUM = "1"
 docker compose up -d --build
 ```
 
@@ -59,7 +61,7 @@ docker compose up -d
 
 - `compose/docker-compose.yml` 使用 `image:` 拉取镜像，不含 `build:`
 - `compose/.env` 的 `IMAGE_REF` 可填具体 tag（例如 `ghcr.io/<owner>/clash2web:sha-xxxxxxx`）
-- 持久化卷：`config_data`（运行配置）、`scripts_data`（脚本与在线编辑内容）
+- 持久化卷：`config_data`（运行配置）、`scripts_data`（脚本与在线编辑内容）、`core_data`（mihomo 内核文件）
 
 ## 无 Docker 本地重启（BAT，仅 API）
 
@@ -186,12 +188,37 @@ scripts\stop_test_kernel.bat
 - 修改 `override.js` 时会校验 `main(config)` 是否可执行
 - 写入前会自动备份旧文件到 `config/backups`（容器内 `/root/.config/mihomo/backups`）
 
+## 内核在线更新
+
+- 内核更新仅替换 `/opt/mihomo-core/mihomo`，不修改 `config/` 和 `scripts/` 数据。
+- 更新流程：查询 release -> 下载 -> SHA256 校验 -> `mihomo -v` -> `mihomo -t` -> 原子替换 -> 触发容器重启。
+- 回滚策略：保留 `/opt/mihomo-core/mihomo.prev`；容器启动时若新内核自检失败会自动回退。
+- 安全策略：写接口受 `ADMIN_TOKEN` 保护；更新源仓库受 `CORE_UPDATE_ALLOWED_REPOS` 限制；更新记录写入 `scripts/kernel_update_history.jsonl`。
+
+示例（查询最新 release）：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:18080/api/kernel/release/latest
+```
+
+示例（执行内核更新并自动重启容器）：
+
+```powershell
+$token = "your_admin_token"
+$headers = @{ Authorization = "Bearer $token" }
+$body = @{ repo = "MetaCubeX/mihomo"; restart = $true } | ConvertTo-Json
+Invoke-RestMethod http://127.0.0.1:18080/api/actions/kernel/update -Method POST -Headers $headers -ContentType "application/json" -Body $body
+```
+
 ## API 概览
 
 健康与状态：
 
 - `GET /api/health`
 - `GET /api/status`
+- `GET /api/kernel/status`
+- `GET /api/kernel/release/latest`
+- `GET /api/kernel/updates`
 
 订阅与集合：
 
@@ -209,6 +236,7 @@ scripts\stop_test_kernel.bat
 - `POST /api/actions/merge`
 - `POST /api/actions/reload`
 - `POST /api/actions/merge-and-reload`
+- `POST /api/actions/kernel/update`
 - `GET /api/schedule`
 - `PUT /api/schedule`
 - `GET /api/schedule/history`
@@ -243,6 +271,8 @@ Clash 交互：
 
 - 设置 `ADMIN_TOKEN` 后，所有写操作都需要令牌。
 - 设置 `CLASH_SECRET` 后，后端访问 mihomo 控制接口会自动带鉴权头。
+- `CORE_UPDATE_ALLOWED_REPOS` 建议保持最小白名单（默认 `MetaCubeX/mihomo`）。
+- 建议保持 `CORE_UPDATE_REQUIRE_CHECKSUM=1`，避免未校验二进制被替换。
 - 若在公网部署，请额外加入口访问控制和 HTTPS，避免直接裸露管理面板。
 
 ## 常见问题
