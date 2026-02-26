@@ -697,6 +697,36 @@ tr.provider-row-unmatched td {
   font-size: 13px;
 }
 
+.runtime-info-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.runtime-info-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.runtime-info-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.runtime-info-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: Consolas, "Courier New", monospace;
+  text-align: right;
+  word-break: break-all;
+}
+
 .geo-update-result {
   white-space: pre-line;
 }

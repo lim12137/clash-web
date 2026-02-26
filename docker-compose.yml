@@ -1,25 +1,23 @@
-version: "3.8"
-
 services:
   clash:
-    build:
-      context: .
-      args:
-        TARGETARCH: amd64
+    image: ${IMAGE_REF:?IMAGE_REF is required (for example ghcr.io/your-org/clash2web:latest)}
+    pull_policy: always
     container_name: clash-meta-manager
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "17890:17890"
-      - "7891:7891"
+      - "${WEB_PORT:-18080}:80"
+      - "${MIXED_PORT:-27890}:17890"
+      - "${SOCKS_PORT:-27891}:7891"
     volumes:
       - ./config:/root/.config/mihomo
       - ./scripts:/scripts
       - ./web:/web
+      - ./web:/root/.config/mihomo/ui:ro
     environment:
-      TZ: Asia/Shanghai
+      TZ: ${TZ:-Asia/Shanghai}
       CLASH_SECRET: ${CLASH_SECRET:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      CLASH_DISABLE_GEOIP: ${CLASH_DISABLE_GEOIP:-1}
       API_PORT: ${API_PORT:-19092}
       PYTHON_BIN: /usr/bin/python3
     cap_add:
