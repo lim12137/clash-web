@@ -5,7 +5,7 @@ bind-address: "*"
 mode: rule
 log-level: info
 external-controller: 0.0.0.0:9090
-external-ui: /ui
+external-ui: /root/.config/mihomo/ui
 secret: ""
 proxies: []
 proxy-groups:
