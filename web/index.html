@@ -343,6 +343,72 @@
             <p id="runtime-proxy-note" class="muted" style="margin-top: 12px;">-</p>
           </section>
 
+          <!-- Kernel Update Card -->
+          <section class="card wide" data-page="settings">
+            <div class="card-header">
+              <h2 class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v7"/>
+                  <path d="M7 6.5A7.5 7.5 0 1 0 17 6.5"/>
+                  <path d="M12 13v9"/>
+                </svg>
+                内核在线更新
+              </h2>
+              <div class="row wrap">
+                <button id="btn-kernel-refresh">刷新状态</button>
+                <button id="btn-kernel-check-latest">检查最新版本</button>
+                <button id="btn-kernel-update" class="primary">更新内核</button>
+              </div>
+            </div>
+            <div class="kernel-update-controls">
+              <label class="kernel-field">
+                <span>更新源仓库</span>
+                <input id="kernel-repo" type="text" value="MetaCubeX/mihomo" placeholder="owner/repo">
+              </label>
+              <label class="check">
+                <input type="checkbox" id="kernel-restart-after-update" checked>
+                更新成功后自动重启容器
+              </label>
+            </div>
+            <div class="runtime-info-list">
+              <div class="runtime-info-item">
+                <span class="runtime-info-label">当前内核版本</span>
+                <span id="kernel-current-version" class="runtime-info-value">-</span>
+              </div>
+              <div class="runtime-info-item">
+                <span class="runtime-info-label">当前内核路径</span>
+                <span id="kernel-bin-path" class="runtime-info-value">-</span>
+              </div>
+              <div class="runtime-info-item">
+                <span class="runtime-info-label">回滚内核路径</span>
+                <span id="kernel-prev-bin-path" class="runtime-info-value">-</span>
+              </div>
+            </div>
+            <p id="kernel-status-summary" class="muted" style="margin-top: 10px;">内核状态：-</p>
+            <p id="kernel-latest-summary" class="muted" style="margin-top: 6px;">最新版本：未检查</p>
+            <p id="kernel-update-result" class="muted geo-update-result" style="margin-top: 6px; margin-bottom: 10px;">最近一次更新：未执行</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>状态</th>
+                    <th>版本变化</th>
+                    <th>发布标签</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody id="kernel-update-history-table">
+                  <tr>
+                    <td colspan="5" class="muted">暂无更新记录</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="muted" style="margin-top: 12px; margin-bottom: 8px;">更新过程日志</p>
+            <div id="kernel-live-logs" class="logs kernel-live-logs"></div>
+          </section>
+
           <!-- GEO Update Card -->
           <section class="card wide" data-page="settings">
             <div class="card-header">
