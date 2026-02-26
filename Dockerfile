@@ -20,6 +20,8 @@ RUN set -eux; \
 
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
+COPY scripts/ /scripts/
+COPY web/ /web/
 RUN chmod +x /entrypoint.sh
 
 RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /scripts /web
