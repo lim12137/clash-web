@@ -7,6 +7,7 @@ let bulkImportTarget = null;
 let activeSection = "dashboard";
 let currentSubscriptionSets = { set1: [], set2: [] };
 let providerRows = [];
+let geoActionBusy = false;
 
 // 节点切换相关状态
 let proxyGroups = [];
@@ -875,41 +876,302 @@ function getLocalIP() {
 
 // 切换出站模式
 async function switchProxyMode(mode) {
+  const normalized = String(mode || "").toLowerCase();
+  if (!["rule", "global", "direct"].includes(normalized)) {
+    throw new Error("invalid mode");
+  }
   try {
     await api("/clash/config", {
       method: "PUT",
-      body: { mode: mode }
+      body: { mode: normalized }
     });
-    showToast(`已切换到${mode === 'rule' ? '规则' : mode === 'global' ? '全局' : '直连'}模式`);
+    showToast(`已切换到${normalized === 'rule' ? '规则' : normalized === 'global' ? '全局' : '直连'}模式`);
   } catch (err) {
     showToast(`切换模式失败: ${err.message}`);
+    throw err;
+  }
+}
+
+function applyProxyMode(mode) {
+  const normalized = String(mode || "").toLowerCase();
+  const validMode = ["rule", "global", "direct"].includes(normalized) ? normalized : "rule";
+  const radio = document.querySelector(`input[name="proxy-mode"][value="${validMode}"]`);
+  if (radio) radio.checked = true;
+}
+
+async function switchLanProxy(enabled) {
+  try {
+    await api("/clash/config", {
+      method: "PUT",
+      body: { allow_lan: !!enabled },
+    });
+    showToast(enabled ? "局域网代理已开启" : "局域网代理已关闭");
+  } catch (err) {
+    showToast(`切换局域网代理失败: ${err.message}`);
+    throw err;
+  }
+}
+
+async function switchTun(enabled) {
+  try {
+    await api("/clash/config", {
+      method: "PUT",
+      body: { tun_enabled: !!enabled },
+    });
+    showToast(enabled ? "虚拟网卡已开启" : "虚拟网卡已关闭");
+  } catch (err) {
+    showToast(`切换虚拟网卡失败: ${err.message}`);
+    throw err;
+  }
+}
+
+async function loadClashConfig(silent = false) {
+  try {
+    const res = await api("/clash/config");
+    const data = res.data || {};
+    const mode = String(data.mode || "rule").toLowerCase();
+    const allowLan = !!data.allow_lan;
+    const tunEnabled = !!data.tun_enabled;
+
+    applyProxyMode(mode);
+
+    const lanProxyToggle = document.getElementById("lan-proxy-toggle");
+    if (lanProxyToggle) {
+      lanProxyToggle.checked = allowLan;
+    }
+
+    const tunToggle = document.getElementById("tun-toggle");
+    if (tunToggle) {
+      tunToggle.checked = tunEnabled;
+    }
+  } catch (err) {
+    if (!silent) {
+      showToast(`读取运行设置失败: ${err.message}`);
+    }
+  }
+}
+
+function setGeoButtonsBusy(busy) {
+  const ids = ["btn-geo-refresh", "btn-geo-check", "btn-geo-update", "btn-geo-save-settings"];
+  ids.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !!busy;
+  });
+}
+
+function renderGeoProviders(rows) {
+  const tbody = document.getElementById("geo-providers-table");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!Array.isArray(rows) || !rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4" class="muted">暂无规则提供者数据</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  rows.forEach((item) => {
+    const tr = document.createElement("tr");
+    const typeParts = [];
+    if (item.behavior) typeParts.push(String(item.behavior));
+    if (item.format) typeParts.push(String(item.format));
+    const typeText = typeParts.length ? typeParts.join(" / ") : String(item.type || "-");
+    const count = Number(item.rule_count || 0);
+    tr.innerHTML = `
+      <td>${item.name || "-"}</td>
+      <td>${typeText}</td>
+      <td>${Number.isFinite(count) ? count : 0}</td>
+      <td>${item.updated_at || "-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderGeoCheckResult(checkData) {
+  const checkEl = document.getElementById("geo-check-result");
+  if (!checkEl) return;
+  if (!checkData || typeof checkData !== "object") {
+    checkEl.textContent = "代理检查：未执行";
+    return;
+  }
+
+  if (checkData.ok) {
+    const proxy = String(checkData.proxy || "-");
+    const group = String(checkData.group || "-");
+    const delay = Number(checkData.delay || 0);
+    checkEl.textContent = `代理检查：可用 (${proxy} @ ${group}, ${delay}ms)`;
+    return;
+  }
+
+  const msg = String(checkData.message || "不可用");
+  checkEl.textContent = `代理检查：失败 (${msg})`;
+}
+
+async function loadGeoStatus(silent = false) {
+  try {
+    const res = await api("/clash/geo/status");
+    const data = res.data || {};
+    const cfg = data.config || {};
+    const autoUpdate = !!cfg.geo_auto_update;
+    const geodataMode = !!cfg.geodata_mode;
+    const interval = Number(cfg.geo_update_interval || 24);
+    const loader = String(cfg.geodata_loader || "-");
+    const matcher = String(cfg.geosite_matcher || "-");
+
+    const autoToggle = document.getElementById("geo-auto-update-enabled");
+    if (autoToggle) {
+      autoToggle.checked = autoUpdate;
+    }
+    const intervalInput = document.getElementById("geo-auto-update-interval");
+    if (intervalInput) {
+      const safeInterval = Number.isFinite(interval) ? Math.max(1, Math.min(720, interval)) : 24;
+      intervalInput.value = String(safeInterval);
+      intervalInput.disabled = !autoUpdate;
+    }
+
+    const summaryEl = document.getElementById("geo-config-summary");
+    if (summaryEl) {
+      let text = `GEO 配置：自动更新 ${autoUpdate ? "开启" : "关闭"} | 间隔 ${interval}h | Geodata ${geodataMode ? "开启" : "关闭"} | Loader ${loader} | Matcher ${matcher}`;
+      if (data.rule_providers_error) {
+        text += ` | 规则状态读取失败: ${data.rule_providers_error}`;
+      }
+      summaryEl.textContent = text;
+    }
+    renderGeoProviders(data.rule_providers || []);
+  } catch (err) {
+    if (!silent) {
+      showToast(`读取 GEO 状态失败: ${err.message}`);
+    }
+  }
+}
+
+async function checkGeoProxy(silent = false) {
+  try {
+    const res = await api("/clash/geo/check");
+    const checkData = res.data || {};
+    renderGeoCheckResult(checkData);
+    if (!silent) {
+      showToast(checkData.ok ? "代理连通性检查通过" : `代理检查失败: ${checkData.message || "-"}`);
+    }
+    return checkData;
+  } catch (err) {
+    if (!silent) {
+      showToast(`代理检查失败: ${err.message}`);
+    }
+    return null;
+  }
+}
+
+async function saveGeoSettings() {
+  const autoToggle = document.getElementById("geo-auto-update-enabled");
+  const intervalInput = document.getElementById("geo-auto-update-interval");
+  const autoUpdate = !!autoToggle?.checked;
+
+  let interval = Number(intervalInput?.value || 24);
+  if (!Number.isFinite(interval)) interval = 24;
+  interval = Math.max(1, Math.min(720, Math.floor(interval)));
+
+  if (intervalInput) {
+    intervalInput.value = String(interval);
+  }
+
+  try {
+    const res = await api("/clash/geo/settings", {
+      method: "PUT",
+      body: {
+        geo_auto_update: autoUpdate,
+        geo_update_interval: interval,
+      },
+    });
+    await loadGeoStatus(true);
+    const via = String(res.applied_via || "runtime");
+    const reloaded = !!res.reloaded;
+    if (via === "config_reload") {
+      showToast(`GEO 自动更新设置已保存（写入配置并重载${reloaded ? "成功" : "失败"}）`);
+    } else {
+      showToast("GEO 自动更新设置已保存");
+    }
+  } catch (err) {
+    showToast(`保存 GEO 自动更新设置失败: ${err.message}`);
+  }
+}
+
+async function runGeoUpdate() {
+  if (geoActionBusy) return;
+  geoActionBusy = true;
+  setGeoButtonsBusy(true);
+  try {
+    const checkFirst = !!document.getElementById("geo-update-check-first")?.checked;
+    const res = await api("/actions/geo/update", {
+      method: "POST",
+      body: { check_proxy: checkFirst },
+    });
+    const data = res.data || {};
+    renderGeoCheckResult(data.check || null);
+    await loadGeoStatus(true);
+
+    const rules = data.rule_providers || {};
+    const geoDb = data.geo_db || {};
+    const ruleSummary = `规则 ${Number(rules.updated || 0)}/${Number(rules.total || 0)}`;
+    const geoDbSummary = `GEO库 ${geoDb.status || "-"}`;
+    if (data.ok) {
+      showToast(`GEO 更新完成: ${geoDbSummary}, ${ruleSummary}`);
+    } else {
+      showToast(`${data.message || "GEO 更新未完成"}: ${geoDbSummary}, ${ruleSummary}`);
+    }
+  } catch (err) {
+    showToast(`执行 GEO 更新失败: ${err.message}`);
+  } finally {
+    geoActionBusy = false;
+    setGeoButtonsBusy(false);
   }
 }
 
 // 绑定仪表盘事件
 function bindDashboardEvents() {
-  // 系统代理开关
-  const systemProxyToggle = document.getElementById('system-proxy-toggle');
-  if (systemProxyToggle) {
-    systemProxyToggle.addEventListener('change', (e) => {
-      showToast(e.target.checked ? '系统代理已开启' : '系统代理已关闭');
+  // 局域网代理开关
+  const lanProxyToggle = document.getElementById("lan-proxy-toggle");
+  if (lanProxyToggle) {
+    lanProxyToggle.addEventListener("change", async (e) => {
+      const nextChecked = !!e.target.checked;
+      e.target.disabled = true;
+      try {
+        await switchLanProxy(nextChecked);
+      } catch (_) {
+        e.target.checked = !nextChecked;
+      } finally {
+        e.target.disabled = false;
+      }
     });
   }
   
   // 虚拟网卡开关
   const tunToggle = document.getElementById('tun-toggle');
   if (tunToggle) {
-    tunToggle.addEventListener('change', (e) => {
-      showToast(e.target.checked ? '虚拟网卡已开启' : '虚拟网卡已关闭');
+    tunToggle.addEventListener('change', async (e) => {
+      const nextChecked = !!e.target.checked;
+      e.target.disabled = true;
+      try {
+        await switchTun(nextChecked);
+      } catch (_) {
+        e.target.checked = !nextChecked;
+      } finally {
+        e.target.disabled = false;
+      }
     });
   }
   
   // 出站模式切换
   const modeRadios = document.querySelectorAll('input[name="proxy-mode"]');
   modeRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
+    radio.addEventListener('change', async (e) => {
       if (e.target.checked) {
-        switchProxyMode(e.target.value);
+        try {
+          await switchProxyMode(e.target.value);
+        } catch (_) {
+          await loadClashConfig(true);
+        }
       }
     });
   });
@@ -1701,6 +1963,8 @@ function bindEvents() {
   document.getElementById("btn-reload").onclick = () => doAction("/actions/reload", "重载已发起");
   document.getElementById("btn-refresh").onclick = async () => {
     await refreshStatus();
+    await loadClashConfig(true);
+    await loadGeoStatus(true);
     await loadSubscriptions();
     await loadGroups();
     await loadSubscriptionSets();
@@ -1731,6 +1995,16 @@ function bindEvents() {
     importSetRows("set2", "Free", "免费");
   document.getElementById("reload-schedule-history").onclick = loadScheduleHistory;
   document.getElementById("clear-schedule-history").onclick = clearScheduleHistory;
+  document.getElementById("btn-geo-refresh").onclick = () => loadGeoStatus();
+  document.getElementById("btn-geo-check").onclick = () => checkGeoProxy();
+  document.getElementById("btn-geo-update").onclick = () => runGeoUpdate();
+  document.getElementById("btn-geo-save-settings").onclick = () => saveGeoSettings();
+  document.getElementById("geo-auto-update-enabled").onchange = (evt) => {
+    const intervalInput = document.getElementById("geo-auto-update-interval");
+    if (intervalInput) {
+      intervalInput.disabled = !evt.target.checked;
+    }
+  };
   document.getElementById("history-only-scheduler").onchange = renderScheduleHistory;
   document.getElementById("history-only-failed").onchange = renderScheduleHistory;
   document.getElementById("bulk-import-submit").onclick = applyBulkImportRows;
@@ -1756,6 +2030,8 @@ async function boot() {
   bindDashboardEvents();
   startDashboardUpdates();
   await refreshStatus();
+  await loadClashConfig(true);
+  await loadGeoStatus(true);
   await loadSubscriptions();
   await loadSubscriptionSets();
   await loadProviderStatus();
