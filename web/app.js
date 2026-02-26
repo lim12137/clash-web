@@ -5,7 +5,11 @@ let eventSource = null;
 let scheduleHistoryRows = [];
 let bulkImportTarget = null;
 let activeSection = "dashboard";
-let currentSubscriptionSets = { set1: [], set2: [] };
+let currentSubscriptionSets = {
+  set1: [],
+  set2: [],
+  us_auto: { priority1: "", priority2: "" },
+};
 let providerRows = [];
 let geoActionBusy = false;
 
@@ -1306,18 +1310,27 @@ async function loadSubscriptionSets() {
   try {
     const res = await api("/subscription-sets");
     const data = res.data || {};
+    const usAutoRaw = data.us_auto && typeof data.us_auto === "object" ? data.us_auto : {};
     currentSubscriptionSets = {
       set1: Array.isArray(data.set1) ? data.set1 : [],
       set2: Array.isArray(data.set2) ? data.set2 : [],
+      us_auto: {
+        priority1: String(usAutoRaw.priority1 || "").trim(),
+        priority2: String(usAutoRaw.priority2 || "").trim(),
+      },
     };
     const set1Tbody = document.getElementById("set1-table");
     const set2Tbody = document.getElementById("set2-table");
+    const priority1Input = document.getElementById("us-auto-priority1");
+    const priority2Input = document.getElementById("us-auto-priority2");
     set1Tbody.innerHTML = "";
     set2Tbody.innerHTML = "";
     currentSubscriptionSets.set1.forEach((item) => addSetRow("set1", item));
     currentSubscriptionSets.set2.forEach((item) => addSetRow("set2", item));
     if (!set1Tbody.querySelector("tr")) addSetRow("set1", {});
     if (!set2Tbody.querySelector("tr")) addSetRow("set2", {});
+    if (priority1Input) priority1Input.value = currentSubscriptionSets.us_auto.priority1;
+    if (priority2Input) priority2Input.value = currentSubscriptionSets.us_auto.priority2;
     renderProviderSummaryHeader();
     renderProviderRows();
   } catch (err) {
@@ -1340,9 +1353,15 @@ async function loadProviderStatus() {
 }
 
 async function saveSubscriptionSets() {
+  const priority1Input = document.getElementById("us-auto-priority1");
+  const priority2Input = document.getElementById("us-auto-priority2");
   const payload = {
     set1: collectSetRows("set1", "Paid"),
     set2: collectSetRows("set2", "Free"),
+    us_auto: {
+      priority1: String(priority1Input?.value || "").trim(),
+      priority2: String(priority2Input?.value || "").trim(),
+    },
   };
   try {
     await api("/subscription-sets", { method: "PUT", body: payload });

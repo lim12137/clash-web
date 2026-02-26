@@ -642,8 +642,27 @@ def normalize_subscription_set_entries(raw) -> list[dict]:
     return result
 
 
+def normalize_us_auto_priority(raw_value) -> str:
+    text = str(raw_value or "").strip()
+    if len(text) > 128:
+        text = text[:128]
+    return text
+
+
+def normalize_us_auto_config(raw) -> dict:
+    data = raw if isinstance(raw, dict) else {}
+    return {
+        "priority1": normalize_us_auto_priority(data.get("priority1")),
+        "priority2": normalize_us_auto_priority(data.get("priority2")),
+    }
+
+
 def default_subscription_sets() -> dict:
-    return {"set1": [], "set2": []}
+    return {
+        "set1": [],
+        "set2": [],
+        "us_auto": normalize_us_auto_config({}),
+    }
 
 
 def load_subscription_sets() -> dict:
@@ -651,6 +670,7 @@ def load_subscription_sets() -> dict:
     return {
         "set1": normalize_subscription_set_entries(data.get("set1")),
         "set2": normalize_subscription_set_entries(data.get("set2")),
+        "us_auto": normalize_us_auto_config(data.get("us_auto")),
     }
 
 
@@ -658,6 +678,7 @@ def save_subscription_sets(data: dict) -> dict:
     payload = {
         "set1": normalize_subscription_set_entries(data.get("set1")),
         "set2": normalize_subscription_set_entries(data.get("set2")),
+        "us_auto": normalize_us_auto_config(data.get("us_auto")),
     }
     save_json(SUBSCRIPTION_SETS_FILE, payload)
     return payload
@@ -666,13 +687,18 @@ def save_subscription_sets(data: dict) -> dict:
 def render_auto_set_block(sub_sets: dict) -> str:
     set1 = sub_sets.get("set1", [])
     set2 = sub_sets.get("set2", [])
+    us_auto = normalize_us_auto_config(sub_sets.get("us_auto"))
     set1_json = json.dumps(set1, ensure_ascii=False, indent=2)
     set2_json = json.dumps(set2, ensure_ascii=False, indent=2)
+    us_auto_json = json.dumps(us_auto, ensure_ascii=False, indent=2)
     lines = [
         AUTO_SET_BLOCK_START,
         "// 自动生成区块：请在管理面板的“订阅集合”里维护，不建议手工改这里。",
         f"const SUB_SET1 = {set1_json};",
         f"const SUB_SET2 = {set2_json};",
+        f"const US_AUTO_PRIORITY = {us_auto_json};",
+        "const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || \"\").trim();",
+        "const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || \"\").trim();",
         "const SUB_SET1_URLS = SUB_SET1.map((x) => x.url).filter(Boolean);",
         "const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);",
         AUTO_SET_BLOCK_END,
@@ -1008,8 +1034,17 @@ def put_subscription_sets():
     body = ensure_json_body()
     data = save_subscription_sets(body)
     sync_override_script_with_sets(data)
+    us_auto = data.get("us_auto", {})
+    p1 = str(us_auto.get("priority1", "")).strip()
+    p2 = str(us_auto.get("priority2", "")).strip()
     emit_log(
-        f"subscription sets updated: set1={len(data['set1'])}, set2={len(data['set2'])}",
+        (
+            "subscription sets updated: "
+            f"set1={len(data['set1'])}, "
+            f"set2={len(data['set2'])}, "
+            f"us_auto_priority1={'set' if p1 else 'empty'}, "
+            f"us_auto_priority2={'set' if p2 else 'empty'}"
+        ),
         "INFO",
     )
     return jsonify({"success": True, "data": data})

@@ -18,5 +18,9 @@
       "name": "b",
       "url": "https://example.com/subscription-d.yaml"
     }
-  ]
+  ],
+  "us_auto": {
+    "priority1": "",
+    "priority2": ""
+  }
 }

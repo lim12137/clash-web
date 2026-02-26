@@ -20,6 +20,12 @@ const SUB_SET2 = [
     "url": "https://example.com/subscription-d.yaml"
   }
 ];
+const US_AUTO_PRIORITY = {
+  "priority1": "",
+  "priority2": ""
+};
+const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || "").trim();
+const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || "").trim();
 const SUB_SET1_URLS = SUB_SET1.map((x) => x.url).filter(Boolean);
 const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);
 // === AUTO-SUB-SETS:END ===
@@ -33,6 +39,10 @@ const US_FILTER =
 function safeProviderName(raw, fallback) {
   const base = String(raw || fallback || "Sub").trim();
   return base.replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+function escapeRegexLiteral(raw) {
+  return String(raw || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function upsertGroup(groups, groupObj) {
@@ -65,6 +75,21 @@ function buildProvidersFromSet(config, setItems, fallbackPrefix, suffixTag) {
     };
   });
   return names;
+}
+
+function addUsPriorityGroup(groups, groupName, providerNames, nameKeyword) {
+  const keyword = String(nameKeyword || "").trim();
+  if (!keyword) return false;
+  upsertGroup(groups, {
+    name: groupName,
+    type: "url-test",
+    use: providerNames,
+    filter: `(?i)${escapeRegexLiteral(keyword)}`,
+    url: "https://www.gstatic.com/generate_204",
+    interval: 300,
+    tolerance: 50,
+  });
+  return true;
 }
 
 // ==================== 主函数 ====================
@@ -126,15 +151,32 @@ const main = (config) => {
   // ==================== 代理组 ====================
   const groups = config["proxy-groups"];
 
-  // 付费集合中的美国优选（用于 Google/YouTube）
+  // 美国自动测速池（最终回退）
   upsertGroup(groups, {
-    name: "US-Auto",
+    name: "US-Auto-Speedtest",
     type: "url-test",
     use: PAID_PROVIDERS,
     filter: US_FILTER,
     url: "https://www.gstatic.com/generate_204",
     interval: 300,
     tolerance: 50,
+  });
+
+  // US-Auto 回退顺序：优先1 -> 优先2 -> 自动测速
+  const usAutoChain = [];
+  if (addUsPriorityGroup(groups, "US-Auto-Priority1", PAID_PROVIDERS, US_AUTO_PRIORITY1)) {
+    usAutoChain.push("US-Auto-Priority1");
+  }
+  if (addUsPriorityGroup(groups, "US-Auto-Priority2", PAID_PROVIDERS, US_AUTO_PRIORITY2)) {
+    usAutoChain.push("US-Auto-Priority2");
+  }
+  usAutoChain.push("US-Auto-Speedtest");
+  upsertGroup(groups, {
+    name: "US-Auto",
+    type: "fallback",
+    proxies: usAutoChain,
+    url: "https://www.gstatic.com/generate_204",
+    interval: 300,
   });
 
   // 免费集合自动优选
