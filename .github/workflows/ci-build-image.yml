@@ -119,9 +119,10 @@ jobs:
             echo "API_PORT=19092"
             echo "CLASH_SECRET="
             echo "ADMIN_TOKEN="
-            echo "WEB_PORT=80"
-            echo "MIXED_PORT=17890"
-            echo "SOCKS_PORT=7891"
+            echo "CLASH_DISABLE_GEOIP=1"
+            echo "WEB_PORT=18080"
+            echo "MIXED_PORT=27890"
+            echo "SOCKS_PORT=27891"
           } > dist/compose/.env
 
       - name: Upload compose artifact
