@@ -40,6 +40,7 @@ SITE_POLICY_FILE = SCRIPTS_DIR / "site_policy.yaml"
 SUBSCRIPTION_SETS_FILE = SCRIPTS_DIR / "subscription_sets.json"
 SCHEDULE_FILE = SCRIPTS_DIR / "schedule.json"
 SCHEDULE_HISTORY_FILE = SCRIPTS_DIR / "schedule_history.json"
+PROVIDER_RECOVERY_FILE = SCRIPTS_DIR / "provider_recovery_state.json"
 MERGE_SCRIPT_FILE = SCRIPTS_DIR / "merge.py"
 
 PYTHON_BIN = os.environ.get("PYTHON_BIN", "/usr/bin/python3")
@@ -53,6 +54,36 @@ SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 AUTO_SET_BLOCK_START = "// === AUTO-SUB-SETS:START ==="
 AUTO_SET_BLOCK_END = "// === AUTO-SUB-SETS:END ==="
 MAX_SCHEDULE_HISTORY = 200
+SYSTEM_PROXY_NAMES = {"DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"}
+
+try:
+    PROVIDER_AUTO_REFRESH_MAX_PER_DAY = max(
+        1,
+        int(os.environ.get("PROVIDER_AUTO_REFRESH_MAX_PER_DAY", "3")),
+    )
+except ValueError:
+    PROVIDER_AUTO_REFRESH_MAX_PER_DAY = 3
+
+try:
+    PROVIDER_RECOVERY_CHECK_INTERVAL = max(
+        10,
+        int(os.environ.get("PROVIDER_RECOVERY_CHECK_INTERVAL", "60")),
+    )
+except ValueError:
+    PROVIDER_RECOVERY_CHECK_INTERVAL = 60
+
+try:
+    PROVIDER_ZERO_ALIVE_MINUTES = max(
+        1,
+        int(os.environ.get("PROVIDER_ZERO_ALIVE_MINUTES", "30")),
+    )
+except ValueError:
+    PROVIDER_ZERO_ALIVE_MINUTES = 30
+
+PROVIDER_AUTO_REFRESH_ENABLED = os.environ.get(
+    "PROVIDER_AUTO_REFRESH_ENABLED",
+    "1",
+).strip().lower() in {"1", "true", "yes", "on"}
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -61,6 +92,7 @@ merge_lock = threading.Lock()
 log_lock = threading.Lock()
 schedule_lock = threading.Lock()
 history_lock = threading.Lock()
+provider_recovery_lock = threading.Lock()
 log_queues: list[queue.Queue] = []
 log_history: list[dict] = []
 MAX_LOG_HISTORY = 500
@@ -304,6 +336,279 @@ def ensure_safe_name(name: str) -> bool:
 def ensure_json_body():
     body = request.get_json(silent=True)
     return body if isinstance(body, dict) else {}
+
+
+def parse_optional_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"1", "true", "yes", "on"}:
+            return True
+        if text in {"0", "false", "no", "off"}:
+            return False
+    return None
+
+
+def normalize_provider_name(raw: str, fallback: str = "Sub") -> str:
+    base = str(raw or fallback).strip() or fallback
+    return re.sub(r"[^A-Za-z0-9_-]", "_", base)
+
+
+def default_provider_recovery_state() -> dict:
+    return {"providers": {}}
+
+
+def sanitize_provider_recovery_state(data: dict) -> dict:
+    rows = data.get("providers", {}) if isinstance(data, dict) else {}
+    if not isinstance(rows, dict):
+        rows = {}
+
+    providers: dict[str, dict] = {}
+    for raw_name, raw_item in rows.items():
+        name = str(raw_name or "").strip()
+        if not name:
+            continue
+        item = raw_item if isinstance(raw_item, dict) else {}
+
+        zero_since = str(item.get("zero_since") or "").strip() or None
+        last_checked = str(item.get("last_checked") or "").strip() or None
+        daily_date = str(item.get("daily_date") or "").strip()
+
+        try:
+            daily_updates = int(item.get("daily_updates", 0))
+        except Exception:
+            daily_updates = 0
+        daily_updates = max(0, daily_updates)
+
+        providers[name] = {
+            "zero_since": zero_since,
+            "last_checked": last_checked,
+            "daily_date": daily_date,
+            "daily_updates": daily_updates,
+        }
+
+    return {"providers": providers}
+
+
+def load_provider_recovery_state() -> dict:
+    raw = load_json(PROVIDER_RECOVERY_FILE, default_provider_recovery_state())
+    return sanitize_provider_recovery_state(raw)
+
+
+def save_provider_recovery_state(data: dict) -> None:
+    payload = sanitize_provider_recovery_state(data)
+    save_json(PROVIDER_RECOVERY_FILE, payload)
+
+
+def build_provider_rows(payload) -> list[dict]:
+    raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
+    if not isinstance(raw_providers, dict):
+        raw_providers = {}
+
+    rows: list[dict] = []
+    for provider_name, item in raw_providers.items():
+        if not isinstance(item, dict):
+            continue
+
+        proxies = item.get("proxies", [])
+        proxy_count = 0
+        alive_count = 0
+        if isinstance(proxies, list):
+            proxy_count = len(proxies)
+            alive_count = sum(
+                1
+                for proxy in proxies
+                if isinstance(proxy, dict) and proxy.get("alive") is True
+            )
+
+        subscription_info = item.get("subscriptionInfo")
+        if not isinstance(subscription_info, dict):
+            subscription_info = {}
+
+        rows.append(
+            {
+                "name": str(provider_name),
+                "type": str(item.get("type", "")),
+                "vehicle_type": str(item.get("vehicleType", "")),
+                "proxy_count": proxy_count,
+                "alive_count": alive_count,
+                "updated_at": str(item.get("updatedAt", "")),
+                "has_subscription_info": bool(subscription_info),
+                "subscription_info": subscription_info,
+            }
+        )
+
+    rows.sort(key=lambda x: x["name"].lower())
+    return rows
+
+
+def fetch_provider_rows(timeout: int = 8) -> list[dict]:
+    resp = requests.get(
+        f"{CLASH_API}/providers/proxies",
+        headers=clash_headers(),
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"clash api error: {resp.status_code}")
+    payload = resp.json() if resp.content else {}
+    return build_provider_rows(payload)
+
+
+def refresh_provider_subscription(provider_name: str) -> tuple[bool, str]:
+    encoded_name = quote(provider_name, safe="")
+    try:
+        resp = requests.put(
+            f"{CLASH_API}/providers/proxies/{encoded_name}",
+            headers=clash_headers(),
+            timeout=12,
+        )
+    except Exception as exc:
+        return False, str(exc)
+
+    if resp.status_code in (200, 204):
+        return True, "ok"
+
+    message = ""
+    try:
+        payload = resp.json() if resp.content else {}
+        if isinstance(payload, dict):
+            message = str(payload.get("message", "")).strip()
+    except Exception:
+        message = ""
+    if not message:
+        message = (resp.text or "").strip()
+    if not message:
+        message = f"http {resp.status_code}"
+    return False, message
+
+
+def provider_auto_recovery_loop() -> None:
+    threshold_seconds = PROVIDER_ZERO_ALIVE_MINUTES * 60
+    while True:
+        time.sleep(PROVIDER_RECOVERY_CHECK_INTERVAL)
+        if not PROVIDER_AUTO_REFRESH_ENABLED:
+            continue
+
+        try:
+            rows = fetch_provider_rows(timeout=8)
+        except Exception as exc:
+            emit_log(f"provider auto-refresh skipped: fetch providers failed ({exc})", "WARN")
+            continue
+
+        now = datetime.now().replace(microsecond=0)
+        now_iso_text = now.isoformat()
+        today = now.strftime("%Y-%m-%d")
+        pending_refresh: list[tuple[str, int, int]] = []
+        state_changed = False
+
+        with provider_recovery_lock:
+            state = load_provider_recovery_state()
+            providers = state.get("providers", {})
+            if not isinstance(providers, dict):
+                providers = {}
+                state["providers"] = providers
+
+            for row in rows:
+                provider_name = str(row.get("name", "")).strip()
+                if not provider_name:
+                    continue
+
+                key = normalize_provider_name(provider_name, provider_name)
+                entry = providers.get(key, {})
+                if not isinstance(entry, dict):
+                    entry = {}
+
+                zero_since_raw = str(entry.get("zero_since") or "").strip()
+                zero_since_dt = None
+                if zero_since_raw:
+                    try:
+                        zero_since_dt = datetime.fromisoformat(zero_since_raw)
+                    except Exception:
+                        zero_since_dt = None
+                try:
+                    daily_updates = max(0, int(entry.get("daily_updates", 0)))
+                except Exception:
+                    daily_updates = 0
+                daily_date = str(entry.get("daily_date") or "").strip()
+                if daily_date != today:
+                    daily_date = today
+                    daily_updates = 0
+
+                try:
+                    proxy_count = max(0, int(row.get("proxy_count", 0)))
+                except Exception:
+                    proxy_count = 0
+                try:
+                    alive_count = max(0, int(row.get("alive_count", 0)))
+                except Exception:
+                    alive_count = 0
+
+                vehicle_type = str(row.get("vehicle_type", "")).strip().lower()
+                supports_refresh = vehicle_type == "http"
+
+                if proxy_count <= 0 or alive_count > 0 or not supports_refresh:
+                    if zero_since_dt is not None:
+                        state_changed = True
+                    zero_since_dt = None
+                else:
+                    if zero_since_dt is None:
+                        zero_since_dt = now
+                    elapsed_seconds = max(
+                        0,
+                        int((now - zero_since_dt).total_seconds()),
+                    )
+                    if elapsed_seconds >= threshold_seconds:
+                        if daily_updates < PROVIDER_AUTO_REFRESH_MAX_PER_DAY:
+                            daily_updates += 1
+                            pending_refresh.append(
+                                (
+                                    provider_name,
+                                    elapsed_seconds,
+                                    daily_updates,
+                                )
+                            )
+                            # Reset timing window after each refresh attempt.
+                            zero_since_dt = now
+                            state_changed = True
+
+                next_zero_since = zero_since_dt.isoformat() if zero_since_dt else None
+                next_entry = {
+                    "zero_since": next_zero_since,
+                    "last_checked": now_iso_text,
+                    "daily_date": daily_date,
+                    "daily_updates": daily_updates,
+                }
+                if providers.get(key) != next_entry:
+                    state_changed = True
+                providers[key] = next_entry
+
+            if state_changed:
+                save_provider_recovery_state(state)
+
+        for provider_name, elapsed_seconds, daily_updates in pending_refresh:
+            ok, message = refresh_provider_subscription(provider_name)
+            elapsed_minutes = max(1, elapsed_seconds // 60)
+            if ok:
+                emit_log(
+                    (
+                        f"provider auto-refresh triggered: {provider_name}, "
+                        f"zero_for={elapsed_minutes}m, "
+                        f"daily={daily_updates}/{PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
+                    ),
+                    "SUCCESS",
+                )
+            else:
+                emit_log(
+                    (
+                        f"provider auto-refresh failed: {provider_name}, "
+                        f"zero_for={elapsed_minutes}m, "
+                        f"daily={daily_updates}/{PROVIDER_AUTO_REFRESH_MAX_PER_DAY}, msg={message}"
+                    ),
+                    "WARN",
+                )
 
 
 def list_subscriptions():
@@ -1026,37 +1331,584 @@ def clash_traffic():
         return json_error(f"failed to load traffic: {exc}", 500)
 
 
+@app.route("/api/clash/config", methods=["GET"])
+def get_clash_config():
+    try:
+        resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=5)
+        if resp.status_code != 200:
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        payload = resp.json() if resp.content else {}
+        if not isinstance(payload, dict):
+            payload = {}
+
+        mode = str(payload.get("mode", "rule")).strip().lower() or "rule"
+        if mode not in {"rule", "global", "direct"}:
+            mode = "rule"
+
+        allow_lan = parse_optional_bool(payload.get("allow-lan"))
+        if allow_lan is None:
+            allow_lan = False
+
+        bind_address = str(payload.get("bind-address", "")).strip()
+
+        tun_enabled = False
+        tun_payload = payload.get("tun")
+        if isinstance(tun_payload, dict):
+            parsed = parse_optional_bool(tun_payload.get("enable"))
+            if parsed is not None:
+                tun_enabled = parsed
+        elif parse_optional_bool(tun_payload) is not None:
+            tun_enabled = bool(parse_optional_bool(tun_payload))
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "mode": mode,
+                    "allow_lan": bool(allow_lan),
+                    "bind_address": bind_address,
+                    "tun_enabled": bool(tun_enabled),
+                },
+            }
+        )
+    except Exception as exc:
+        return json_error(f"failed to read clash config: {exc}", 500)
+
+
 @app.route("/api/clash/config", methods=["PUT"])
 @require_write_auth
-def clash_config():
+def put_clash_config():
     body = ensure_json_body()
-    mode = str(body.get("mode", "")).strip().lower()
-    if mode not in {"rule", "global", "direct"}:
-        return json_error("invalid mode", 400)
+    payload: dict = {}
+    changed_items: list[str] = []
 
-    payload = {"mode": mode}
+    if "mode" in body:
+        mode = str(body.get("mode", "")).strip().lower()
+        if mode not in {"rule", "global", "direct"}:
+            return json_error("invalid mode", 400)
+        payload["mode"] = mode
+        changed_items.append(f"mode={mode}")
+
+    allow_lan_raw = body.get("allow_lan", body.get("allow-lan"))
+    allow_lan = parse_optional_bool(allow_lan_raw)
+    if allow_lan is not None:
+        payload["allow-lan"] = allow_lan
+        changed_items.append(f"allow-lan={str(allow_lan).lower()}")
+
+    bind_address_raw = body.get("bind_address", body.get("bind-address"))
+    if bind_address_raw is not None:
+        bind_address = str(bind_address_raw).strip()
+        if not bind_address:
+            return json_error("bind_address is required when provided", 400)
+        payload["bind-address"] = bind_address
+        changed_items.append(f"bind-address={bind_address}")
+
+    # Enabling LAN proxy usually requires wildcard bind address.
+    if (
+        allow_lan is True
+        and "bind-address" not in payload
+    ):
+        payload["bind-address"] = "*"
+        changed_items.append("bind-address=*")
+
+    tun_enabled_raw = body.get("tun_enabled", body.get("tun-enabled"))
+    tun_enabled = parse_optional_bool(tun_enabled_raw)
+    if tun_enabled is not None:
+        payload["tun"] = {"enable": tun_enabled}
+        changed_items.append(f"tun.enable={str(tun_enabled).lower()}")
+
+    if not payload:
+        return json_error("no valid config fields", 400)
+
     try:
-        resp = requests.patch(
-            f"{CLASH_API}/configs",
-            headers=clash_headers(),
-            json=payload,
-            timeout=5,
-        )
-        if resp.status_code not in (200, 204) and resp.status_code in (404, 405, 501):
-            # Compatibility fallback for runtimes that only accept PUT /configs.
-            resp = requests.put(
-                f"{CLASH_API}/configs",
-                headers=clash_headers(),
-                json=payload,
-                timeout=5,
-            )
+        resp = _apply_clash_config_patch(payload, timeout=5)
         if resp.status_code not in (200, 204):
             return json_error(f"clash api error: {resp.status_code}", 502)
 
-        emit_log(f"clash mode updated: {mode}")
-        return jsonify({"success": True, "mode": mode})
+        emit_log(f"clash config updated: {', '.join(changed_items)}")
+        return jsonify({"success": True, "data": payload})
     except Exception as exc:
         return json_error(f"failed to update clash config: {exc}", 500)
+
+
+def _apply_clash_config_patch(payload: dict, timeout: float = 5):
+    resp = requests.patch(
+        f"{CLASH_API}/configs",
+        headers=clash_headers(),
+        json=payload,
+        timeout=timeout,
+    )
+    if resp.status_code not in (200, 204) and resp.status_code in (404, 405, 501):
+        # Compatibility fallback for runtimes that only accept PUT /configs.
+        resp = requests.put(
+            f"{CLASH_API}/configs",
+            headers=clash_headers(),
+            json=payload,
+            timeout=timeout,
+        )
+    return resp
+
+
+def _clash_delay_request(
+    proxy_name: str,
+    test_url: str = "http://www.gstatic.com/generate_204",
+    timeout_ms: int = 6000,
+) -> tuple[bool, int, str]:
+    encoded = quote(proxy_name, safe="")
+    timeout_ms = max(1000, min(20000, int(timeout_ms)))
+    request_timeout = max(3.0, timeout_ms / 1000.0 + 2.0)
+    try:
+        resp = requests.get(
+            f"{CLASH_API}/proxies/{encoded}/delay",
+            headers=clash_headers(),
+            params={"url": test_url, "timeout": timeout_ms},
+            timeout=request_timeout,
+        )
+        if resp.status_code != 200:
+            return False, -1, f"clash api error: {resp.status_code}"
+        payload = resp.json() if resp.content else {}
+        delay_raw = payload.get("delay") if isinstance(payload, dict) else None
+        delay = int(delay_raw) if delay_raw is not None else -1
+        if delay < 0:
+            return False, -1, "delay timeout"
+        return True, delay, ""
+    except Exception as exc:
+        return False, -1, str(exc)
+
+
+def _fetch_rule_provider_rows() -> tuple[list[dict], str]:
+    try:
+        resp = requests.get(
+            f"{CLASH_API}/providers/rules",
+            headers=clash_headers(),
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return [], f"clash api error: {resp.status_code}"
+        payload = resp.json() if resp.content else {}
+        raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
+        if not isinstance(raw_providers, dict):
+            raw_providers = {}
+
+        rows: list[dict] = []
+        for provider_name, item in raw_providers.items():
+            if not isinstance(item, dict):
+                continue
+            rule_count_raw = item.get("ruleCount", 0)
+            try:
+                rule_count = max(0, int(rule_count_raw))
+            except Exception:
+                rule_count = 0
+            rows.append(
+                {
+                    "name": str(provider_name),
+                    "type": str(item.get("type", "")),
+                    "behavior": str(item.get("behavior", "")),
+                    "format": str(item.get("format", "")),
+                    "vehicle_type": str(item.get("vehicleType", "")),
+                    "rule_count": rule_count,
+                    "updated_at": str(item.get("updatedAt", "")),
+                }
+            )
+
+        rows.sort(key=lambda x: x["name"].lower())
+        return rows, ""
+    except Exception as exc:
+        return [], str(exc)
+
+
+def _geo_proxy_check(
+    test_url: str = "http://www.gstatic.com/generate_204",
+    timeout_ms: int = 6000,
+) -> dict:
+    try:
+        resp = requests.get(f"{CLASH_API}/proxies", headers=clash_headers(), timeout=6)
+        if resp.status_code != 200:
+            return {
+                "ok": False,
+                "message": f"clash api error: {resp.status_code}",
+                "tested_url": test_url,
+                "attempts": [],
+            }
+        payload = resp.json() if resp.content else {}
+        raw_proxies = payload.get("proxies", {}) if isinstance(payload, dict) else {}
+        if not isinstance(raw_proxies, dict):
+            raw_proxies = {}
+    except Exception as exc:
+        return {
+            "ok": False,
+            "message": str(exc),
+            "tested_url": test_url,
+            "attempts": [],
+        }
+
+    groups: list[dict] = []
+    for group_name, item in raw_proxies.items():
+        if not isinstance(item, dict):
+            continue
+        options = item.get("all")
+        if not isinstance(options, list) or not options:
+            continue
+        name = str(group_name).strip()
+        now = str(item.get("now", "")).strip()
+        nodes = [str(x).strip() for x in options if str(x).strip()]
+        if not nodes:
+            continue
+        groups.append({"name": name, "now": now, "nodes": nodes})
+
+    def group_rank(group: dict) -> tuple[int, int]:
+        lowered = str(group.get("name", "")).lower()
+        score = 0
+        if "proxy" in lowered:
+            score += 120
+        if "auto" in lowered:
+            score += 90
+        if "global" in lowered:
+            score += 80
+        if "select" in lowered or "选择" in lowered:
+            score += 40
+        if "google" in lowered:
+            score += 20
+        nodes = group.get("nodes", [])
+        return (-score, -len(nodes) if isinstance(nodes, list) else 0)
+
+    groups.sort(key=group_rank)
+
+    attempts: list[dict] = []
+    for group in groups:
+        group_name = str(group["name"])
+        nodes = list(group["nodes"])
+        candidates: list[str] = []
+        current = str(group.get("now", "")).strip()
+        if current:
+            candidates.append(current)
+        candidates.extend(nodes)
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for node in candidates:
+            key = node.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(node)
+
+        for node in deduped:
+            if node.upper() in SYSTEM_PROXY_NAMES:
+                continue
+            ok, delay, error = _clash_delay_request(node, test_url=test_url, timeout_ms=timeout_ms)
+            attempt = {
+                "group": group_name,
+                "proxy": node,
+                "ok": ok,
+                "delay": delay,
+                "error": error,
+            }
+            attempts.append(attempt)
+            if ok:
+                return {
+                    "ok": True,
+                    "message": "proxy reachable",
+                    "tested_url": test_url,
+                    "group": group_name,
+                    "proxy": node,
+                    "delay": delay,
+                    "attempts": attempts[:6],
+                }
+            if len(attempts) >= 8:
+                return {
+                    "ok": False,
+                    "message": "no reachable proxy in tested groups",
+                    "tested_url": test_url,
+                    "attempts": attempts,
+                }
+
+    return {
+        "ok": False,
+        "message": "no candidate proxy groups",
+        "tested_url": test_url,
+        "attempts": attempts,
+    }
+
+
+@app.route("/api/clash/geo/settings", methods=["PUT"])
+@require_write_auth
+def put_geo_settings():
+    body = ensure_json_body()
+    payload: dict = {}
+    changed_items: list[str] = []
+
+    auto_update_raw = body.get("geo_auto_update", body.get("geo-auto-update"))
+    auto_update = parse_optional_bool(auto_update_raw)
+    if auto_update is not None:
+        payload["geo-auto-update"] = auto_update
+        changed_items.append(f"geo-auto-update={str(auto_update).lower()}")
+
+    interval_raw = body.get("geo_update_interval", body.get("geo-update-interval"))
+    if interval_raw is not None:
+        try:
+            interval_hours = int(interval_raw)
+        except Exception:
+            return json_error("geo_update_interval must be integer", 400)
+        # Keep it practical while preventing accidental extreme values.
+        interval_hours = max(1, min(720, interval_hours))
+        payload["geo-update-interval"] = interval_hours
+        changed_items.append(f"geo-update-interval={interval_hours}h")
+
+    if not payload:
+        return json_error("no valid geo setting fields", 400)
+
+    try:
+        resp = _apply_clash_config_patch(payload, timeout=5)
+        if resp.status_code not in (200, 204):
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        # Read back runtime value. Some cores acknowledge but don't apply these fields dynamically.
+        verify_resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=5)
+        runtime_applied = False
+        runtime_values: dict = {}
+        if verify_resp.status_code == 200:
+            runtime_payload = verify_resp.json() if verify_resp.content else {}
+            if isinstance(runtime_payload, dict):
+                runtime_values = runtime_payload
+                runtime_applied = True
+                if "geo-auto-update" in payload:
+                    runtime_applied = runtime_applied and (
+                        parse_optional_bool(runtime_values.get("geo-auto-update"))
+                        == bool(payload["geo-auto-update"])
+                    )
+                if "geo-update-interval" in payload:
+                    try:
+                        runtime_interval = int(runtime_values.get("geo-update-interval"))
+                    except Exception:
+                        runtime_interval = -1
+                    runtime_applied = runtime_applied and (
+                        runtime_interval == int(payload["geo-update-interval"])
+                    )
+
+        reloaded = False
+        applied_via = "runtime"
+        if not runtime_applied:
+            # Fallback: persist to current config file then reload clash.
+            config_payload = load_yaml(CONFIG_FILE, {})
+            if not isinstance(config_payload, dict):
+                config_payload = {}
+            config_payload.update(payload)
+            make_backup(CONFIG_FILE, "geo_settings")
+            save_yaml(CONFIG_FILE, config_payload)
+            reloaded = reload_clash()
+            applied_via = "config_reload"
+            if not reloaded:
+                emit_log("geo settings fallback reload failed", "WARN")
+
+        emit_log(
+            f"geo settings updated: {', '.join(changed_items)} (via={applied_via}, reload={reloaded})"
+        )
+        return jsonify(
+            {
+                "success": True,
+                "data": payload,
+                "applied_via": applied_via,
+                "reloaded": reloaded,
+            }
+        )
+    except Exception as exc:
+        return json_error(f"failed to update geo settings: {exc}", 500)
+
+
+@app.route("/api/clash/geo/status", methods=["GET"])
+def clash_geo_status():
+    try:
+        config_resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=6)
+        if config_resp.status_code != 200:
+            return json_error(f"clash api error: {config_resp.status_code}", 502)
+        config_payload = config_resp.json() if config_resp.content else {}
+        if not isinstance(config_payload, dict):
+            config_payload = {}
+    except Exception as exc:
+        return json_error(f"failed to load clash config: {exc}", 500)
+
+    geo_auto_update = parse_optional_bool(config_payload.get("geo-auto-update"))
+    if geo_auto_update is None:
+        geo_auto_update = False
+
+    geodata_mode = parse_optional_bool(config_payload.get("geodata-mode"))
+    if geodata_mode is None:
+        geodata_mode = False
+
+    interval_raw = config_payload.get("geo-update-interval", 24)
+    try:
+        geo_update_interval = max(1, int(interval_raw))
+    except Exception:
+        geo_update_interval = 24
+
+    rows, rows_error = _fetch_rule_provider_rows()
+
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "config": {
+                    "geo_auto_update": bool(geo_auto_update),
+                    "geo_update_interval": geo_update_interval,
+                    "geodata_mode": bool(geodata_mode),
+                    "geodata_loader": str(config_payload.get("geodata-loader", "")),
+                    "geosite_matcher": str(config_payload.get("geosite-matcher", "")),
+                    "geox_url": config_payload.get("geox-url", {}),
+                },
+                "rule_providers": rows,
+                "rule_providers_error": rows_error or "",
+            },
+        }
+    )
+
+
+@app.route("/api/clash/geo/check", methods=["GET"])
+def clash_geo_check():
+    timeout_raw = request.args.get("timeout", 6000)
+    try:
+        timeout_ms = int(timeout_raw)
+    except Exception:
+        timeout_ms = 6000
+    timeout_ms = max(1000, min(20000, timeout_ms))
+    test_url = str(request.args.get("url") or "http://www.gstatic.com/generate_204").strip()
+    if not test_url:
+        test_url = "http://www.gstatic.com/generate_204"
+    result = _geo_proxy_check(test_url=test_url, timeout_ms=timeout_ms)
+    return jsonify({"success": True, "data": result})
+
+
+@app.route("/api/actions/geo/update", methods=["POST"])
+@require_write_auth
+def action_geo_update():
+    body = ensure_json_body()
+    check_proxy = parse_optional_bool(body.get("check_proxy"))
+    if check_proxy is None:
+        check_proxy = True
+    update_geo_db = parse_optional_bool(body.get("update_geo_db"))
+    if update_geo_db is None:
+        update_geo_db = True
+    update_rule_providers = parse_optional_bool(body.get("update_rule_providers"))
+    if update_rule_providers is None:
+        update_rule_providers = True
+
+    check_result = {
+        "ok": True,
+        "message": "skipped",
+        "tested_url": "http://www.gstatic.com/generate_204",
+        "attempts": [],
+    }
+    if check_proxy:
+        check_result = _geo_proxy_check()
+
+    if check_proxy and not bool(check_result.get("ok")):
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "ok": False,
+                    "message": "代理连通性检查未通过，已取消 GEO 更新",
+                    "check": check_result,
+                    "geo_db": {"status": "skipped", "message": "skipped by failed check"},
+                    "rule_providers": {
+                        "total": 0,
+                        "updated": 0,
+                        "failed": 0,
+                        "items": [],
+                    },
+                },
+            }
+        )
+
+    geo_db_result = {"status": "skipped", "message": "not requested"}
+    if update_geo_db:
+        try:
+            geo_resp = requests.post(
+                f"{CLASH_API}/configs/geo",
+                headers=clash_headers(),
+                timeout=45,
+            )
+            if geo_resp.status_code in (200, 204):
+                geo_db_result = {"status": "updated", "message": "geo database update triggered"}
+            else:
+                payload = geo_resp.json() if geo_resp.content else {}
+                message = ""
+                if isinstance(payload, dict):
+                    message = str(payload.get("message", "")).strip()
+                if not message:
+                    message = f"clash api error: {geo_resp.status_code}"
+                lowered = message.lower()
+                if "updating" in lowered and "skip" in lowered:
+                    geo_db_result = {"status": "busy", "message": message}
+                else:
+                    geo_db_result = {"status": "failed", "message": message}
+        except Exception as exc:
+            geo_db_result = {"status": "failed", "message": str(exc)}
+
+    provider_rows: list[dict] = []
+    provider_items: list[dict] = []
+    providers_error = ""
+    if update_rule_providers:
+        provider_rows, providers_error = _fetch_rule_provider_rows()
+        if providers_error:
+            provider_items.append({"name": "_all_", "ok": False, "error": providers_error})
+        else:
+            for row in provider_rows:
+                name = str(row.get("name", "")).strip()
+                if not name:
+                    continue
+                encoded = quote(name, safe="")
+                try:
+                    resp = requests.put(
+                        f"{CLASH_API}/providers/rules/{encoded}",
+                        headers=clash_headers(),
+                        timeout=30,
+                    )
+                    ok = resp.status_code in (200, 204)
+                    err = "" if ok else f"clash api error: {resp.status_code}"
+                    provider_items.append({"name": name, "ok": ok, "error": err})
+                except Exception as exc:
+                    provider_items.append({"name": name, "ok": False, "error": str(exc)})
+
+    failed_count = len([x for x in provider_items if not x.get("ok")])
+    updated_count = len([x for x in provider_items if x.get("ok")])
+    total_count = len(provider_items)
+
+    if providers_error and not provider_rows:
+        total_count = 0
+        updated_count = 0
+        failed_count = 1
+
+    geo_ok = geo_db_result["status"] in {"updated", "busy", "skipped"}
+    providers_ok = (not update_rule_providers) or failed_count == 0
+    overall_ok = bool(check_result.get("ok")) and geo_ok and providers_ok
+
+    summary_parts = [f"ok={overall_ok}"]
+    if update_geo_db:
+        summary_parts.append(f"geo_db={geo_db_result['status']}")
+    if update_rule_providers:
+        summary_parts.append(f"rules={updated_count}/{max(total_count, 1)}")
+    emit_log(f"geo update finished: {', '.join(summary_parts)}")
+
+    message = "GEO 更新完成" if overall_ok else "GEO 更新部分失败或未执行"
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "ok": overall_ok,
+                "message": message,
+                "check": check_result,
+                "geo_db": geo_db_result,
+                "rule_providers": {
+                    "total": total_count,
+                    "updated": updated_count,
+                    "failed": failed_count,
+                    "items": provider_items,
+                },
+            },
+        }
+    )
 
 
 @app.route("/api/clash/groups", methods=["GET"])
@@ -1116,53 +1968,7 @@ def clash_proxy_meta():
 @app.route("/api/clash/providers", methods=["GET"])
 def clash_proxy_providers():
     try:
-        resp = requests.get(
-            f"{CLASH_API}/providers/proxies",
-            headers=clash_headers(),
-            timeout=8,
-        )
-        if resp.status_code != 200:
-            return json_error(f"clash api error: {resp.status_code}", 502)
-
-        payload = resp.json() if resp.content else {}
-        raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
-        if not isinstance(raw_providers, dict):
-            raw_providers = {}
-
-        rows: list[dict] = []
-        for provider_name, item in raw_providers.items():
-            if not isinstance(item, dict):
-                continue
-
-            proxies = item.get("proxies", [])
-            proxy_count = 0
-            alive_count = 0
-            if isinstance(proxies, list):
-                proxy_count = len(proxies)
-                alive_count = sum(
-                    1
-                    for proxy in proxies
-                    if isinstance(proxy, dict) and proxy.get("alive") is True
-                )
-
-            subscription_info = item.get("subscriptionInfo")
-            if not isinstance(subscription_info, dict):
-                subscription_info = {}
-
-            rows.append(
-                {
-                    "name": str(provider_name),
-                    "type": str(item.get("type", "")),
-                    "vehicle_type": str(item.get("vehicleType", "")),
-                    "proxy_count": proxy_count,
-                    "alive_count": alive_count,
-                    "updated_at": str(item.get("updatedAt", "")),
-                    "has_subscription_info": bool(subscription_info),
-                    "subscription_info": subscription_info,
-                }
-            )
-
-        rows.sort(key=lambda x: x["name"].lower())
+        rows = fetch_provider_rows(timeout=8)
         return jsonify({"success": True, "data": rows})
     except Exception as exc:
         return json_error(f"failed to load providers: {exc}", 500)
@@ -1521,6 +2327,8 @@ def bootstrap_files():
         save_json(SCHEDULE_FILE, default_schedule())
     if not SCHEDULE_HISTORY_FILE.exists():
         save_json(SCHEDULE_HISTORY_FILE, default_schedule_history())
+    if not PROVIDER_RECOVERY_FILE.exists():
+        save_json(PROVIDER_RECOVERY_FILE, default_provider_recovery_state())
     if not SITE_POLICY_FILE.exists():
         save_yaml(
             SITE_POLICY_FILE,
@@ -1565,10 +2373,20 @@ def bootstrap_files():
 if __name__ == "__main__":
     bootstrap_files()
     threading.Thread(target=scheduler_loop, daemon=True).start()
+    threading.Thread(target=provider_auto_recovery_loop, daemon=True).start()
     host = os.environ.get("API_HOST", "0.0.0.0")
     try:
         port = int(os.environ.get("API_PORT", "19092"))
     except ValueError:
         port = 19092
+    emit_log(
+        (
+            "provider auto-refresh "
+            f"{'enabled' if PROVIDER_AUTO_REFRESH_ENABLED else 'disabled'}, "
+            f"interval={PROVIDER_RECOVERY_CHECK_INTERVAL}s, "
+            f"zero_window={PROVIDER_ZERO_ALIVE_MINUTES}m, "
+            f"max_per_day={PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
+        )
+    )
     emit_log(f"management api starting on {host}:{port}")
     app.run(host=host, port=port, debug=False, threaded=True)

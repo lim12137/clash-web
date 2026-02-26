@@ -44,3 +44,4 @@ config/backups/config_*.yaml
 config/config.yaml
 scripts/schedule.json
 scripts/schedule_history.json
+scripts/provider_recovery_state.json
