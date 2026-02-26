@@ -333,6 +333,13 @@ nexent/
 
 ---
 
+## 📖 致谢
+
+- **Clash 内核**: [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) - 核心代理引擎
+- **Clash UI**: [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd) - 节点切换界面
+
+---
+
 <div align="center">
 
 **Made with ❤️ for the Clash Community**
