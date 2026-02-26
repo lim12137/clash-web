@@ -318,9 +318,109 @@ function renderProviderRows() {
   renderProviderSummaryHeader(sourceIndex);
 }
 
-function countRealNodeOptions(group) {
+function buildGroupLookup(groups) {
+  const lookup = new Map();
+  if (!Array.isArray(groups)) return lookup;
+  groups.forEach((group) => {
+    const name = String(group?.name || "").trim();
+    if (!name) return;
+    lookup.set(name, group);
+  });
+  return lookup;
+}
+
+function isUsAutoFallbackGroup(group) {
+  const name = String(group?.name || "").trim().toLowerCase();
+  const type = String(group?.type || "").trim().toLowerCase();
+  return name === "us-auto" && type.includes("fallback");
+}
+
+function isSystemNodeName(name) {
+  return SYSTEM_NODE_NAMES.has(String(name || "").trim().toUpperCase());
+}
+
+function expandUsAutoNodes(group, groups = proxyGroups) {
+  const groupLookup = buildGroupLookup(groups);
   const all = Array.isArray(group?.all) ? group.all : [];
-  return all.filter((name) => !SYSTEM_NODE_NAMES.has(String(name || "").toUpperCase())).length;
+  const names = [];
+  const seen = new Set();
+
+  const addNode = (rawName) => {
+    const name = String(rawName || "").trim();
+    if (!name) return;
+    if (isSystemNodeName(name)) return;
+    if (groupLookup.has(name)) return;
+    if (seen.has(name)) return;
+    seen.add(name);
+    names.push(name);
+  };
+
+  all.forEach((entryRaw) => {
+    const entry = String(entryRaw || "").trim();
+    if (!entry) return;
+    const childGroup = groupLookup.get(entry);
+    if (childGroup && Array.isArray(childGroup.all)) {
+      childGroup.all.forEach((childNode) => addNode(childNode));
+      return;
+    }
+    addNode(entry);
+  });
+
+  return names;
+}
+
+function getDisplayNodesForGroup(group, groups = proxyGroups) {
+  if (!group) return [];
+  if (isUsAutoFallbackGroup(group)) {
+    const expanded = expandUsAutoNodes(group, groups);
+    if (expanded.length) return expanded;
+  }
+
+  const all = Array.isArray(group?.all) ? group.all : [];
+  return all
+    .map((item) => String(item || "").trim())
+    .filter((name) => name && !isSystemNodeName(name));
+}
+
+function resolveUsAutoChildGroupForNode(group, nodeName, groups = proxyGroups) {
+  if (!isUsAutoFallbackGroup(group)) return "";
+  const target = String(nodeName || "").trim();
+  if (!target) return "";
+
+  const groupLookup = buildGroupLookup(groups);
+  const childNames = Array.isArray(group?.all) ? group.all : [];
+  for (const childRaw of childNames) {
+    const childName = String(childRaw || "").trim();
+    if (!childName) continue;
+    const childGroup = groupLookup.get(childName);
+    if (!childGroup || !Array.isArray(childGroup.all)) continue;
+    if (childGroup.all.some((item) => String(item || "").trim() === target)) {
+      return childName;
+    }
+  }
+  return "";
+}
+
+function getUsAutoSelectedNode(group, groups = proxyGroups) {
+  if (!isUsAutoFallbackGroup(group)) return String(group?.now || "").trim();
+
+  const selectedChildName = String(group?.now || "").trim();
+  if (!selectedChildName) return "";
+
+  const groupLookup = buildGroupLookup(groups);
+  const childGroup = groupLookup.get(selectedChildName);
+  if (!childGroup) return "";
+
+  const childNow = String(childGroup.now || "").trim();
+  if (childNow && !isSystemNodeName(childNow)) return childNow;
+
+  const childNodes = getDisplayNodesForGroup(childGroup, groups);
+  if (childNodes.length === 1) return childNodes[0];
+  return "";
+}
+
+function countRealNodeOptions(group, groups = proxyGroups) {
+  return getDisplayNodesForGroup(group, groups).length;
 }
 
 function collectUsAutoNodeOptions(groups) {
@@ -330,15 +430,8 @@ function collectUsAutoNodeOptions(groups) {
   );
   if (!usAutoGroup) return [];
 
-  const names = new Set();
-  const all = Array.isArray(usAutoGroup.all) ? usAutoGroup.all : [];
-  all.forEach((nodeName) => {
-    const name = String(nodeName || "").trim();
-    if (!name) return;
-    if (SYSTEM_NODE_NAMES.has(name.toUpperCase())) return;
-    names.add(name);
-  });
-  return Array.from(names).sort((a, b) =>
+  const options = getDisplayNodesForGroup(usAutoGroup, groups);
+  return options.sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
   );
 }
@@ -415,7 +508,7 @@ function pickBestGroupIndex(groups) {
   groups.forEach((group, index) => {
     const name = String(group?.name || "").toLowerCase();
     const type = String(group?.type || "").toLowerCase();
-    const realCount = countRealNodeOptions(group);
+    const realCount = countRealNodeOptions(group, groups);
 
     let score = realCount;
     if (name === "proxy") score += 200;
@@ -1703,8 +1796,15 @@ const FLAG_MAP = {
   '美西': '🇺🇸', '美东': '🇺🇸',
 };
 
-// 代理组图标映射
-const GROUP_ICONS = {
+// 代理组图标映射（精确名优先）
+const GROUP_EXACT_ICONS = {
+  'proxy': '🚀',
+  'google': '🔍',
+  'us1': '🇺🇸',
+  'us2': '🇺🇸',
+  'us-auto': '🇺🇸',
+};
+const GROUP_FUZZY_ICONS = {
   'PROXY': '🚀',
   'Auto': '⚡',
   'AUTO': '⚡',
@@ -1714,6 +1814,24 @@ const GROUP_ICONS = {
   'LoadBalance': '⚖️',
   'URLTest': '🔍',
 };
+
+function groupSortRank(groupName) {
+  const name = String(groupName || "").trim().toLowerCase();
+  if (name === "us1") return 1;
+  if (name === "us2") return 2;
+  if (name === "proxy") return 3;
+  if (name === "us-auto") return 4;
+  if (name === "google") return 5;
+  return 100;
+}
+
+function compareProxyGroups(a, b) {
+  const aName = String(a?.name || "");
+  const bName = String(b?.name || "");
+  const rankDiff = groupSortRank(aName) - groupSortRank(bName);
+  if (rankDiff !== 0) return rankDiff;
+  return aName.localeCompare(bName, "zh-CN", { sensitivity: "base" });
+}
 
 // 获取节点旗帜
 function getNodeFlag(nodeName) {
@@ -1727,11 +1845,15 @@ function getNodeFlag(nodeName) {
 
 // 获取代理组图标
 function getGroupIcon(groupName) {
-  for (const [key, icon] of Object.entries(GROUP_ICONS)) {
-    if (groupName.toLowerCase().includes(key.toLowerCase())) {
+  const key = String(groupName || "").trim().toLowerCase();
+  if (GROUP_EXACT_ICONS[key]) return GROUP_EXACT_ICONS[key];
+  for (const [fuzzyKey, icon] of Object.entries(GROUP_FUZZY_ICONS)) {
+    if (key.includes(fuzzyKey.toLowerCase())) {
       return icon;
     }
   }
+  if (key.includes("us")) return "🇺🇸";
+  if (key.includes("google")) return "🔍";
   return '📡';
 }
 
@@ -1975,7 +2097,8 @@ async function loadGroups() {
         ? proxyMetaRes.data
         : {};
     nodeProviderMap = new Map(Object.entries(proxyMetaRows));
-    proxyGroups = groupsRes.data || [];
+    const incomingGroups = Array.isArray(groupsRes.data) ? groupsRes.data : [];
+    proxyGroups = [...incomingGroups].sort(compareProxyGroups);
     refreshNodePrioritySelects();
 
     if (!proxyGroups.length) {
@@ -2134,7 +2257,8 @@ function bindEvents() {
     document.getElementById("logs").textContent = "";
   };
   document.getElementById("save-sub-sets").onclick = saveSubscriptionSets;
-  document.getElementById("save-node-settings").onclick = saveNodeSettings;
+  const saveNodeSettingsBtn = document.getElementById("save-node-settings");
+  if (saveNodeSettingsBtn) saveNodeSettingsBtn.onclick = saveNodeSettings;
   const priority1Select = document.getElementById("us-auto-priority1");
   const priority2Select = document.getElementById("us-auto-priority2");
   if (priority1Select) priority1Select.onchange = () => refreshNodePrioritySelects();
