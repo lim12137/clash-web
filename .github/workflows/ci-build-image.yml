@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
   workflow_dispatch:
 
 concurrency:
@@ -82,10 +84,61 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  package_compose:
+    name: Package compose directory
+    runs-on: ubuntu-latest
+    needs: build_image
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build compose bundle
+        env:
+          IMAGE_NAME: ${{ needs.build_image.outputs.image_name }}
+          IMAGE_TAGS: ${{ needs.build_image.outputs.image_tags }}
+        run: |
+          set -eu
+          mkdir -p dist/compose
+          cp compose/docker-compose.yml dist/compose/docker-compose.yml
+          cp compose/.env.example dist/compose/.env.example
+          cp compose/README.md dist/compose/README.md
+
+          IMAGE_REF="$(printf '%s\n' "${IMAGE_TAGS}" | head -n 1)"
+          if [ -z "${IMAGE_REF}" ]; then
+            IMAGE_REF="${IMAGE_NAME}:latest"
+          fi
+
+          {
+            echo "IMAGE_REF=${IMAGE_REF}"
+            echo "TZ=Asia/Shanghai"
+            echo "API_PORT=19092"
+            echo "CLASH_SECRET="
+            echo "ADMIN_TOKEN="
+            echo "WEB_PORT=80"
+            echo "MIXED_PORT=17890"
+            echo "SOCKS_PORT=7891"
+          } > dist/compose/.env
+
+      - name: Upload compose artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-directory
+          path: dist/compose
+          if-no-files-found: error
+
+      - name: Workflow summary
+        run: |
+          echo "Compose artifact: compose-directory" >> "$GITHUB_STEP_SUMMARY"
+          echo "Default IMAGE_REF: $(grep '^IMAGE_REF=' dist/compose/.env | cut -d= -f2-)" >> "$GITHUB_STEP_SUMMARY"
+
   trigger_github:
     name: Trigger GitHub follow-up workflow
     runs-on: ubuntu-latest
-    needs: build_image
+    needs:
+      - build_image
+      - package_compose
     permissions:
       contents: write
     steps:
