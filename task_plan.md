@@ -119,3 +119,47 @@
 
 ### 当前状态
 - 状态: 已记录，可进入 `/new`。
+
+## 增量记录（2026-02-26）
+
+### 本轮目标
+- 将“节点设置”改为下拉选择，并放到“节点切换”里 `US-Auto · N 个节点 · 当前选择...` 信息栏右侧。
+- 缩短文案并限制可选节点来源，仅允许 `US-Auto` 分组下的节点。
+- 修复“点击保存后优先1/优先2回到自动”的问题。
+- 处理重启后“离线”问题，恢复本地测试内核链路。
+
+### 实施结果
+1. 前端交互与布局（已完成）
+   - `web/index.html`：移除原“设置页”节点设置块；在 `node-info-bar` 右侧新增 `优先1/优先2/保存` 控件。
+   - `web/style.css`：新增 `node-priority-controls` 布局样式，兼容桌面与移动端。
+   - `web/app.js`：仅在当前分组为 `US-Auto` 时显示该控件，切到其他分组自动隐藏。
+   - 文案已缩短：`优先1`、`优先2`、`保存`、默认项 `自动`。
+
+2. 选项来源与互斥逻辑（已完成）
+   - `web/app.js`：下拉选项由“全分组汇总”改为“仅 `US-Auto` 分组的 `all` 节点”。
+   - 排除系统节点（如 `DIRECT` / `REJECT` 等）。
+   - 增加互斥：优先1与优先2不允许重复，变更时实时刷新候选项。
+
+3. 保存回填问题修复（已完成）
+   - 发现运行中 API `GET /api/subscription-sets` 返回体不含 `us_auto`，导致前端保存后重新加载时被清空。
+   - `web/app.js` 增加兜底：当接口不返回 `us_auto` 时保留当前内存值，不覆盖为 `""`。
+   - `saveSubscriptionSets()` / `saveNodeSettings()` 保存前先更新 `currentSubscriptionSets.us_auto`，避免 UI 短暂回退。
+
+4. 离线根因与修复（已完成）
+   - 离线根因：`restart_local_api_with_test_kernel.bat` 启动链路中 `merge.py` 执行 `override.js` 报错：
+     - `ReferenceError: US_AUTO_PRIORITY1 is not defined`
+   - `scripts/override.js` 已增加兼容兜底：
+     - 自动区块缺少 `US_AUTO_PRIORITY` / `US_AUTO_PRIORITY1` / `US_AUTO_PRIORITY2` 时回退为空字符串，不再中断 merge。
+   - 修复后重新执行重启链路，`19090` 与 `19092` 监听恢复，`/api/clash/status` 返回 `running: true`。
+
+### 验证记录
+- `node --check web/app.js` 通过。
+- `node --check scripts/override.js` 通过。
+- `D:\py311\python.exe scripts/merge.py merge` 成功（退出码 0）。
+- `scripts/restart_local_api_with_test_kernel.bat` 成功（退出码 0）。
+- `GET /api/health` 正常；`GET /api/clash/status` 为 `running: true`。
+- 端口检查：`19090`、`19092` 均处于 `Listen`。
+
+### 当前状态
+- 运行状态：已恢复在线，可继续前端联调。
+- Git 状态：`git push origin main` 返回 `Everything up-to-date`；当前仍有未提交改动，尚未形成新提交。

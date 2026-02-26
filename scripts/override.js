@@ -4,20 +4,12 @@ const SUB_SET1 = [
   {
     "name": "A",
     "url": "https://example.com/subscription-a.yaml"
-  },
-  {
-    "name": "B",
-    "url": "https://example.com/subscription-b.yaml"
   }
 ];
 const SUB_SET2 = [
   {
     "name": "a",
     "url": "https://example.com/subscription-c.yaml"
-  },
-  {
-    "name": "b",
-    "url": "https://example.com/subscription-d.yaml"
   }
 ];
 const US_AUTO_PRIORITY = {
@@ -29,6 +21,20 @@ const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || "").trim();
 const SUB_SET1_URLS = SUB_SET1.map((x) => x.url).filter(Boolean);
 const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);
 // === AUTO-SUB-SETS:END ===
+
+// 兼容旧版自动区块：缺少 US_AUTO_PRIORITY 常量时回退为空。
+const __US_AUTO_PRIORITY_OBJ =
+  typeof US_AUTO_PRIORITY === "object" && US_AUTO_PRIORITY !== null
+    ? US_AUTO_PRIORITY
+    : { priority1: "", priority2: "" };
+const __US_AUTO_PRIORITY1 =
+  typeof US_AUTO_PRIORITY1 === "string"
+    ? US_AUTO_PRIORITY1.trim()
+    : String(__US_AUTO_PRIORITY_OBJ.priority1 || "").trim();
+const __US_AUTO_PRIORITY2 =
+  typeof US_AUTO_PRIORITY2 === "string"
+    ? US_AUTO_PRIORITY2.trim()
+    : String(__US_AUTO_PRIORITY_OBJ.priority2 || "").trim();
 
 // ==================== 过滤器 ====================
 // 付费集合中用于 Google/YouTube 的美国优选节点过滤器
@@ -164,10 +170,10 @@ const main = (config) => {
 
   // US-Auto 回退顺序：优先1 -> 优先2 -> 自动测速
   const usAutoChain = [];
-  if (addUsPriorityGroup(groups, "US-Auto-Priority1", PAID_PROVIDERS, US_AUTO_PRIORITY1)) {
+  if (addUsPriorityGroup(groups, "US-Auto-Priority1", PAID_PROVIDERS, __US_AUTO_PRIORITY1)) {
     usAutoChain.push("US-Auto-Priority1");
   }
-  if (addUsPriorityGroup(groups, "US-Auto-Priority2", PAID_PROVIDERS, US_AUTO_PRIORITY2)) {
+  if (addUsPriorityGroup(groups, "US-Auto-Priority2", PAID_PROVIDERS, __US_AUTO_PRIORITY2)) {
     usAutoChain.push("US-Auto-Priority2");
   }
   usAutoChain.push("US-Auto-Speedtest");
