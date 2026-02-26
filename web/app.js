@@ -12,6 +12,7 @@ let currentSubscriptionSets = {
 };
 let providerRows = [];
 let geoActionBusy = false;
+let kernelActionBusy = false;
 
 // 节点切换相关状态
 let proxyGroups = [];
@@ -708,6 +709,106 @@ function appendLog(text) {
   logs.scrollTop = logs.scrollHeight;
 }
 
+function isKernelProgressMessage(msg) {
+  const lowered = String(msg || "").toLowerCase();
+  if (!lowered) return false;
+  return (
+    lowered.includes("kernel update") ||
+    lowered.includes("kernel ") ||
+    lowered.includes("core self-check") ||
+    lowered.includes("rolled back") ||
+    lowered.includes("process restart scheduled")
+  );
+}
+
+function detectKernelStage(text) {
+  const lowered = String(text || "").toLowerCase();
+  if (!lowered) return "运行";
+  if (lowered.includes("开始内核更新")) return "请求";
+  if (lowered.includes("repo=") || lowered.includes("selected asset")) return "准备";
+  if (lowered.includes("downloaded") || lowered.includes("下载")) return "下载";
+  if (lowered.includes("checksum") || lowered.includes("sha256")) return "校验";
+  if (
+    lowered.includes("self-check") ||
+    lowered.includes("core -v") ||
+    lowered.includes("core -t") ||
+    lowered.includes("candidate check")
+  ) {
+    return "自检";
+  }
+  if (lowered.includes("update success") || lowered.includes("更新成功")) return "完成";
+  if (lowered.includes("restart")) return "重启";
+  if (lowered.includes("failed") || lowered.includes("error") || lowered.includes("失败")) return "失败";
+  return "运行";
+}
+
+function kernelStageClass(stage) {
+  const key = String(stage || "").trim();
+  if (key === "请求") return "stage-request";
+  if (key === "准备") return "stage-prepare";
+  if (key === "下载") return "stage-download";
+  if (key === "校验") return "stage-verify";
+  if (key === "自检") return "stage-check";
+  if (key === "完成") return "stage-done";
+  if (key === "重启") return "stage-restart";
+  if (key === "失败") return "stage-fail";
+  return "stage-run";
+}
+
+function normalizeKernelLogLevel(levelHint, text) {
+  const direct = String(levelHint || "").trim().toUpperCase();
+  if (direct === "SUCCESS") return "success";
+  if (direct === "WARN" || direct === "WARNING") return "warn";
+  if (direct === "ERROR") return "error";
+
+  const lowered = String(text || "").toLowerCase();
+  if (
+    lowered.includes(" failed") ||
+    lowered.includes(" error") ||
+    lowered.includes("失败") ||
+    lowered.includes("error:")
+  ) {
+    return "error";
+  }
+  if (lowered.includes("warn") || lowered.includes("warning") || lowered.includes("重启")) {
+    return "warn";
+  }
+  if (lowered.includes("success") || lowered.includes("完成") || lowered.includes("verified")) {
+    return "success";
+  }
+  return "info";
+}
+
+function appendKernelProgressLine(line, levelHint = "") {
+  const container = document.getElementById("kernel-live-logs");
+  if (!container) return;
+  const text = String(line || "").trim();
+  if (!text) return;
+
+  const level = normalizeKernelLogLevel(levelHint, text);
+  const stage = detectKernelStage(text);
+  const stageClass = kernelStageClass(stage);
+
+  const row = document.createElement("div");
+  row.className = `kernel-log-line level-${level}`;
+
+  const tag = document.createElement("span");
+  tag.className = `kernel-log-tag ${stageClass}`;
+  tag.textContent = stage;
+  row.appendChild(tag);
+
+  const detail = document.createElement("span");
+  detail.className = "kernel-log-text";
+  detail.textContent = text;
+  row.appendChild(detail);
+
+  container.appendChild(row);
+  while (container.children.length > 120) {
+    container.removeChild(container.firstElementChild);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   const token = getToken();
@@ -1364,6 +1465,226 @@ function setGeoUpdateResult(text, level = "muted") {
     return;
   }
   el.classList.add("geo-update-result", "muted");
+}
+
+function normalizeKernelRepo(raw) {
+  let repo = String(raw || "").trim();
+  if (!repo) return "MetaCubeX/mihomo";
+  repo = repo.replace(/^https?:\/\/github\.com\//i, "").replace(/^\/+|\/+$/g, "");
+  return repo || "MetaCubeX/mihomo";
+}
+
+function getKernelRepoValue() {
+  const input = document.getElementById("kernel-repo");
+  const normalized = normalizeKernelRepo(input?.value || "");
+  if (input) {
+    input.value = normalized;
+  }
+  return normalized;
+}
+
+function setKernelButtonsBusy(busy) {
+  const ids = ["btn-kernel-refresh", "btn-kernel-check-latest", "btn-kernel-update"];
+  ids.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !!busy;
+  });
+  const repoInput = document.getElementById("kernel-repo");
+  if (repoInput) repoInput.disabled = !!busy;
+  const restartToggle = document.getElementById("kernel-restart-after-update");
+  if (restartToggle) restartToggle.disabled = !!busy;
+}
+
+function setKernelUpdateResult(text, level = "muted") {
+  const el = document.getElementById("kernel-update-result");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.classList.remove("muted", "ok", "warn", "error");
+  if (level === "ok" || level === "warn" || level === "error") {
+    el.classList.add("geo-update-result", level);
+    return;
+  }
+  el.classList.add("geo-update-result", "muted");
+}
+
+function kernelStatusPillClass(rawStatus) {
+  const status = String(rawStatus || "").toLowerCase();
+  if (status === "success" || status === "updated") return "success";
+  if (status === "failed" || status === "error") return "failed";
+  return "started";
+}
+
+function renderKernelStatus(data) {
+  const payload = data && typeof data === "object" ? data : {};
+  setRuntimeInfoValue("kernel-current-version", payload.core_version || "-");
+  setRuntimeInfoValue("kernel-bin-path", payload.core_bin || "-");
+  setRuntimeInfoValue("kernel-prev-bin-path", payload.core_prev_bin || "-");
+
+  const summaryEl = document.getElementById("kernel-status-summary");
+  if (!summaryEl) return;
+  const allowedRepos = Array.isArray(payload.allowed_repos) ? payload.allowed_repos : [];
+  const updating = payload.updating ? "是" : "否";
+  const restartPending = payload.restart_pending ? "是" : "否";
+  const checksumRequired = payload.require_checksum ? "开启" : "关闭";
+  const allowedText = allowedRepos.length ? allowedRepos.join(", ") : "-";
+  summaryEl.textContent =
+    `内核状态：更新中 ${updating} | 重启待执行 ${restartPending} | SHA256 强制校验 ${checksumRequired} | 允许仓库 ${allowedText}`;
+}
+
+function renderKernelLatest(data, errorMessage = "") {
+  const latestEl = document.getElementById("kernel-latest-summary");
+  if (!latestEl) return;
+  if (errorMessage) {
+    latestEl.textContent = `最新版本检查失败：${errorMessage}`;
+    return;
+  }
+  const payload = data && typeof data === "object" ? data : {};
+  const tag = String(payload.tag || "-");
+  const publishedAt = String(payload.published_at || "-");
+  const assetName = String(payload.asset_name || "-");
+  const checksum = String(payload.checksum || "").trim();
+  const checksumText = checksum ? `SHA256 ${checksum.slice(0, 16)}...` : "未提供 checksum";
+  latestEl.textContent = `最新版本：${tag} | 发布时间：${publishedAt} | 资产：${assetName} | 校验：${checksumText}`;
+}
+
+function renderKernelUpdateHistory(rows) {
+  const tbody = document.getElementById("kernel-update-history-table");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!Array.isArray(rows) || !rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="5" class="muted">暂无更新记录</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  rows.forEach((item) => {
+    const tr = document.createElement("tr");
+    const status = String(item.status || "-");
+    const oldVersion = String(item.old_version || "").trim();
+    const newVersion = String(item.new_version || "").trim();
+    const releaseTag = String(item.release_tag || "-").trim() || "-";
+    const versionText = oldVersion || newVersion ? `${oldVersion || "-"} -> ${newVersion || releaseTag}` : "-";
+    const message = String(item.error || item.asset_name || item.repo || "-").trim() || "-";
+
+    const tdTime = document.createElement("td");
+    tdTime.textContent = String(item.time || "-");
+    tr.appendChild(tdTime);
+
+    const tdStatus = document.createElement("td");
+    const statusPill = document.createElement("span");
+    statusPill.className = `status-pill ${kernelStatusPillClass(status)}`;
+    statusPill.textContent = status;
+    tdStatus.appendChild(statusPill);
+    tr.appendChild(tdStatus);
+
+    const tdVersion = document.createElement("td");
+    tdVersion.textContent = versionText;
+    tr.appendChild(tdVersion);
+
+    const tdRelease = document.createElement("td");
+    tdRelease.textContent = releaseTag;
+    tr.appendChild(tdRelease);
+
+    const tdMessage = document.createElement("td");
+    tdMessage.textContent = message;
+    tr.appendChild(tdMessage);
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadKernelStatusAndHistory(silent = false) {
+  try {
+    const [statusRes, historyRes] = await Promise.all([
+      api("/kernel/status"),
+      api("/kernel/updates?limit=20"),
+    ]);
+    renderKernelStatus(statusRes.data || {});
+    renderKernelUpdateHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+  } catch (err) {
+    renderKernelStatus({});
+    renderKernelUpdateHistory([]);
+    if (!silent) {
+      showToast(`读取内核状态失败: ${err.message}`);
+    }
+  }
+}
+
+async function loadKernelLatest(silent = false) {
+  const repo = getKernelRepoValue();
+  try {
+    const res = await api(`/kernel/release/latest?repo=${encodeURIComponent(repo)}`);
+    const payload = res.data || {};
+    renderKernelLatest(payload, "");
+    if (!silent) {
+      showToast(`已检查最新版本: ${payload.tag || "-"}`);
+    }
+  } catch (err) {
+    renderKernelLatest(null, err.message);
+    if (!silent) {
+      showToast(`检查最新版本失败: ${err.message}`);
+    }
+  }
+}
+
+async function loadKernelPanel(silent = false) {
+  await loadKernelStatusAndHistory(silent);
+  await loadKernelLatest(true);
+}
+
+async function runKernelUpdate() {
+  if (kernelActionBusy) return;
+  const repo = getKernelRepoValue();
+  const restart = !!document.getElementById("kernel-restart-after-update")?.checked;
+  if (!repo) {
+    showToast("更新仓库不能为空");
+    return;
+  }
+  if (!confirm(`确认从 ${repo} 更新内核？`)) return;
+
+  kernelActionBusy = true;
+  setKernelButtonsBusy(true);
+  setKernelUpdateResult("内核更新中：正在下载、校验并自检，请稍候...", "warn");
+  appendKernelProgressLine(`[client] 开始内核更新: repo=${repo}, restart=${restart}`);
+
+  try {
+    const res = await api("/actions/kernel/update", {
+      method: "POST",
+      body: { repo, restart },
+    });
+    const data = res.data || {};
+    const oldVersion = String(data.old_version || "-").trim() || "-";
+    const newVersion = String(data.new_version || data.release_tag || "-").trim() || "-";
+    const restartRequested = !!data.restart_requested;
+    const restartScheduled = !!data.restart_scheduled;
+    let text = `更新成功：${oldVersion} -> ${newVersion}`;
+    if (restartRequested) {
+      text += restartScheduled ? "；已触发容器重启" : "；重启已在进行";
+    }
+    setKernelUpdateResult(text, "ok");
+    appendKernelProgressLine(`[client] ${text}`);
+    showToast(restartRequested ? "内核更新成功，准备重启容器" : "内核更新成功");
+
+    if (!restartRequested) {
+      await loadKernelPanel(true);
+      await refreshStatus();
+      await loadRuntimeConnectionInfo({ silent: true });
+    } else {
+      setTimeout(() => {
+        refreshStatus().catch(() => {});
+      }, 3000);
+    }
+  } catch (err) {
+    setKernelUpdateResult(`更新失败：${err.message}`, "error");
+    appendKernelProgressLine(`[client] 更新失败: ${err.message}`);
+    showToast(`内核更新失败: ${err.message}`);
+    await loadKernelStatusAndHistory(true);
+  } finally {
+    kernelActionBusy = false;
+    setKernelButtonsBusy(false);
+  }
 }
 
 function deriveGeoOverallMessage(data) {
@@ -2466,9 +2787,16 @@ function initLogs() {
   eventSource.onmessage = (evt) => {
     try {
       const data = JSON.parse(evt.data);
-      appendLog(`${data.time} [${data.level}] ${data.msg}`);
+      const line = `${data.time} [${data.level}] ${data.msg}`;
+      appendLog(line);
+      if (isKernelProgressMessage(data.msg)) {
+        appendKernelProgressLine(line, data.level);
+      }
     } catch (_) {
       appendLog(evt.data);
+      if (isKernelProgressMessage(evt.data)) {
+        appendKernelProgressLine(evt.data);
+      }
     }
   };
   eventSource.onerror = () => {
@@ -2513,6 +2841,7 @@ function bindEvents() {
   document.getElementById("btn-refresh").onclick = async () => {
     await refreshStatus();
     await loadClashConfig(true);
+    await loadKernelStatusAndHistory(true);
     await loadGeoStatus(true);
     await loadSubscriptions();
     await loadGroups();
@@ -2524,6 +2853,24 @@ function bindEvents() {
   const runtimeRefreshBtn = document.getElementById("btn-runtime-refresh");
   if (runtimeRefreshBtn) {
     runtimeRefreshBtn.onclick = () => loadRuntimeConnectionInfo({ silent: false });
+  }
+  const kernelRefreshBtn = document.getElementById("btn-kernel-refresh");
+  if (kernelRefreshBtn) {
+    kernelRefreshBtn.onclick = () => loadKernelStatusAndHistory(false);
+  }
+  const kernelLatestBtn = document.getElementById("btn-kernel-check-latest");
+  if (kernelLatestBtn) {
+    kernelLatestBtn.onclick = () => loadKernelLatest(false);
+  }
+  const kernelUpdateBtn = document.getElementById("btn-kernel-update");
+  if (kernelUpdateBtn) {
+    kernelUpdateBtn.onclick = () => runKernelUpdate();
+  }
+  const kernelRepoInput = document.getElementById("kernel-repo");
+  if (kernelRepoInput) {
+    kernelRepoInput.onblur = () => {
+      kernelRepoInput.value = normalizeKernelRepo(kernelRepoInput.value);
+    };
   }
   document.getElementById("reload-subs").onclick = loadSubscriptions;
   document.getElementById("reload-providers").onclick = loadProviderStatus;
@@ -2537,6 +2884,10 @@ function bindEvents() {
   document.getElementById("sub-form").addEventListener("submit", saveSubscription);
   document.getElementById("clear-logs").onclick = () => {
     document.getElementById("logs").textContent = "";
+    const kernelLogs = document.getElementById("kernel-live-logs");
+    if (kernelLogs) {
+      kernelLogs.textContent = "";
+    }
   };
   document.getElementById("save-sub-sets").onclick = saveSubscriptionSets;
   const saveNodeSettingsBtn = document.getElementById("save-node-settings");
@@ -2591,6 +2942,7 @@ async function boot() {
   await refreshStatus();
   await loadRuntimeConnectionInfo({ silent: true });
   await loadClashConfig(true);
+  await loadKernelPanel(true);
   await loadGeoStatus(true);
   await loadSubscriptions();
   await loadSubscriptionSets();
@@ -2600,6 +2952,7 @@ async function boot() {
   await loadScheduleHistory();
   await loadEditor();
   setInterval(refreshStatus, 5000);
+  setInterval(() => loadKernelStatusAndHistory(true), 30000);
   setInterval(loadSchedule, 30000);
   setInterval(loadScheduleHistory, 30000);
 }
