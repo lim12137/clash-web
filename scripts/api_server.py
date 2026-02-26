@@ -720,11 +720,16 @@ def put_schedule():
     body = ensure_json_body()
     with schedule_lock:
         current = load_schedule()
+        old_enabled = bool(current.get("enabled", False))
+        old_interval = int(current.get("interval_minutes", 60))
         current["enabled"] = bool(body.get("enabled", current["enabled"]))
         if "interval_minutes" in body:
             current["interval_minutes"] = body.get("interval_minutes")
         current = sanitize_schedule(current)
-        if current["enabled"] and not current.get("next_run"):
+        enabled_changed = current["enabled"] != old_enabled
+        interval_changed = current["interval_minutes"] != old_interval
+        if current["enabled"] and (enabled_changed or interval_changed or not current.get("next_run")):
+            # Keep scheduler behavior intuitive: changing interval/enabled should recalculate next run.
             current["next_run"] = add_minutes_iso(current["interval_minutes"])
         if not current["enabled"]:
             current["next_run"] = None
@@ -928,6 +933,106 @@ def clash_status():
         )
     except Exception:
         return jsonify({"success": True, "running": False})
+
+
+@app.route("/api/clash/traffic", methods=["GET"])
+def clash_traffic():
+    try:
+        resp = requests.get(
+            f"{CLASH_API}/traffic",
+            headers=clash_headers(),
+            timeout=(3, 3),
+            stream=True,
+        )
+        if resp.status_code != 200:
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        payload = {}
+        # Some runtimes expose /traffic as a streaming endpoint (JSON lines).
+        # Read the first non-empty line and parse it as the current snapshot.
+        try:
+            for line in resp.iter_lines(decode_unicode=True):
+                line_text = str(line or "").strip()
+                if not line_text:
+                    continue
+                loaded = json.loads(line_text)
+                if isinstance(loaded, dict):
+                    payload = loaded
+                break
+        finally:
+            resp.close()
+
+        raw_speed_up = payload.get("up", 0)
+        raw_speed_down = payload.get("down", 0)
+        raw_total_up = payload.get("upTotal", raw_speed_up)
+        raw_total_down = payload.get("downTotal", raw_speed_down)
+        try:
+            speed_up = max(0, int(raw_speed_up))
+        except Exception:
+            speed_up = 0
+        try:
+            speed_down = max(0, int(raw_speed_down))
+        except Exception:
+            speed_down = 0
+        try:
+            total_up = max(0, int(raw_total_up))
+        except Exception:
+            total_up = 0
+        try:
+            total_down = max(0, int(raw_total_down))
+        except Exception:
+            total_down = 0
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    # Backward compatible keys used by existing dashboard logic.
+                    "up": total_up,
+                    "down": total_down,
+                    # Explicit keys for clarity and future UI usage.
+                    "up_total": total_up,
+                    "down_total": total_down,
+                    "speed_up": speed_up,
+                    "speed_down": speed_down,
+                },
+            }
+        )
+    except Exception as exc:
+        return json_error(f"failed to load traffic: {exc}", 500)
+
+
+@app.route("/api/clash/config", methods=["PUT"])
+@require_write_auth
+def clash_config():
+    body = ensure_json_body()
+    mode = str(body.get("mode", "")).strip().lower()
+    if mode not in {"rule", "global", "direct"}:
+        return json_error("invalid mode", 400)
+
+    payload = {"mode": mode}
+    try:
+        resp = requests.patch(
+            f"{CLASH_API}/configs",
+            headers=clash_headers(),
+            json=payload,
+            timeout=5,
+        )
+        if resp.status_code not in (200, 204) and resp.status_code in (404, 405, 501):
+            # Compatibility fallback for runtimes that only accept PUT /configs.
+            resp = requests.put(
+                f"{CLASH_API}/configs",
+                headers=clash_headers(),
+                json=payload,
+                timeout=5,
+            )
+        if resp.status_code not in (200, 204):
+            return json_error(f"clash api error: {resp.status_code}", 502)
+
+        emit_log(f"clash mode updated: {mode}")
+        return jsonify({"success": True, "mode": mode})
+    except Exception as exc:
+        return json_error(f"failed to update clash config: {exc}", 500)
 
 
 @app.route("/api/clash/groups", methods=["GET"])
