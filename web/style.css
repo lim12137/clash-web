@@ -697,6 +697,22 @@ tr.provider-row-unmatched td {
   font-size: 13px;
 }
 
+.geo-update-result {
+  white-space: pre-line;
+}
+
+.geo-update-result.ok {
+  color: var(--success);
+}
+
+.geo-update-result.warn {
+  color: var(--warning);
+}
+
+.geo-update-result.error {
+  color: var(--danger);
+}
+
 .section-title {
   display: flex;
   justify-content: space-between;

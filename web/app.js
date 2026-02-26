@@ -1278,10 +1278,217 @@ async function saveGeoSettings() {
   }
 }
 
+function setGeoUpdateResult(text, level = "muted") {
+  const el = document.getElementById("geo-update-result");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.classList.remove("muted", "ok", "warn", "error");
+  if (level === "ok" || level === "warn" || level === "error") {
+    el.classList.add("geo-update-result", level);
+    return;
+  }
+  el.classList.add("geo-update-result", "muted");
+}
+
+function deriveGeoOverallMessage(data) {
+  const summary = data.update_summary || {};
+  const rawMessage = String(summary.message || data.message || "").trim();
+  if (rawMessage && rawMessage !== "GEO 更新部分失败或未执行") {
+    return rawMessage;
+  }
+
+  const check = data.check || {};
+  const geoDb = data.geo_db || {};
+  const rules = data.rule_providers || {};
+  const checkFailed = check && typeof check === "object" && check.ok === false;
+  const geoFailed = String(geoDb.status || "").toLowerCase() === "failed";
+  const rulesFailed = Number(rules.failed || 0) > 0;
+
+  if (data.ok) {
+    return rawMessage || "GEO 更新完成";
+  }
+  if (checkFailed) {
+    return "GEO 更新失败：代理连通性检查未通过";
+  }
+  if (geoFailed && rulesFailed) {
+    return "GEO 更新失败：GEO 库和规则提供者都存在失败";
+  }
+  if (geoFailed) {
+    return "GEO 更新部分失败：GEO 库更新失败";
+  }
+  if (rulesFailed) {
+    return "GEO 更新部分失败：规则提供者更新失败";
+  }
+  return rawMessage || "GEO 更新未完成";
+}
+
+function buildGeoDbLine(summary, geoDb) {
+  const summaryLine = String(summary.geo_db || "").trim();
+  if (summaryLine) return summaryLine;
+
+  const status = String(geoDb.status || "").toLowerCase();
+  const message = String(geoDb.message || "").trim();
+  const newData = String(geoDb.new_data || "").toLowerCase();
+  let line = "";
+  if (status === "updated") {
+    if (newData === "yes") {
+      line = "GEO 库：已更新，检测到新数据";
+    } else if (newData === "no") {
+      line = "GEO 库：已检查，当前已是最新";
+    } else {
+      line = "GEO 库：更新请求已执行，是否有新数据未知";
+    }
+  } else if (status === "failed") {
+    line = "GEO 库：更新失败";
+  } else if (status === "busy") {
+    line = "GEO 库：已有更新任务在进行，当前请求被跳过";
+  } else if (status === "skipped") {
+    line = "GEO 库：未执行";
+  } else {
+    line = `GEO 库：状态 ${status || "-"}`;
+  }
+
+  const ignoredMessages = new Set(["not requested", "geo database update triggered"]);
+  if (message && !ignoredMessages.has(message)) {
+    line = `${line}（${message}）`;
+  }
+  return line;
+}
+
+function parseRuleNumbers(rules) {
+  const items = Array.isArray(rules.items) ? rules.items : [];
+  const totalRaw = Number(rules.total);
+  const updatedRaw = Number(rules.updated);
+  const failedRaw = Number(rules.failed);
+  const changedRaw = Number(rules.changed);
+  const unchangedRaw = Number(rules.unchanged);
+  const unknownRaw = Number(rules.unknown);
+
+  const total = Number.isFinite(totalRaw) ? Math.max(0, totalRaw) : items.length;
+  const updated = Number.isFinite(updatedRaw)
+    ? Math.max(0, updatedRaw)
+    : items.filter((x) => !!x.ok).length;
+  const failed = Number.isFinite(failedRaw)
+    ? Math.max(0, failedRaw)
+    : items.filter((x) => !x.ok).length;
+
+  let changed = Number.isFinite(changedRaw) ? Math.max(0, changedRaw) : -1;
+  let unchanged = Number.isFinite(unchangedRaw) ? Math.max(0, unchangedRaw) : -1;
+  let unknown = Number.isFinite(unknownRaw) ? Math.max(0, unknownRaw) : -1;
+
+  if (changed < 0) {
+    changed = items.filter((x) => {
+      const state = String(x.new_data || "").toLowerCase();
+      const status = String(x.status || "").toLowerCase();
+      return state === "yes" || status === "updated";
+    }).length;
+  }
+  if (unchanged < 0) {
+    unchanged = items.filter((x) => {
+      const state = String(x.new_data || "").toLowerCase();
+      const status = String(x.status || "").toLowerCase();
+      return state === "no" || status === "no_change";
+    }).length;
+  }
+  if (unknown < 0) {
+    unknown = items.filter((x) => {
+      if (!x.ok) return false;
+      const state = String(x.new_data || "").toLowerCase();
+      const status = String(x.status || "").toLowerCase();
+      return state === "unknown" || status === "unknown" || (!state && !status);
+    }).length;
+  }
+
+  return { total, updated, failed, changed, unchanged, unknown };
+}
+
+function collectFailedRuleNames(summary, rules) {
+  const names = Array.isArray(summary.failed_rules)
+    ? summary.failed_rules.filter((x) => String(x || "").trim())
+    : [];
+  if (names.length) return names;
+  const items = Array.isArray(rules.items) ? rules.items : [];
+  return items
+    .filter((item) => !item.ok && String(item.name || "").trim() && String(item.name) !== "_all_")
+    .map((item) => String(item.name));
+}
+
+function findFirstRuleError(rules) {
+  const items = Array.isArray(rules.items) ? rules.items : [];
+  for (const item of items) {
+    if (item && !item.ok) {
+      const errorText = String(item.error || "").trim();
+      if (errorText) return errorText;
+    }
+  }
+  return "";
+}
+
+function buildGeoUpdateResultText(data) {
+  const summary = data.update_summary || {};
+  const rules = data.rule_providers || {};
+  const geoDb = data.geo_db || {};
+  const lines = [];
+
+  lines.push(deriveGeoOverallMessage(data));
+  lines.push(buildGeoDbLine(summary, geoDb));
+
+  const newData = String(summary.new_data || data.new_data || geoDb.new_data || "unknown").toLowerCase();
+  if (newData === "yes") {
+    lines.push("本次更新：有新数据");
+  } else if (newData === "no") {
+    lines.push("本次更新：无新数据（当前已是最新）");
+  } else if (data.ok === false) {
+    lines.push("本次更新：执行失败，无法判断是否有新数据");
+  } else {
+    lines.push("本次更新：是否有新数据未知");
+  }
+
+  if (summary.rules) {
+    lines.push(String(summary.rules));
+  } else {
+    const stats = parseRuleNumbers(rules);
+    lines.push(
+      `规则提供者：成功 ${stats.updated}/${stats.total}，失败 ${stats.failed}，有更新 ${stats.changed}，无变化 ${stats.unchanged}`
+    );
+    if (stats.unknown > 0) {
+      lines.push(`规则提供者：结果未知 ${stats.unknown}`);
+    }
+  }
+
+  const compareError = String(rules.compare_error || "").trim();
+  if (compareError) {
+    lines.push(`规则结果比对失败：${compareError}`);
+  }
+
+  const failedRules = collectFailedRuleNames(summary, rules);
+  if (failedRules.length) {
+    const preview = failedRules.slice(0, 4).join(", ");
+    const suffix = failedRules.length > 4 ? ` 等 ${failedRules.length} 个` : "";
+    lines.push(`失败规则提供者：${preview}${suffix}`);
+  }
+  const firstRuleError = findFirstRuleError(rules);
+  if (firstRuleError) {
+    const reasonText = firstRuleError.length > 180 ? `${firstRuleError.slice(0, 180)}...` : firstRuleError;
+    lines.push(`失败原因：${reasonText}`);
+  }
+  return lines.join("\n");
+}
+
+function geoResultLevelFromData(data) {
+  if (!data || typeof data !== "object") return "muted";
+  if (!data.ok) return "error";
+  const summary = data.update_summary || {};
+  const newData = String(summary.new_data || data.new_data || "unknown");
+  if (newData === "unknown") return "warn";
+  return "ok";
+}
+
 async function runGeoUpdate() {
   if (geoActionBusy) return;
   geoActionBusy = true;
   setGeoButtonsBusy(true);
+  setGeoUpdateResult("正在执行 GEO 更新，请稍候...", "warn");
   try {
     const checkFirst = !!document.getElementById("geo-update-check-first")?.checked;
     const res = await api("/actions/geo/update", {
@@ -1292,16 +1499,11 @@ async function runGeoUpdate() {
     renderGeoCheckResult(data.check || null);
     await loadGeoStatus(true);
 
-    const rules = data.rule_providers || {};
-    const geoDb = data.geo_db || {};
-    const ruleSummary = `规则 ${Number(rules.updated || 0)}/${Number(rules.total || 0)}`;
-    const geoDbSummary = `GEO库 ${geoDb.status || "-"}`;
-    if (data.ok) {
-      showToast(`GEO 更新完成: ${geoDbSummary}, ${ruleSummary}`);
-    } else {
-      showToast(`${data.message || "GEO 更新未完成"}: ${geoDbSummary}, ${ruleSummary}`);
-    }
+    const resultText = buildGeoUpdateResultText(data);
+    setGeoUpdateResult(resultText, geoResultLevelFromData(data));
+    showToast(deriveGeoOverallMessage(data));
   } catch (err) {
+    setGeoUpdateResult(`执行 GEO 更新失败：${err.message}`, "error");
     showToast(`执行 GEO 更新失败: ${err.message}`);
   } finally {
     geoActionBusy = false;
