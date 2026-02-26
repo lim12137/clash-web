@@ -535,6 +535,9 @@ def status():
         {
             "success": True,
             "admin_token_enabled": bool(ADMIN_TOKEN),
+            "runtime": {
+                "clash_api": CLASH_API,
+            },
             "paths": {
                 "base": str(BASE_DIR),
                 "scripts": str(SCRIPTS_DIR),
@@ -951,7 +954,7 @@ def clash_traffic():
         # Some runtimes expose /traffic as a streaming endpoint (JSON lines).
         # Read the first non-empty line and parse it as the current snapshot.
         try:
-            for line in resp.iter_lines(decode_unicode=True):
+            for line in resp.iter_lines(chunk_size=1, decode_unicode=True):
                 line_text = str(line or "").strip()
                 if not line_text:
                     continue
@@ -961,6 +964,27 @@ def clash_traffic():
                 break
         finally:
             resp.close()
+
+        if not payload:
+            # Fallback for adapters that do not yield promptly via iter_lines.
+            resp2 = requests.get(
+                f"{CLASH_API}/traffic",
+                headers=clash_headers(),
+                timeout=(3, 3),
+                stream=True,
+            )
+            try:
+                raw_line = resp2.raw.readline()
+                if isinstance(raw_line, bytes):
+                    line_text = raw_line.decode("utf-8", errors="ignore").strip()
+                else:
+                    line_text = str(raw_line or "").strip()
+                if line_text:
+                    loaded = json.loads(line_text)
+                    if isinstance(loaded, dict):
+                        payload = loaded
+            finally:
+                resp2.close()
 
         raw_speed_up = payload.get("up", 0)
         raw_speed_down = payload.get("down", 0)
