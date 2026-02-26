@@ -42,9 +42,15 @@ config-test/
 tmp_provider_restart.log
 config/backups/config_*.yaml
 config/config.yaml
+config/cache.db
+config/proxies/
+config/ruleset/
 scripts/schedule.json
 scripts/schedule_history.json
 scripts/provider_recovery_state.json
+dist/compose/.env
+1.png
+image.png
 
 # Local sensitive scratch file
 jiaoben.txt
