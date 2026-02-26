@@ -8,43 +8,83 @@
 - 订阅集合管理（集合1/集合2）并自动注入 `override.js` 头部
 - 定时执行“合并并重载”，并记录执行历史
 
+## 核心优势：通过覆写合并订阅
+
+相较于“直接改订阅原文”，本项目采用覆写链路来合并订阅，优势在于：
+
+- 职责分离：`template/site_policy/override/override.js` 各自负责基础结构、分流策略、静态参数和动态逻辑，维护成本更低。
+- 对上游无侵入：订阅源保持原始输入，不需要手工改订阅内容，减少供应方变更带来的连锁问题。
+- 可重复与可回放：同一份输入 + 同一套覆写规则，可以稳定产出相同配置，便于排障与审计。
+- 更适合复杂策略：可以统一处理多订阅、分组命名、规则优先级、付费/免费集合编排等场景。
+- 更安全：写入前有语法校验和备份，出现异常时更容易回滚到可用配置。
+
+常见“三段式”方案在本项目中的对应关系：
+
+- 内核：`mihomo`（负责代理能力与规则执行）。
+- 前端：`web/` + `nginx` + `api_server.py`（负责管理交互和运维接口）。
+- 订阅集合：`subscriptions.json` + `subscription_sets.json` + `override.js` 自动注入变量（负责输入组织与策略编排）。
+
+区别在于，这里不是让三部分“松散拼接”，而是通过固定覆写链路把它们串成可验证、可回滚、可复用的一套流程。
+
 ## 架构
 
 - `nginx`：对外提供页面与 API 反向代理（端口 `80`）
 - `api_server.py`（Flask）：管理接口（容器内 `19092`）
 - `mihomo`：代理核心（控制接口 `9090`，代理端口 `7890/7891`，内核文件位于 `/opt/mihomo-core/mihomo`）
 
-## 快速启动
+## 快速启动（推荐：镜像部署）
 
 前提：
 
 - 已安装 Docker 与 Docker Compose
 - 当前目录包含本仓库文件
 
-启动命令：
+1. 复制环境变量模板：
 
 ```powershell
-docker compose up -d --build
+Copy-Item .env.example .env
 ```
 
-可选环境变量（Windows PowerShell 示例）：
+2. 编辑 `.env`（至少设置 `IMAGE_REF`）：
 
 ```powershell
-$env:CLASH_SECRET = "change_me"
-$env:ADMIN_TOKEN = "change_me_too"
-$env:API_PORT = "19092"
-$env:CORE_UPDATE_ALLOWED_REPOS = "MetaCubeX/mihomo"
-$env:CORE_UPDATE_REQUIRE_CHECKSUM = "1"
-docker compose up -d --build
+IMAGE_REF=ghcr.io/<owner>/clash2web:latest
+TZ=Asia/Shanghai
+API_PORT=19092
+WEB_PORT=18080
+MIXED_PORT=27890
+SOCKS_PORT=27891
+ADMIN_TOKEN=
+CLASH_SECRET=
 ```
 
-访问与代理端口：
+3. 拉取并启动：
 
-- 管理面板：`http://<主机IP>/`
-- HTTP 代理：`<主机IP>:7890`
-- SOCKS5 代理：`<主机IP>:7891`
+```powershell
+docker compose pull
+docker compose up -d
+```
 
-## 直接拉取镜像部署（不二次构建）
+4. 健康检查：
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:18080/api/health
+```
+
+访问端口（默认值）：
+
+- 管理面板：`http://<主机IP>:18080`
+- 混合代理（HTTP/SOCKS）：`<主机IP>:27890`
+- SOCKS5：`<主机IP>:27891`
+
+容器内固定端口：
+
+- Web：`80`
+- 混合代理：`17890`
+- SOCKS5：`7891`
+- Clash Controller：`9090`（仅容器内）
+
+## 直接拉取镜像部署（compose 目录）
 
 适用场景：部署机不保留源码，只拉取 GHCR 镜像启动。
 
@@ -63,6 +103,17 @@ docker compose up -d
 - `compose/.env` 的 `IMAGE_REF` 可填具体 tag（例如 `ghcr.io/<owner>/clash2web:sha-xxxxxxx`）
 - 持久化卷：`config_data`（运行配置）、`scripts_data`（脚本与在线编辑内容）、`core_data`（mihomo 内核文件）
 - 镜像内置 `geoip.metadb`，容器启动时会自动写入运行目录（缺失时补齐），避免运行期访问 GitHub 失败导致内核启动异常
+
+## 本地构建镜像（可选）
+
+适用场景：你需要基于本地代码改动快速验证镜像行为。
+
+```powershell
+docker build -t clash2web:local .
+docker compose down
+$env:IMAGE_REF = "clash2web:local"
+docker compose up -d
+```
 
 ## 无 Docker 本地重启（BAT，仅 API）
 
