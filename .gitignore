@@ -52,5 +52,17 @@ dist/compose/.env
 1.png
 image.png
 
+# Scripts backup files
+scripts/*.bak.*
+scripts/override.yaml
+scripts/site_policy.yaml
+scripts/override.js
+scripts/*.log
+tmp_*.log
+
+# Temp files
+11032
+23384
+
 # Local sensitive scratch file
 jiaoben.txt
