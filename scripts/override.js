@@ -3,21 +3,21 @@
 const SUB_SET1 = [
   {
     "name": "A",
-    "url": "http://49.233.252.141:33666/s/a8c260a412e05afda443a15718e7841c"
+    "url": "https://example.com/subscription-a.yaml"
   },
   {
     "name": "B",
-    "url": "https://sss.xlajiao.xyz/user/profile/data/644f13d6046ad51e53dd561e2d4cf686"
+    "url": "https://example.com/subscription-b.yaml"
   }
 ];
 const SUB_SET2 = [
   {
     "name": "a",
-    "url": "http://132.226.169.119/clash.yaml"
+    "url": "https://example.com/subscription-c.yaml"
   },
   {
     "name": "b",
-    "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg"
+    "url": "https://example.com/subscription-d.yaml"
   }
 ];
 const US_AUTO_PRIORITY = {
