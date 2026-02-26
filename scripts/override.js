@@ -4,17 +4,25 @@ const SUB_SET1 = [
   {
     "name": "A",
     "url": "http://49.233.252.141:33666/s/a8c260a412e05afda443a15718e7841c"
+  },
+  {
+    "name": "B",
+    "url": "https://sss.xlajiao.xyz/user/profile/data/644f13d6046ad51e53dd561e2d4cf686"
   }
 ];
 const SUB_SET2 = [
   {
     "name": "a",
     "url": "http://132.226.169.119/clash.yaml"
+  },
+  {
+    "name": "b",
+    "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg"
   }
 ];
 const US_AUTO_PRIORITY = {
-  "priority1": "",
-  "priority2": ""
+  "priority1": "🇺🇸美国 1 @PAID",
+  "priority2": "美国BGP[X0.5] @PAID"
 };
 const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || "").trim();
 const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || "").trim();
@@ -40,6 +48,9 @@ const __US_AUTO_PRIORITY2 =
 // 付费集合中用于 Google/YouTube 的美国优选节点过滤器
 const US_FILTER =
   "(?i)(\\bUS\\b|\\bUSA\\b|United\\s*States|UnitedStates|America|美国|美國|美西|美东|洛杉矶|圣何塞|硅谷|西雅图|达拉斯|芝加哥|纽约|华盛顿|🇺🇸)";
+const HEALTHCHECK_URL = "https://www.gstatic.com/generate_204";
+const AUTO_CHECK_INTERVAL = 180;
+const AUTO_TOLERANCE = 200;
 
 // ==================== 工具函数 ====================
 function safeProviderName(raw, fallback) {
@@ -74,8 +85,8 @@ function buildProvidersFromSet(config, setItems, fallbackPrefix, suffixTag) {
       interval: 86400,
       "health-check": {
         enable: true,
-        url: "https://www.gstatic.com/generate_204",
-        interval: 300,
+        url: HEALTHCHECK_URL,
+        interval: AUTO_CHECK_INTERVAL,
       },
       override: { "additional-suffix": ` @${suffixTag}` },
     };
@@ -83,17 +94,16 @@ function buildProvidersFromSet(config, setItems, fallbackPrefix, suffixTag) {
   return names;
 }
 
-function addUsPriorityGroup(groups, groupName, providerNames, nameKeyword) {
-  const keyword = String(nameKeyword || "").trim();
-  if (!keyword) return false;
+function addUsManualGroup(groups, groupName, providerNames) {
+  const providers = Array.isArray(providerNames)
+    ? providerNames.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (!providers.length) return false;
   upsertGroup(groups, {
     name: groupName,
-    type: "url-test",
-    use: providerNames,
-    filter: `(?i)${escapeRegexLiteral(keyword)}`,
-    url: "https://www.gstatic.com/generate_204",
-    interval: 300,
-    tolerance: 50,
+    type: "select",
+    use: providers,
+    filter: US_FILTER,
   });
   return true;
 }
@@ -157,51 +167,42 @@ const main = (config) => {
   // ==================== 代理组 ====================
   const groups = config["proxy-groups"];
 
-  // 美国自动测速池（最终回退）
+  // 美国自动测速池（所有付费）
   upsertGroup(groups, {
-    name: "US-Auto-Speedtest",
+    name: "US-Auto",
     type: "url-test",
     use: PAID_PROVIDERS,
     filter: US_FILTER,
-    url: "https://www.gstatic.com/generate_204",
-    interval: 300,
-    tolerance: 50,
+    url: HEALTHCHECK_URL,
+    interval: AUTO_CHECK_INTERVAL,
+    tolerance: AUTO_TOLERANCE,
+    lazy: false,
   });
 
-  // US-Auto 回退顺序：优先1 -> 优先2 -> 自动测速
-  const usAutoChain = [];
-  if (addUsPriorityGroup(groups, "US-Auto-Priority1", PAID_PROVIDERS, __US_AUTO_PRIORITY1)) {
-    usAutoChain.push("US-Auto-Priority1");
-  }
-  if (addUsPriorityGroup(groups, "US-Auto-Priority2", PAID_PROVIDERS, __US_AUTO_PRIORITY2)) {
-    usAutoChain.push("US-Auto-Priority2");
-  }
-  usAutoChain.push("US-Auto-Speedtest");
-  upsertGroup(groups, {
-    name: "US-Auto",
-    type: "fallback",
-    proxies: usAutoChain,
-    url: "https://www.gstatic.com/generate_204",
-    interval: 300,
-  });
+  // 固定手动组：US1 / US2（都可手动选择全量美国节点）
+  const googleChain = [];
+  if (addUsManualGroup(groups, "US1", PAID_PROVIDERS)) googleChain.push("US1");
+  if (addUsManualGroup(groups, "US2", PAID_PROVIDERS)) googleChain.push("US2");
+  googleChain.push("US-Auto", "REJECT");
 
   // 免费集合自动优选
   upsertGroup(groups, {
     name: "Free-Auto",
     type: "url-test",
     use: FREE_PROVIDERS,
-    url: "https://www.gstatic.com/generate_204",
-    interval: 300,
-    tolerance: 50,
+    url: HEALTHCHECK_URL,
+    interval: AUTO_CHECK_INTERVAL,
+    tolerance: AUTO_TOLERANCE,
+    lazy: false,
   });
 
-  // Google 专属组：US-Auto 不可用时阻断
+  // Google 专属组：按 US1 -> US2 -> US-Auto 回退，不可用时阻断
   upsertGroup(groups, {
     name: "Google",
     type: "fallback",
-    proxies: ["US-Auto", "REJECT"],
-    url: "https://www.gstatic.com/generate_204",
-    interval: 300,
+    proxies: googleChain,
+    url: HEALTHCHECK_URL,
+    interval: AUTO_CHECK_INTERVAL,
   });
 
   // 总出口组
