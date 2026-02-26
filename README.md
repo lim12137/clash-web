@@ -42,6 +42,25 @@ docker compose up -d --build
 - HTTP 代理：`<主机IP>:7890`
 - SOCKS5 代理：`<主机IP>:7891`
 
+## 直接拉取镜像部署（不二次构建）
+
+适用场景：部署机不保留源码，只拉取 GHCR 镜像启动。
+
+使用 `compose/` 目录：
+
+```powershell
+cd compose
+Copy-Item .env.example .env
+docker compose pull
+docker compose up -d
+```
+
+说明：
+
+- `compose/docker-compose.yml` 使用 `image:` 拉取镜像，不含 `build:`
+- `compose/.env` 的 `IMAGE_REF` 可填具体 tag（例如 `ghcr.io/<owner>/<repo>:sha-xxxxxxx`）
+- 持久化卷：`config_data`（运行配置）、`scripts_data`（脚本与在线编辑内容）
+
 ## 无 Docker 本地重启（BAT，仅 API）
 
 适用场景：本机快速重启管理 API，不依赖 Docker。
@@ -122,6 +141,7 @@ scripts\stop_test_kernel.bat
 ## 目录说明
 
 - `docker-compose.yml`：单容器部署定义
+- `compose/`：直接拉取镜像的部署目录（无需二次构建）
 - `Dockerfile`：构建镜像（Alpine + mihomo + Python + nginx + node）
 - `entrypoint.sh`：初始化默认配置并启动各进程
 - `nginx.conf`：前端静态资源、API 反代、SSE 配置
