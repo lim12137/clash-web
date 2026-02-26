@@ -1,0 +1,19 @@
+name: On Image Built
+
+on:
+  repository_dispatch:
+    types:
+      - image_built
+
+jobs:
+  follow_up:
+    name: Follow-up trigger job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print dispatch payload
+        run: |
+          echo "Received image_built dispatch."
+          echo "Image: ${{ github.event.client_payload.image }}"
+          echo "Tags: ${{ join(github.event.client_payload.tags, ', ') }}"
+          echo "SHA: ${{ github.event.client_payload.sha }}"
+          echo "Ref: ${{ github.event.client_payload.ref }}"
