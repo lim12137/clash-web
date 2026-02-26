@@ -730,6 +730,79 @@ async function api(path, options = {}) {
   return data;
 }
 
+function setRuntimeInfoValue(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = String(value || "").trim();
+  el.textContent = text || "-";
+}
+
+function formatProxyAddress(host, port) {
+  const parsed = Number(port);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "-";
+  const safeHost = String(host || "").trim();
+  if (!safeHost) return `:${parsed}`;
+  if (safeHost.includes(":") && !safeHost.startsWith("[") && !safeHost.endsWith("]")) {
+    return `[${safeHost}]:${parsed}`;
+  }
+  return `${safeHost}:${parsed}`;
+}
+
+function renderRuntimeConnectionInfo(statusPayload = {}, configPayload = {}) {
+  const clashApi = String(statusPayload?.runtime?.clash_api || "").trim();
+  setRuntimeInfoValue("runtime-kernel-api", clashApi);
+
+  const mixedPort = configPayload?.mixed_port ?? configPayload?.http_port;
+  const socksPort = configPayload?.socks_port;
+  const allowLan = !!configPayload?.allow_lan;
+  const bindAddress = String(configPayload?.bind_address || "").trim() || "-";
+  const hostName = String(window.location.hostname || "").trim();
+
+  const localHttp = formatProxyAddress("127.0.0.1", mixedPort);
+  const localSocks = formatProxyAddress("127.0.0.1", socksPort);
+
+  let httpText = localHttp;
+  let socksText = localSocks;
+  if (allowLan && hostName && hostName !== "localhost" && hostName !== "127.0.0.1") {
+    const lanHttp = formatProxyAddress(hostName, mixedPort);
+    const lanSocks = formatProxyAddress(hostName, socksPort);
+    httpText = `LAN ${lanHttp} | 本机 ${localHttp}`;
+    socksText = `LAN ${lanSocks} | 本机 ${localSocks}`;
+  }
+
+  setRuntimeInfoValue("runtime-http-proxy", httpText);
+  setRuntimeInfoValue("runtime-socks-proxy", socksText);
+
+  const noteEl = document.getElementById("runtime-proxy-note");
+  if (noteEl) {
+    const lanState = allowLan ? "已开启" : "未开启";
+    noteEl.textContent = `bind-address: ${bindAddress} | allow-lan: ${lanState}`;
+  }
+}
+
+async function loadRuntimeConnectionInfo(options = {}) {
+  const panelExists = document.getElementById("runtime-kernel-api");
+  if (!panelExists) return;
+
+  const silent = !!options.silent;
+  const providedConfig =
+    options && options.configData && typeof options.configData === "object" ? options.configData : null;
+
+  try {
+    const [statusRes, configRes] = await Promise.all([
+      api("/status"),
+      providedConfig ? Promise.resolve({ data: providedConfig }) : api("/clash/config").catch(() => ({ data: {} })),
+    ]);
+    const configData = configRes && typeof configRes.data === "object" ? configRes.data : {};
+    renderRuntimeConnectionInfo(statusRes || {}, configData);
+  } catch (err) {
+    renderRuntimeConnectionInfo({}, {});
+    if (!silent) {
+      showToast(`读取连接信息失败: ${err.message}`);
+    }
+  }
+}
+
 async function refreshStatus() {
   try {
     const status = await api("/clash/status");
@@ -1086,6 +1159,7 @@ async function switchLanProxy(enabled) {
       method: "PUT",
       body: { allow_lan: !!enabled },
     });
+    await loadRuntimeConnectionInfo({ silent: true });
     showToast(enabled ? "局域网代理已开启" : "局域网代理已关闭");
   } catch (err) {
     showToast(`切换局域网代理失败: ${err.message}`);
@@ -1125,6 +1199,8 @@ async function loadClashConfig(silent = false) {
     if (tunToggle) {
       tunToggle.checked = tunEnabled;
     }
+
+    await loadRuntimeConnectionInfo({ silent: true, configData: data });
   } catch (err) {
     if (!silent) {
       showToast(`读取运行设置失败: ${err.message}`);
@@ -2445,6 +2521,10 @@ function bindEvents() {
     await loadSchedule();
     await loadScheduleHistory();
   };
+  const runtimeRefreshBtn = document.getElementById("btn-runtime-refresh");
+  if (runtimeRefreshBtn) {
+    runtimeRefreshBtn.onclick = () => loadRuntimeConnectionInfo({ silent: false });
+  }
   document.getElementById("reload-subs").onclick = loadSubscriptions;
   document.getElementById("reload-providers").onclick = loadProviderStatus;
   document.getElementById("reload-groups").onclick = loadGroups;
@@ -2509,6 +2589,7 @@ async function boot() {
   bindDashboardEvents();
   startDashboardUpdates();
   await refreshStatus();
+  await loadRuntimeConnectionInfo({ silent: true });
   await loadClashConfig(true);
   await loadGeoStatus(true);
   await loadSubscriptions();

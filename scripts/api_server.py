@@ -352,6 +352,18 @@ def parse_optional_bool(value):
     return None
 
 
+def parse_optional_port(value):
+    if value is None:
+        return None
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        return None
+    if 1 <= port <= 65535:
+        return port
+    return None
+
+
 def normalize_provider_name(raw: str, fallback: str = "Sub") -> str:
     base = str(raw or fallback).strip() or fallback
     return re.sub(r"[^A-Za-z0-9_-]", "_", base)
@@ -1386,6 +1398,10 @@ def get_clash_config():
             allow_lan = False
 
         bind_address = str(payload.get("bind-address", "")).strip()
+        external_controller = str(payload.get("external-controller", "")).strip()
+        http_port = parse_optional_port(payload.get("port"))
+        mixed_port = parse_optional_port(payload.get("mixed-port"))
+        socks_port = parse_optional_port(payload.get("socks-port"))
 
         tun_enabled = False
         tun_payload = payload.get("tun")
@@ -1403,6 +1419,10 @@ def get_clash_config():
                     "mode": mode,
                     "allow_lan": bool(allow_lan),
                     "bind_address": bind_address,
+                    "external_controller": external_controller,
+                    "http_port": http_port,
+                    "mixed_port": mixed_port,
+                    "socks_port": socks_port,
                     "tun_enabled": bool(tun_enabled),
                 },
             }
