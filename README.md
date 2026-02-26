@@ -62,6 +62,7 @@ docker compose up -d
 - `compose/docker-compose.yml` 使用 `image:` 拉取镜像，不含 `build:`
 - `compose/.env` 的 `IMAGE_REF` 可填具体 tag（例如 `ghcr.io/<owner>/clash2web:sha-xxxxxxx`）
 - 持久化卷：`config_data`（运行配置）、`scripts_data`（脚本与在线编辑内容）、`core_data`（mihomo 内核文件）
+- 镜像内置 `geoip.metadb`，容器启动时会自动写入运行目录（缺失时补齐），避免运行期访问 GitHub 失败导致内核启动异常
 
 ## 无 Docker 本地重启（BAT，仅 API）
 
