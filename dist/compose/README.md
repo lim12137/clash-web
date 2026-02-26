@@ -1,7 +1,6 @@
 # Compose Deployment Bundle
 
 此目录用于“只拉取镜像，不在部署机二次构建”的部署方式。
-打包产物（`dist/compose`）只需要这一组文件即可启动，不依赖克隆完整仓库。
 
 ## 文件说明
 
@@ -27,7 +26,7 @@
 4. 健康检查：
 
    ```powershell
-   Invoke-WebRequest http://127.0.0.1:18080/api/health
+   Invoke-WebRequest http://127.0.0.1/api/health
    ```
 
 ## 持久化说明
@@ -37,5 +36,4 @@
 - `core_data`：持久化 mihomo 内核文件（`/opt/mihomo-core/mihomo`）
 
 首次启动时，Docker 会将镜像内置的 `/scripts` 初始化到 `scripts_data` 卷中。
-默认开启 `CLASH_DISABLE_GEOIP=1`，用于在受限网络下避免 GEOIP 下载失败导致内核无法启动。
 默认开启 `CORE_UPDATE_REQUIRE_CHECKSUM=1`，用于在线更新时强制校验 SHA256。
