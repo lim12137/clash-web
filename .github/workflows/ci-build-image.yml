@@ -1,0 +1,121 @@
+name: CI Build and Trigger
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python syntax check
+        run: python -m py_compile scripts/api_server.py scripts/merge.py
+
+      - name: Frontend syntax check
+        run: node --check web/app.js
+
+  build_image:
+    name: Build and publish image to GHCR
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_name: ${{ steps.meta.outputs.images }}
+      image_tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,format=short
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  trigger_github:
+    name: Trigger GitHub follow-up workflow
+    runs-on: ubuntu-latest
+    needs: build_image
+    permissions:
+      contents: write
+    steps:
+      - name: Create repository dispatch event
+        uses: actions/github-script@v7
+        env:
+          IMAGE_NAME: ${{ needs.build_image.outputs.image_name }}
+          IMAGE_TAGS: ${{ needs.build_image.outputs.image_tags }}
+        with:
+          script: |
+            const tags = process.env.IMAGE_TAGS
+              .split("\n")
+              .map((tag) => tag.trim())
+              .filter(Boolean);
+
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: "image_built",
+              client_payload: {
+                image: process.env.IMAGE_NAME,
+                tags,
+                sha: context.sha,
+                ref: context.ref
+              }
+            });
+
+      - name: Workflow summary
+        run: |
+          echo "Dispatched image_built event."
+          echo "Image: ${{ needs.build_image.outputs.image_name }}"
+          echo "Tags:"
+          echo "${{ needs.build_image.outputs.image_tags }}"

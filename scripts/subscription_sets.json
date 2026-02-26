@@ -18,5 +18,9 @@
       "name": "b",
       "url": "https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg"
     }
-  ]
+  ],
+  "us_auto": {
+    "priority1": "",
+    "priority2": ""
+  }
 }

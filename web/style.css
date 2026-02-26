@@ -488,6 +488,21 @@ tr.provider-row-unmatched td {
   margin-bottom: var(--space-md);
 }
 
+.us-auto-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.us-auto-priority-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 /* Groups */
 .groups {
   display: grid;
