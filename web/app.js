@@ -323,6 +323,90 @@ function countRealNodeOptions(group) {
   return all.filter((name) => !SYSTEM_NODE_NAMES.has(String(name || "").toUpperCase())).length;
 }
 
+function collectUsAutoNodeOptions(groups) {
+  if (!Array.isArray(groups)) return [];
+  const usAutoGroup = groups.find(
+    (group) => String(group?.name || "").trim().toLowerCase() === "us-auto"
+  );
+  if (!usAutoGroup) return [];
+
+  const names = new Set();
+  const all = Array.isArray(usAutoGroup.all) ? usAutoGroup.all : [];
+  all.forEach((nodeName) => {
+    const name = String(nodeName || "").trim();
+    if (!name) return;
+    if (SYSTEM_NODE_NAMES.has(name.toUpperCase())) return;
+    names.add(name);
+  });
+  return Array.from(names).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+  );
+}
+
+function renderNodePriorityOptions(selectEl, options, selectedValue) {
+  if (!selectEl) return;
+  const selected = String(selectedValue || "").trim();
+  const hasSelected = selected ? options.includes(selected) : true;
+  const frag = document.createDocumentFragment();
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "自动";
+  frag.appendChild(defaultOption);
+
+  options.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    frag.appendChild(option);
+  });
+
+  if (selected && !hasSelected) {
+    const missingOption = document.createElement("option");
+    missingOption.value = selected;
+    missingOption.textContent = `${selected}（当前值，不在节点列表）`;
+    frag.appendChild(missingOption);
+  }
+
+  selectEl.innerHTML = "";
+  selectEl.appendChild(frag);
+  selectEl.value = selected;
+}
+
+function refreshNodePrioritySelects(preferred = {}) {
+  const priority1Select = document.getElementById("us-auto-priority1");
+  const priority2Select = document.getElementById("us-auto-priority2");
+  if (!priority1Select && !priority2Select) return;
+
+  const options = collectUsAutoNodeOptions(proxyGroups);
+  const selected1 = String(
+    preferred.priority1 ?? priority1Select?.value ?? currentSubscriptionSets.us_auto.priority1 ?? ""
+  ).trim();
+  let selected2 = String(
+    preferred.priority2 ?? priority2Select?.value ?? currentSubscriptionSets.us_auto.priority2 ?? ""
+  ).trim();
+  if (selected1 && selected2 && selected1 === selected2) {
+    selected2 = "";
+  }
+
+  const optionsForPriority1 = selected2
+    ? options.filter((name) => name !== selected2 || name === selected1)
+    : options;
+  const optionsForPriority2 = selected1
+    ? options.filter((name) => name !== selected1 || name === selected2)
+    : options;
+
+  renderNodePriorityOptions(priority1Select, optionsForPriority1, selected1);
+  renderNodePriorityOptions(priority2Select, optionsForPriority2, selected2);
+}
+
+function toggleNodePriorityControls(groupName) {
+  const controls = document.getElementById("node-priority-controls");
+  if (!controls) return;
+  const isUsAuto = String(groupName || "").trim().toLowerCase() === "us-auto";
+  controls.hidden = !isUsAuto;
+}
+
 function pickBestGroupIndex(groups) {
   if (!Array.isArray(groups) || !groups.length) return 0;
 
@@ -1310,7 +1394,20 @@ async function loadSubscriptionSets() {
   try {
     const res = await api("/subscription-sets");
     const data = res.data || {};
-    const usAutoRaw = data.us_auto && typeof data.us_auto === "object" ? data.us_auto : {};
+    const fallbackUsAuto =
+      currentSubscriptionSets &&
+      currentSubscriptionSets.us_auto &&
+      typeof currentSubscriptionSets.us_auto === "object"
+        ? currentSubscriptionSets.us_auto
+        : { priority1: "", priority2: "" };
+    const usAutoHasFields =
+      data.us_auto &&
+      typeof data.us_auto === "object" &&
+      (
+        Object.prototype.hasOwnProperty.call(data.us_auto, "priority1") ||
+        Object.prototype.hasOwnProperty.call(data.us_auto, "priority2")
+      );
+    const usAutoRaw = usAutoHasFields ? data.us_auto : fallbackUsAuto;
     currentSubscriptionSets = {
       set1: Array.isArray(data.set1) ? data.set1 : [],
       set2: Array.isArray(data.set2) ? data.set2 : [],
@@ -1321,16 +1418,13 @@ async function loadSubscriptionSets() {
     };
     const set1Tbody = document.getElementById("set1-table");
     const set2Tbody = document.getElementById("set2-table");
-    const priority1Input = document.getElementById("us-auto-priority1");
-    const priority2Input = document.getElementById("us-auto-priority2");
     set1Tbody.innerHTML = "";
     set2Tbody.innerHTML = "";
     currentSubscriptionSets.set1.forEach((item) => addSetRow("set1", item));
     currentSubscriptionSets.set2.forEach((item) => addSetRow("set2", item));
     if (!set1Tbody.querySelector("tr")) addSetRow("set1", {});
     if (!set2Tbody.querySelector("tr")) addSetRow("set2", {});
-    if (priority1Input) priority1Input.value = currentSubscriptionSets.us_auto.priority1;
-    if (priority2Input) priority2Input.value = currentSubscriptionSets.us_auto.priority2;
+    refreshNodePrioritySelects(currentSubscriptionSets.us_auto);
     renderProviderSummaryHeader();
     renderProviderRows();
   } catch (err) {
@@ -1352,6 +1446,20 @@ async function loadProviderStatus() {
   }
 }
 
+async function saveSubscriptionSetsPayload(payload, successTip, errorPrefix) {
+  try {
+    await api("/subscription-sets", { method: "PUT", body: payload });
+    showToast(successTip);
+    if (activeTab === "override-script") {
+      await loadEditor();
+    }
+    await loadSubscriptionSets();
+    await loadProviderStatus();
+  } catch (err) {
+    showToast(`${errorPrefix}: ${err.message}`);
+  }
+}
+
 async function saveSubscriptionSets() {
   const priority1Input = document.getElementById("us-auto-priority1");
   const priority2Input = document.getElementById("us-auto-priority2");
@@ -1363,17 +1471,35 @@ async function saveSubscriptionSets() {
       priority2: String(priority2Input?.value || "").trim(),
     },
   };
-  try {
-    await api("/subscription-sets", { method: "PUT", body: payload });
-    showToast("订阅集合已保存，override.js 头部已更新");
-    if (activeTab === "override-script") {
-      await loadEditor();
-    }
-    await loadSubscriptionSets();
-    await loadProviderStatus();
-  } catch (err) {
-    showToast(`保存集合失败: ${err.message}`);
-  }
+  currentSubscriptionSets = {
+    set1: Array.isArray(payload.set1) ? payload.set1 : [],
+    set2: Array.isArray(payload.set2) ? payload.set2 : [],
+    us_auto: { ...payload.us_auto },
+  };
+  await saveSubscriptionSetsPayload(
+    payload,
+    "订阅集合已保存，override.js 头部已更新",
+    "保存集合失败"
+  );
+}
+
+async function saveNodeSettings() {
+  const priority1Input = document.getElementById("us-auto-priority1");
+  const priority2Input = document.getElementById("us-auto-priority2");
+  const payload = {
+    set1: Array.isArray(currentSubscriptionSets.set1) ? currentSubscriptionSets.set1 : [],
+    set2: Array.isArray(currentSubscriptionSets.set2) ? currentSubscriptionSets.set2 : [],
+    us_auto: {
+      priority1: String(priority1Input?.value || "").trim(),
+      priority2: String(priority2Input?.value || "").trim(),
+    },
+  };
+  currentSubscriptionSets = {
+    set1: Array.isArray(currentSubscriptionSets.set1) ? currentSubscriptionSets.set1 : [],
+    set2: Array.isArray(currentSubscriptionSets.set2) ? currentSubscriptionSets.set2 : [],
+    us_auto: { ...payload.us_auto },
+  };
+  await saveSubscriptionSetsPayload(payload, "节点设置已保存", "保存节点设置失败");
 }
 
 function renderSubRow(item) {
@@ -1666,16 +1792,17 @@ function renderProxyTabs() {
 // 渲染节点网格
 function renderNodesGrid() {
   const grid = document.getElementById('nodes-grid');
-  const infoBar = document.getElementById('node-info-bar');
   const infoText = document.getElementById('node-info-text');
 
   if (!grid) return;
 
   const group = proxyGroups[activeGroupIndex];
   if (!group) {
+    toggleNodePriorityControls("");
     grid.innerHTML = '<div class="muted">没有可用的代理组</div>';
     return;
   }
+  toggleNodePriorityControls(group.name);
 
   grid.innerHTML = '';
   currentNodes = group.all || [];
@@ -1849,8 +1976,10 @@ async function loadGroups() {
         : {};
     nodeProviderMap = new Map(Object.entries(proxyMetaRows));
     proxyGroups = groupsRes.data || [];
+    refreshNodePrioritySelects();
 
     if (!proxyGroups.length) {
+      toggleNodePriorityControls("");
       const grid = document.getElementById('nodes-grid');
       if (grid) grid.innerHTML = '<div class="muted">当前没有可用的代理组</div>';
       return;
@@ -2005,6 +2134,11 @@ function bindEvents() {
     document.getElementById("logs").textContent = "";
   };
   document.getElementById("save-sub-sets").onclick = saveSubscriptionSets;
+  document.getElementById("save-node-settings").onclick = saveNodeSettings;
+  const priority1Select = document.getElementById("us-auto-priority1");
+  const priority2Select = document.getElementById("us-auto-priority2");
+  if (priority1Select) priority1Select.onchange = () => refreshNodePrioritySelects();
+  if (priority2Select) priority2Select.onchange = () => refreshNodePrioritySelects();
   document.getElementById("save-schedule").onclick = saveSchedule;
   document.getElementById("add-set1-row").onclick = () => addSetRow("set1", {});
   document.getElementById("add-set2-row").onclick = () => addSetRow("set2", {});
