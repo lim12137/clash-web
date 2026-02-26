@@ -50,6 +50,7 @@
 ### 🎯 节点切换界面
 
 <img src="assets/screenshot-dashboard.png" alt="订阅管理" width="90%">
+
 *直观的节点管理，支持测延迟和快速切换*
 
 <br>
