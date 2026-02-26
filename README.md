@@ -43,6 +43,26 @@
 
 ---
 
+## 📸 界面预览
+
+<div align="center">
+
+### 🎯 节点切换界面
+<img src="assets/screenshot-nodes.png" alt="节点切换" width="90%">
+
+*直观的节点管理，支持测延迟和快速切换*
+
+<br>
+
+### 📊 订阅管理面板
+<img src="assets/screenshot-dashboard.png" alt="订阅管理" width="90%">
+
+*Provider 状态监控 + 订阅集合管理，一站式配置中心*
+
+</div>
+
+---
+
 ## 🏗️ 架构说明
 
 ```mermaid
