@@ -12,8 +12,35 @@ case "${API_PORT}" in
 esac
 export API_PORT
 MIHOMO_DIR="/root/.config/mihomo"
+MIHOMO_CORE_DIR="${MIHOMO_CORE_DIR:-/opt/mihomo-core}"
+MIHOMO_BIN="${MIHOMO_BIN:-${MIHOMO_CORE_DIR}/mihomo}"
+MIHOMO_PREV_BIN="${MIHOMO_PREV_BIN:-${MIHOMO_CORE_DIR}/mihomo.prev}"
+export MIHOMO_DIR MIHOMO_CORE_DIR MIHOMO_BIN MIHOMO_PREV_BIN
 
-mkdir -p "${MIHOMO_DIR}/subs" "${MIHOMO_DIR}/backups" /scripts /web
+mkdir -p "${MIHOMO_DIR}/subs" "${MIHOMO_DIR}/backups" "${MIHOMO_DIR}/ui" "${MIHOMO_CORE_DIR}" /scripts /web
+
+if [ ! -x "${MIHOMO_BIN}" ]; then
+  if [ -x /usr/local/bin/mihomo ]; then
+    cp /usr/local/bin/mihomo "${MIHOMO_BIN}"
+    chmod +x "${MIHOMO_BIN}"
+    echo "[ok] seeded mihomo core to ${MIHOMO_BIN}"
+  else
+    echo "[error] mihomo seed binary not found: /usr/local/bin/mihomo" >&2
+    exit 1
+  fi
+fi
+
+kernel_self_check() {
+  bin_path="$1"
+  if [ ! -x "${bin_path}" ]; then
+    return 1
+  fi
+  "${bin_path}" -v >/tmp/mihomo-version.log 2>&1 || return 1
+  if [ -f "${MIHOMO_DIR}/config.yaml" ]; then
+    "${bin_path}" -t -d "${MIHOMO_DIR}" -f "${MIHOMO_DIR}/config.yaml" >/tmp/mihomo-check.log 2>&1 || return 1
+  fi
+  return 0
+}
 
 if [ ! -f /scripts/subscriptions.json ]; then
   cat > /scripts/subscriptions.json << 'EOF'
@@ -135,6 +162,24 @@ if [ -f /scripts/merge.py ]; then
   "${PYTHON_BIN}" /scripts/merge.py merge || true
 fi
 
+if ! kernel_self_check "${MIHOMO_BIN}"; then
+  echo "[warn] core self-check failed, trying rollback"
+  if [ -x "${MIHOMO_PREV_BIN}" ]; then
+    stamp="$(date +%Y%m%d_%H%M%S)"
+    mv "${MIHOMO_BIN}" "${MIHOMO_BIN}.failed.${stamp}" 2>/dev/null || true
+    mv "${MIHOMO_PREV_BIN}" "${MIHOMO_BIN}"
+    chmod +x "${MIHOMO_BIN}" || true
+    echo "[warn] rolled back to previous core"
+    if ! kernel_self_check "${MIHOMO_BIN}"; then
+      echo "[error] rollback core failed self-check" >&2
+      exit 1
+    fi
+  else
+    echo "[error] no previous core to rollback: ${MIHOMO_PREV_BIN}" >&2
+    exit 1
+  fi
+fi
+
 if [ -f /scripts/api_server.py ]; then
   "${PYTHON_BIN}" /scripts/api_server.py &
   echo "[ok] api server started on ${API_PORT}"
@@ -143,5 +188,5 @@ fi
 nginx
 echo "[ok] nginx started on 80"
 
-echo "[ok] starting mihomo"
-exec mihomo -d "${MIHOMO_DIR}"
+echo "[ok] starting mihomo: ${MIHOMO_BIN}"
+exec "${MIHOMO_BIN}" -d "${MIHOMO_DIR}"
