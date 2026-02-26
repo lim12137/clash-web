@@ -1,6 +1,6 @@
 services:
   clash:
-    image: ${IMAGE_REF:-ghcr.io/lim12137/clash-web:latest}
+    image: ${IMAGE_REF:-ghcr.io/lim12137/clash2web:latest}
     container_name: clash-meta-manager
     restart: unless-stopped
     ports:
