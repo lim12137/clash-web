@@ -18,6 +18,7 @@ MIHOMO_PREV_BIN="${MIHOMO_PREV_BIN:-${MIHOMO_CORE_DIR}/mihomo.prev}"
 GEOIP_METADB_SEED="${GEOIP_METADB_SEED:-/usr/local/share/mihomo/geoip.metadb}"
 GEOIP_METADB_TARGET="${MIHOMO_DIR}/geoip.metadb"
 SEED_SCRIPTS_DIR="${SEED_SCRIPTS_DIR:-/opt/nexent-seed/scripts}"
+SYNC_RUNTIME_FROM_SEED="${SYNC_RUNTIME_FROM_SEED:-0}"
 export MIHOMO_DIR MIHOMO_CORE_DIR MIHOMO_BIN MIHOMO_PREV_BIN GEOIP_METADB_SEED GEOIP_METADB_TARGET
 
 mkdir -p "${MIHOMO_DIR}/subs" "${MIHOMO_DIR}/backups" "${MIHOMO_DIR}/ui" "${MIHOMO_CORE_DIR}" /scripts /web
@@ -40,7 +41,29 @@ sync_seed_runtime_files() {
   echo "[ok] synced runtime api code from seed: ${SEED_SCRIPTS_DIR}"
 }
 
-sync_seed_runtime_files
+is_truthy() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+should_sync_seed_runtime_files() {
+  if is_truthy "${SYNC_RUNTIME_FROM_SEED}"; then
+    return 0
+  fi
+  # Auto-seed only when runtime files are missing.
+  if [ ! -f /scripts/api_server.py ] || [ ! -f /scripts/connection_recorder.py ] || [ ! -d /scripts/api ]; then
+    return 0
+  fi
+  return 1
+}
+
+if should_sync_seed_runtime_files; then
+  sync_seed_runtime_files
+else
+  echo "[ok] skipped runtime seed sync (set SYNC_RUNTIME_FROM_SEED=1 to force)"
+fi
 
 if [ -s "${GEOIP_METADB_SEED}" ] && [ ! -s "${GEOIP_METADB_TARGET}" ]; then
   if cp "${GEOIP_METADB_SEED}" "${GEOIP_METADB_TARGET}"; then
