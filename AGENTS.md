@@ -22,6 +22,7 @@
 - JavaScript: 2-space indentation, `camelCase` for variables/functions, `UPPER_SNAKE_CASE` for config constants.
 - YAML/JSON: keep keys stable and explicit; avoid implicit schema changes in policy files.
 - Prefer small, focused edits; preserve existing comments and Chinese UI strings.
+- 当单个代码文件超过 1000 行时，新增功能默认拆分到独立文件，通过引用/导入方式接入，避免继续堆积在原大文件中。
 
 ## Testing Guidelines
 - There is currently no dedicated automated test directory in this repo.
