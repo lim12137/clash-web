@@ -123,3 +123,29 @@
 ### 前端变化
 - `web/index.html`：新增 `软件`、`网址` 两列，类型增加 `connection`。
 - `web/app.js`：`connection` 类型显示 `↑upload ↓download`，其他类型继续显示延迟。
+
+## 增量笔记（2026-02-27 重新构建与连接回灌验证）
+
+### 触发原因
+- 用户反馈“有更新，要重新构建”，需要在新镜像上执行上一轮待办的容器级联调。
+
+### 执行动作
+- 重建镜像：`docker build --pull=false -t nexent:proxy-test .`
+- 重新部署：`$env:IMAGE_REF='nexent:proxy-test'; docker compose up -d --pull never`
+- 健康检查：
+  - `GET /api/health`
+  - `GET /api/proxy-records/recorder`
+  - `GET /api/proxy-records/stats`
+
+### `/connections` 回灌验证
+- 基线：`type=connection` 记录数 `2`。
+- 操作：通过本机混合端口 `27890` 代理访问 `httpbin.org` 持续请求。
+- 结果：`type=connection` 记录数增至 `3`，`connection_delta=1`。
+- 新增记录样本：
+  - `host=httpbin.org`
+  - `type=connection`
+  - `chains=[COMPATIBLE, Free-Auto, Proxy]`
+
+### 结论
+- 连接采样器在容器环境中可正常回灌真实连接数据。
+- 当前镜像 `nexent:proxy-test` 运行健康，可继续推进镜像发布与远程切换验证。

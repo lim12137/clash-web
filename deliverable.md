@@ -187,3 +187,32 @@
 - `task_plan.md`：新增“连接记录模块拆分”执行记录与状态。
 - `notes.md`：新增拆分策略、字段映射、去重策略、API/前端变更笔记。
 - `deliverable.md`：新增本轮增量交付说明。
+
+## 增量交付（2026-02-27 重新构建 + 容器级联调 + 连接回灌验证）
+
+21. 按更新要求完成镜像重建与重新部署
+- 执行:
+  - `docker build --pull=false -t nexent:proxy-test .`
+  - `$env:IMAGE_REF='nexent:proxy-test'; docker compose up -d --pull never`
+- 结果:
+  - 容器 `clash-meta-manager` 启动并保持 `healthy`。
+
+22. 完成连接记录链路的容器级联调
+- 接口验证:
+  - `GET /api/health` 成功
+  - `GET /api/proxy-records/recorder` 返回 `running=true`、`enabled=true`
+  - `GET /api/proxy-records/stats` 返回 `types.connection=3`
+
+23. 完成真实 `/connections` 数据回灌验证
+- 方法:
+  - 通过 `27890` 代理端口访问 `httpbin.org`，触发真实连接流量。
+  - 对比 `type=connection` 前后记录数。
+- 结果:
+  - `before_connection_count=2`
+  - `after_connection_count=3`
+  - `connection_delta=1`
+  - 新增记录包含 `host=httpbin.org`、`type=connection`、`chains=[COMPATIBLE, Free-Auto, Proxy]`。
+
+24. 计划文件按新规则完成归档与摘要回写
+- 归档文件: `task_plan.archive.20260227.md`
+- 当前计划文件: `task_plan.md` 已保留“前期摘要 + 归档链接 + 本轮执行结果”。

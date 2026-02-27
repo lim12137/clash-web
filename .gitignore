@@ -48,6 +48,8 @@ config/ruleset/
 scripts/schedule.json
 scripts/schedule_history.json
 scripts/provider_recovery_state.json
+scripts/proxy_records.json
+scripts/gunicorn.ctl
 dist/compose/.env
 1.png
 image.png
@@ -66,3 +68,10 @@ tmp_*.log
 
 # Local sensitive scratch file
 jiaoben.txt
+
+# Local image export artifacts
+dist/*.tar
+dist/*.tar.gz
+
+# Windows odd temp artifact
+nul

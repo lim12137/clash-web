@@ -46,3 +46,9 @@
 - Keep backup artifacts (`.bak.*`, `config/backups/`) intact for rollback and troubleshooting.
 - Scope boundary: do not modify any FlClash/Ficlash installation, runtime config, or process state.
 - Only edit files inside this repository (`M:\Agent\nexent`); external paths (for example `C:\Users\...\com.follow\clash\`) are out of scope.
+
+## Plan File Maintenance
+- When working with plan files (for example `task_plan.md`), check the line count before appending large updates.
+- If a plan file is longer than 200 lines, process in this order: archive old sections first into a dedicated archive file under the same directory (for example `task_plan.archive.20260227.md`).
+- After archiving, clean the original plan file by removing or condensing the archived old sections.
+- Then write back an upfront section named `前期摘要` near the top of the original plan file, and include a clear archive link (for example `归档：./task_plan.archive.20260227.md`) so historical details remain traceable.
