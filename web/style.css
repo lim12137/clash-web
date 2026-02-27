@@ -445,6 +445,11 @@ input::placeholder, textarea::placeholder {
   font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
 }
 
+#editor.editor-readonly {
+  opacity: 0.92;
+  cursor: not-allowed;
+}
+
 /* Buttons */
 button {
   background: var(--bg-elevated);
