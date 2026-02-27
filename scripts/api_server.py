@@ -18,7 +18,6 @@ import hashlib
 import gzip
 from collections import Counter
 from datetime import datetime
-from functools import wraps
 from pathlib import Path
 import signal
 from urllib.parse import quote
@@ -28,6 +27,16 @@ import yaml
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
 from connection_recorder import ClashConnectionRecorder, ProxyRecordStore
+from api.common.auth import configure_write_auth, require_write_auth
+from api.common.io import load_json, load_yaml, make_backup, read_text, save_json, save_yaml, write_text
+from api.common.logging import emit_log, get_recent_logs, subscribe_log_queue, unsubscribe_log_queue
+from api.common.responses import json_error
+from api.services.clash_client import build_clash_headers, reload_clash_config
+from api.services.file_service import validate_js_override
+from api.services.geo_service import GeoService
+from api.services.kernel_service import KernelService
+from api.services.merge_service import MergeService
+from api.services.provider_service import ProviderService
 
 BASE_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
 SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
@@ -148,249 +157,83 @@ except ValueError:
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+configure_write_auth(ADMIN_TOKEN)
 
 merge_lock = threading.Lock()
-log_lock = threading.Lock()
 schedule_lock = threading.Lock()
 history_lock = threading.Lock()
 provider_recovery_lock = threading.Lock()
 kernel_update_lock = threading.Lock()
 restart_lock = threading.Lock()
-log_queues: list[queue.Queue] = []
-log_history: list[dict] = []
-MAX_LOG_HISTORY = 500
-restart_pending = False
-
-
-def emit_log(msg: str, level: str = "INFO") -> None:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    entry = {"time": now, "level": level, "msg": msg}
-    with log_lock:
-        log_history.append(entry)
-        if len(log_history) > MAX_LOG_HISTORY:
-            log_history.pop(0)
-        stale: list[queue.Queue] = []
-        for item in log_queues:
-            try:
-                item.put_nowait(entry)
-            except Exception:
-                stale.append(item)
-        for item in stale:
-            try:
-                log_queues.remove(item)
-            except ValueError:
-                pass
-    print(f"[{now}] [{level}] {msg}", flush=True)
-
-
-def json_error(message: str, status: int = 400):
-    return jsonify({"success": False, "error": message}), status
-
-
-def load_json(path: Path, default):
-    if not path.exists():
-        return default
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return data
-    except Exception:
-        return default
-
-
-def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        json.dump(data, fh, ensure_ascii=False, indent=2)
-
-
-def load_yaml(path: Path, default):
-    if not path.exists():
-        return default
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-        return data if data is not None else default
-    except Exception:
-        return default
-
-
-def save_yaml(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        yaml.safe_dump(data, fh, allow_unicode=True, sort_keys=False)
-
-
-def read_text(path: Path) -> str:
-    if not path.exists():
-        return ""
-    try:
-        return path.read_text(encoding="utf-8")
-    except Exception:
-        return ""
-
-
-def write_text(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def make_backup(path: Path, label: str = "") -> None:
-    if not path.exists():
-        return
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    suffix = f".{label}" if label else ""
-    backup_path = path.parent / f"{path.name}.bak.{stamp}{suffix}"
-    shutil.copy2(path, backup_path)
 
 
 def clash_headers() -> dict:
-    if not CLASH_SECRET:
-        return {}
-    return {"Authorization": f"Bearer {CLASH_SECRET}"}
-
-
-def _reload_clash_with_path(path: Path) -> tuple[bool, str]:
-    try:
-        response = requests.put(
-            f"{CLASH_API}/configs",
-            json={"path": str(path)},
-            headers=clash_headers(),
-            timeout=5,
-        )
-    except Exception as exc:
-        return False, str(exc)
-
-    if response.status_code == 204:
-        return True, ""
-
-    message = ""
-    try:
-        payload = response.json()
-        if isinstance(payload, dict):
-            message = str(payload.get("message", ""))
-    except Exception:
-        message = response.text or ""
-    return False, message
-
-
-def _extract_allowed_paths_from_error(message: str) -> list[Path]:
-    text = str(message or "")
-    match = re.search(r"allowed paths:\s*\[(.*?)\]", text, re.IGNORECASE | re.DOTALL)
-    if not match:
-        return []
-    raw = match.group(1)
-    items = []
-    for part in raw.split(","):
-        path_str = part.strip().strip("\"'").strip()
-        if not path_str:
-            continue
-        try:
-            items.append(Path(path_str))
-        except Exception:
-            continue
-    return items
-
-
-def _prepare_safe_reload_file(target_path: Path) -> bool:
-    try:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(CONFIG_FILE, target_path)
-        return True
-    except Exception:
-        return False
+    return build_clash_headers(CLASH_SECRET)
 
 
 def reload_clash() -> bool:
-    # Optional override path for environments where clash only accepts specific safe directories.
-    preferred_reload_path = os.environ.get("CLASH_RELOAD_PATH", "").strip()
-    if preferred_reload_path:
-        prefer_path = Path(preferred_reload_path)
-        if _prepare_safe_reload_file(prefer_path):
-            ok, msg = _reload_clash_with_path(prefer_path)
-            if ok:
-                return True
-            emit_log(f"reload via CLASH_RELOAD_PATH failed: {msg}", "WARN")
-        else:
-            emit_log(f"failed to sync config to CLASH_RELOAD_PATH: {prefer_path}", "WARN")
-
-    ok, msg = _reload_clash_with_path(CONFIG_FILE)
-    if ok:
-        return True
-
-    # Auto-fallback for clients like FlClash that restrict reload path to safe directories.
-    allowed_paths = _extract_allowed_paths_from_error(msg)
-    if not allowed_paths:
-        return False
-
-    for safe_dir in allowed_paths:
-        safe_target = safe_dir / "clash-web-runtime-config.yaml"
-        if not _prepare_safe_reload_file(safe_target):
-            continue
-        ok2, msg2 = _reload_clash_with_path(safe_target)
-        if ok2:
-            emit_log(f"reload succeeded via safe path: {safe_target}")
-            return True
-        emit_log(f"reload retry failed with safe path {safe_target}: {msg2}", "WARN")
-
-    return False
+    return reload_clash_config(
+        config_file=CONFIG_FILE,
+        clash_api=CLASH_API,
+        clash_secret=CLASH_SECRET,
+        emit_log=emit_log,
+        preferred_reload_path=os.environ.get("CLASH_RELOAD_PATH", "").strip(),
+    )
 
 
-def validate_js_override(content: str) -> tuple[bool, str]:
-    script = str(content or "").strip()
-    if not script:
-        return False, "script is empty"
+merge_service = MergeService(
+    python_bin=PYTHON_BIN,
+    merge_script_file=MERGE_SCRIPT_FILE,
+    schedule_file=SCHEDULE_FILE,
+    schedule_history_file=SCHEDULE_HISTORY_FILE,
+    max_schedule_history=MAX_SCHEDULE_HISTORY,
+    load_json=load_json,
+    save_json=save_json,
+    emit_log=emit_log,
+    reload_clash=reload_clash,
+    merge_lock=merge_lock,
+    schedule_lock=schedule_lock,
+    history_lock=history_lock,
+)
 
-    js_checker = r"""
-const fs = require("fs");
-const code = fs.readFileSync(0, "utf8");
-try {
-  const runner = new Function(
-    code +
-      "\nif (typeof main !== 'function') { throw new Error('override.js must define main(config)'); }\nreturn true;"
-  );
-  runner();
-} catch (err) {
-  const msg = err && err.stack ? err.stack : String(err);
-  console.error(msg);
-  process.exit(2);
-}
-"""
-    try:
-        result = subprocess.run(
-            [NODE_BIN, "-e", js_checker],
-            input=script,
-            capture_output=True,
-            text=True,
-            timeout=JS_VALIDATE_TIMEOUT,
-        )
-    except FileNotFoundError:
-        return False, "node runtime not found"
-    except subprocess.TimeoutExpired:
-        return False, "javascript validation timeout"
+provider_service = ProviderService(
+    clash_api=CLASH_API,
+    clash_headers=clash_headers,
+    provider_recovery_file=PROVIDER_RECOVERY_FILE,
+    provider_auto_refresh_enabled=PROVIDER_AUTO_REFRESH_ENABLED,
+    provider_recovery_check_interval=PROVIDER_RECOVERY_CHECK_INTERVAL,
+    provider_zero_alive_minutes=PROVIDER_ZERO_ALIVE_MINUTES,
+    provider_auto_refresh_max_per_day=PROVIDER_AUTO_REFRESH_MAX_PER_DAY,
+    load_json=load_json,
+    save_json=save_json,
+    emit_log=emit_log,
+    provider_recovery_lock=provider_recovery_lock,
+)
 
-    if result.returncode != 0:
-        return False, (result.stderr.strip() or "javascript parse error")
-    return True, ""
+kernel_service = KernelService(
+    base_dir=BASE_DIR,
+    config_file=CONFIG_FILE,
+    scripts_dir=SCRIPTS_DIR,
+    mihomo_core_dir=MIHOMO_CORE_DIR,
+    mihomo_bin=MIHOMO_BIN,
+    mihomo_prev_bin=MIHOMO_PREV_BIN,
+    core_update_api=CORE_UPDATE_API,
+    default_core_repo=DEFAULT_CORE_REPO,
+    core_update_allowed_repos=CORE_UPDATE_ALLOWED_REPOS,
+    core_update_require_checksum=CORE_UPDATE_REQUIRE_CHECKSUM,
+    core_update_download_timeout=CORE_UPDATE_DOWNLOAD_TIMEOUT,
+    core_update_restart_delay=CORE_UPDATE_RESTART_DELAY,
+    kernel_update_log_file=KERNEL_UPDATE_LOG_FILE,
+    emit_log=emit_log,
+    kernel_update_lock=kernel_update_lock,
+    restart_lock=restart_lock,
+)
 
-
-def require_write_auth(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not ADMIN_TOKEN:
-            return fn(*args, **kwargs)
-        header_value = request.headers.get("Authorization", "")
-        direct_token = request.headers.get("X-Admin-Token", "")
-        token = ""
-        if header_value.lower().startswith("bearer "):
-            token = header_value[7:].strip()
-        if not token:
-            token = direct_token.strip()
-        if token != ADMIN_TOKEN:
-            return json_error("Unauthorized", 401)
-        return fn(*args, **kwargs)
-
-    return wrapper
+geo_service = GeoService(
+    clash_api=CLASH_API,
+    clash_headers=clash_headers,
+    system_proxy_names=SYSTEM_PROXY_NAMES,
+)
 
 
 def ensure_safe_name(name: str) -> bool:
@@ -429,705 +272,118 @@ def parse_optional_port(value):
 
 
 def normalize_core_repo(value: str) -> str:
-    repo = str(value or "").strip()
-    if repo.startswith("https://github.com/"):
-        repo = repo.split("https://github.com/", 1)[1]
-    repo = repo.strip().strip("/")
-    if not repo:
-        repo = DEFAULT_CORE_REPO
-    if not SAFE_REPO_RE.fullmatch(repo):
-        raise ValueError("repo must look like owner/name")
-    return repo
+    return kernel_service.normalize_core_repo(value)
 
 
 def ensure_core_repo_allowed(repo: str) -> None:
-    if repo not in CORE_UPDATE_ALLOWED_REPOS:
-        allowed = ", ".join(sorted(CORE_UPDATE_ALLOWED_REPOS))
-        raise ValueError(f"repo not allowed, allowed={allowed}")
+    kernel_service.ensure_core_repo_allowed(repo)
 
 
 def detect_core_arch() -> str:
-    machine = ""
-    try:
-        machine = str(os.uname().machine).strip().lower()
-    except Exception:
-        machine = str(os.environ.get("TARGETARCH", "")).strip().lower()
-
-    if machine in {"x86_64", "amd64"}:
-        return "amd64"
-    if machine in {"aarch64", "arm64"}:
-        return "arm64"
-    if machine in {"armv7l", "armv7"}:
-        return "armv7"
-    raise RuntimeError(f"unsupported linux arch: {machine or 'unknown'}")
+    return kernel_service.detect_core_arch()
 
 
 def github_headers() -> dict:
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "clash-web-kernel-updater",
-    }
-    token = str(os.environ.get("GITHUB_TOKEN", "")).strip()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
+    return kernel_service.github_headers()
 
 
 def github_get_json(url: str, timeout: int = 20) -> dict:
-    try:
-        resp = requests.get(url, headers=github_headers(), timeout=timeout)
-    except Exception as exc:
-        raise RuntimeError(f"github request failed: {exc}") from exc
-    if resp.status_code != 200:
-        raise RuntimeError(f"github api error: {resp.status_code}")
-    try:
-        payload = resp.json()
-    except Exception as exc:
-        raise RuntimeError(f"github response is not json: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise RuntimeError("github response is not object")
-    return payload
+    return kernel_service.github_get_json(url=url, timeout=timeout)
 
 
 def fetch_core_release(repo: str, tag: str | None = None) -> dict:
-    if tag:
-        target = quote(tag.strip())
-        url = f"{CORE_UPDATE_API}/repos/{repo}/releases/tags/{target}"
-    else:
-        url = f"{CORE_UPDATE_API}/repos/{repo}/releases/latest"
-    return github_get_json(url=url, timeout=20)
+    return kernel_service.fetch_core_release(repo=repo, tag=tag)
 
 
 def select_core_release_asset(release_payload: dict, arch: str) -> dict:
-    assets = release_payload.get("assets", [])
-    if not isinstance(assets, list):
-        assets = []
-
-    arch_prefix = f"mihomo-linux-{arch}".lower()
-    candidates: list[tuple[int, str, dict]] = []
-    for item in assets:
-        if not isinstance(item, dict):
-            continue
-        name = str(item.get("name", "")).strip()
-        url = str(item.get("browser_download_url", "")).strip()
-        if not name or not url:
-            continue
-        lowered = name.lower()
-        if not lowered.endswith(".gz"):
-            continue
-        if not lowered.startswith(arch_prefix):
-            continue
-        if "sha256" in lowered or "checksum" in lowered:
-            continue
-
-        score = 0
-        if "-compatible-" in lowered:
-            score += 100
-        if "alpha" in lowered or "beta" in lowered or "rc" in lowered:
-            score -= 30
-        score -= len(name)
-        candidates.append((score, name, item))
-
-    if not candidates:
-        raise RuntimeError(f"no linux core asset found for arch={arch}")
-
-    candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
-    return candidates[0][2]
+    return kernel_service.select_core_release_asset(release_payload=release_payload, arch=arch)
 
 
 def parse_sha256_from_checksum_text(content: str, target_name: str) -> str:
-    target = str(target_name or "").strip()
-    target_lower = target.lower()
-    for raw_line in str(content or "").splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        hash_match = re.search(r"\b([A-Fa-f0-9]{64})\b", line)
-        if not hash_match:
-            continue
-        digest = hash_match.group(1).lower()
-        lowered = line.lower()
-        if target_lower and target_lower in lowered:
-            return digest
-        legacy = re.match(
-            rf"^sha256\s*\(\s*{re.escape(target)}\s*\)\s*=\s*([A-Fa-f0-9]{{64}})$",
-            line,
-            re.IGNORECASE,
-        )
-        if legacy:
-            return legacy.group(1).lower()
-    return ""
+    return kernel_service.parse_sha256_from_checksum_text(content=content, target_name=target_name)
 
 
 def extract_expected_sha256(release_payload: dict, asset_payload: dict) -> tuple[str, str]:
-    digest_text = str(asset_payload.get("digest", "")).strip()
-    if digest_text.lower().startswith("sha256:"):
-        digest_value = digest_text.split(":", 1)[1].strip().lower()
-        if re.fullmatch(r"[a-f0-9]{64}", digest_value):
-            return digest_value, "asset.digest"
-
-    asset_name = str(asset_payload.get("name", "")).strip()
-    assets = release_payload.get("assets", [])
-    if not isinstance(assets, list):
-        assets = []
-
-    checksum_candidates: list[dict] = []
-    for item in assets:
-        if not isinstance(item, dict):
-            continue
-        name = str(item.get("name", "")).strip().lower()
-        if not name:
-            continue
-        if any(token in name for token in ("sha256", "checksum", "checksums")):
-            checksum_candidates.append(item)
-
-    for item in checksum_candidates:
-        url = str(item.get("browser_download_url", "")).strip()
-        if not url:
-            continue
-        try:
-            with requests.get(url, headers=github_headers(), timeout=20) as resp:
-                if resp.status_code != 200:
-                    continue
-                expected = parse_sha256_from_checksum_text(resp.text, asset_name)
-                if expected:
-                    return expected, str(item.get("name", "checksum-file"))
-        except Exception:
-            continue
-
-    return "", ""
+    return kernel_service.extract_expected_sha256(
+        release_payload=release_payload,
+        asset_payload=asset_payload,
+    )
 
 
 def download_file_sha256(url: str, output_path: Path) -> tuple[str, int]:
-    hasher = hashlib.sha256()
-    total = 0
-    try:
-        response = requests.get(
-            url,
-            stream=True,
-            headers=github_headers(),
-            timeout=(10, CORE_UPDATE_DOWNLOAD_TIMEOUT),
-        )
-    except Exception as exc:
-        raise RuntimeError(f"download failed: {exc}") from exc
-
-    with response:
-        if response.status_code != 200:
-            raise RuntimeError(f"download failed with status {response.status_code}")
-
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with output_path.open("wb") as fh:
-            for chunk in response.iter_content(chunk_size=1024 * 256):
-                if not chunk:
-                    continue
-                fh.write(chunk)
-                hasher.update(chunk)
-                total += len(chunk)
-
-    if total <= 0:
-        raise RuntimeError("downloaded file is empty")
-    return hasher.hexdigest().lower(), total
+    return kernel_service.download_file_sha256(url=url, output_path=output_path)
 
 
 def decompress_gzip_file(input_path: Path, output_path: Path) -> int:
-    with gzip.open(input_path, "rb") as src, output_path.open("wb") as dst:
-        shutil.copyfileobj(src, dst)
-    size = output_path.stat().st_size if output_path.exists() else 0
-    if size <= 0:
-        raise RuntimeError("decompressed core is empty")
-    os.chmod(output_path, 0o755)
-    return size
+    return kernel_service.decompress_gzip_file(input_path=input_path, output_path=output_path)
 
 
 def run_cmd(args: list[str], timeout: int = 20) -> tuple[int, str, str]:
-    try:
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return -1, "", f"timeout ({timeout}s)"
-    except Exception as exc:
-        return -1, "", str(exc)
-    return result.returncode, (result.stdout or "").strip(), (result.stderr or "").strip()
+    return kernel_service.run_cmd(args=args, timeout=timeout)
 
 
 def read_core_version(bin_path: Path) -> str:
-    if not bin_path.exists():
-        return ""
-    rc, stdout, stderr = run_cmd([str(bin_path), "-v"], timeout=8)
-    if rc != 0:
-        return ""
-    text = stdout or stderr
-    if not text:
-        return ""
-    first = text.splitlines()[0].strip()
-    return first
+    return kernel_service.read_core_version(bin_path=bin_path)
 
 
 def verify_core_binary(bin_path: Path) -> tuple[bool, str]:
-    if not bin_path.exists():
-        return False, "core binary not found"
-    if not os.access(bin_path, os.X_OK):
-        try:
-            os.chmod(bin_path, 0o755)
-        except Exception:
-            pass
-
-    rc, stdout, stderr = run_cmd([str(bin_path), "-v"], timeout=10)
-    if rc != 0:
-        msg = stderr or stdout or "unknown error"
-        return False, f"core -v failed: {msg}"
-
-    if CONFIG_FILE.exists():
-        rc, stdout, stderr = run_cmd(
-            [str(bin_path), "-t", "-d", str(BASE_DIR), "-f", str(CONFIG_FILE)],
-            timeout=45,
-        )
-        if rc != 0:
-            msg = stderr or stdout or "unknown error"
-            return False, f"core -t failed: {msg}"
-
-    return True, ""
+    return kernel_service.verify_core_binary(bin_path=bin_path)
 
 
 def append_kernel_update_history(payload: dict) -> None:
-    row = {
-        "time": datetime.now().replace(microsecond=0).isoformat(),
-        **(payload if isinstance(payload, dict) else {}),
-    }
-    try:
-        KERNEL_UPDATE_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with KERNEL_UPDATE_LOG_FILE.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-    except Exception as exc:
-        emit_log(f"kernel update history write failed: {exc}", "WARN")
+    kernel_service.append_kernel_update_history(payload=payload)
 
 
 def read_kernel_update_history(limit: int = 50) -> list[dict]:
-    if limit <= 0:
-        return []
-    if not KERNEL_UPDATE_LOG_FILE.exists():
-        return []
-    try:
-        lines = KERNEL_UPDATE_LOG_FILE.read_text(encoding="utf-8").splitlines()
-    except Exception:
-        return []
-    rows: list[dict] = []
-    for line in lines[-limit:]:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(item, dict):
-            rows.append(item)
-    return rows
+    return kernel_service.read_kernel_update_history(limit=limit)
 
 
 def schedule_self_restart(reason: str) -> bool:
-    global restart_pending
-    with restart_lock:
-        if restart_pending:
-            return False
-        restart_pending = True
-
-    def runner():
-        emit_log(f"process restart scheduled: {reason}", "WARN")
-        time.sleep(CORE_UPDATE_RESTART_DELAY)
-        if os.name == "posix":
-            pid_text = str(os.environ.get("CONTAINER_INIT_PID", "1")).strip()
-            try:
-                pid = int(pid_text)
-            except ValueError:
-                pid = 1
-            try:
-                os.kill(pid, signal.SIGTERM)
-                return
-            except Exception as exc:
-                emit_log(f"failed to signal pid {pid}: {exc}", "WARN")
-        os._exit(0)
-
-    threading.Thread(target=runner, daemon=True).start()
-    return True
+    return kernel_service.schedule_self_restart(reason=reason)
 
 
 def collect_kernel_status() -> dict:
-    with restart_lock:
-        pending_restart = restart_pending
-    return {
-        "core_dir": str(MIHOMO_CORE_DIR),
-        "core_bin": str(MIHOMO_BIN),
-        "core_prev_bin": str(MIHOMO_PREV_BIN),
-        "core_exists": MIHOMO_BIN.exists(),
-        "core_prev_exists": MIHOMO_PREV_BIN.exists(),
-        "core_version": read_core_version(MIHOMO_BIN),
-        "allowed_repos": sorted(CORE_UPDATE_ALLOWED_REPOS),
-        "default_repo": DEFAULT_CORE_REPO,
-        "require_checksum": CORE_UPDATE_REQUIRE_CHECKSUM,
-        "updating": kernel_update_lock.locked(),
-        "restart_pending": pending_restart,
-    }
+    return kernel_service.collect_kernel_status()
 
 
 def perform_kernel_update(repo: str, tag: str | None = None) -> dict:
-    if os.name != "posix":
-        raise RuntimeError("kernel update is only supported on Linux container runtime")
-    core_repo = normalize_core_repo(repo)
-    ensure_core_repo_allowed(core_repo)
-    arch = detect_core_arch()
-
-    release = fetch_core_release(core_repo, tag=tag)
-    release_tag = str(release.get("tag_name", "")).strip()
-    if not release_tag:
-        raise RuntimeError("release tag not found")
-
-    asset = select_core_release_asset(release_payload=release, arch=arch)
-    asset_name = str(asset.get("name", "")).strip()
-    asset_url = str(asset.get("browser_download_url", "")).strip()
-    if not asset_name or not asset_url:
-        raise RuntimeError("release asset is invalid")
-
-    expected_sha256, checksum_source = extract_expected_sha256(release, asset)
-    if not expected_sha256 and CORE_UPDATE_REQUIRE_CHECKSUM:
-        raise RuntimeError("checksum not found in release assets")
-
-    old_version = read_core_version(MIHOMO_BIN)
-    MIHOMO_CORE_DIR.mkdir(parents=True, exist_ok=True)
-
-    emit_log(f"kernel update: repo={core_repo} tag={release_tag} arch={arch}")
-    emit_log(f"kernel update: selected asset={asset_name}")
-    if expected_sha256:
-        emit_log(f"kernel update: checksum source={checksum_source}")
-
-    with tempfile.TemporaryDirectory(dir=str(MIHOMO_CORE_DIR), prefix="kernel-update-") as tmp_dir_raw:
-        tmp_dir = Path(tmp_dir_raw)
-        download_path = tmp_dir / asset_name
-        candidate_path = tmp_dir / "mihomo.candidate"
-
-        downloaded_sha256, download_size = download_file_sha256(asset_url, download_path)
-        emit_log(f"kernel update: downloaded {asset_name} ({download_size} bytes)")
-
-        if expected_sha256:
-            if downloaded_sha256 != expected_sha256:
-                raise RuntimeError(
-                    (
-                        "checksum mismatch: "
-                        f"expected={expected_sha256}, actual={downloaded_sha256}"
-                    )
-                )
-            emit_log("kernel update: checksum verified", "SUCCESS")
-        else:
-            emit_log("kernel update: checksum skipped by config", "WARN")
-
-        decompressed_size = decompress_gzip_file(download_path, candidate_path)
-        emit_log(f"kernel update: decompressed core size={decompressed_size} bytes")
-
-        ok, msg = verify_core_binary(candidate_path)
-        if not ok:
-            raise RuntimeError(f"candidate check failed: {msg}")
-        emit_log("kernel update: candidate self-check passed", "SUCCESS")
-
-        replaced = False
-        if MIHOMO_BIN.exists():
-            os.replace(MIHOMO_BIN, MIHOMO_PREV_BIN)
-            replaced = True
-
-        try:
-            os.replace(candidate_path, MIHOMO_BIN)
-            os.chmod(MIHOMO_BIN, 0o755)
-        except Exception:
-            if replaced and MIHOMO_PREV_BIN.exists():
-                try:
-                    os.replace(MIHOMO_PREV_BIN, MIHOMO_BIN)
-                except Exception:
-                    pass
-            raise
-
-    ok, msg = verify_core_binary(MIHOMO_BIN)
-    if not ok:
-        if MIHOMO_PREV_BIN.exists():
-            try:
-                os.replace(MIHOMO_PREV_BIN, MIHOMO_BIN)
-            except Exception:
-                pass
-        raise RuntimeError(f"installed core check failed: {msg}")
-
-    new_version = read_core_version(MIHOMO_BIN)
-    return {
-        "repo": core_repo,
-        "release_tag": release_tag,
-        "asset_name": asset_name,
-        "arch": arch,
-        "old_version": old_version,
-        "new_version": new_version,
-        "downloaded_sha256": downloaded_sha256,
-        "checksum": expected_sha256,
-        "checksum_source": checksum_source,
-    }
+    return kernel_service.perform_kernel_update(repo=repo, tag=tag)
 
 
 def normalize_provider_name(raw: str, fallback: str = "Sub") -> str:
-    base = str(raw or fallback).strip() or fallback
-    return re.sub(r"[^A-Za-z0-9_-]", "_", base)
+    return provider_service.normalize_provider_name(raw=raw, fallback=fallback)
 
 
 def default_provider_recovery_state() -> dict:
-    return {"providers": {}}
+    return provider_service.default_provider_recovery_state()
 
 
 def sanitize_provider_recovery_state(data: dict) -> dict:
-    rows = data.get("providers", {}) if isinstance(data, dict) else {}
-    if not isinstance(rows, dict):
-        rows = {}
-
-    providers: dict[str, dict] = {}
-    for raw_name, raw_item in rows.items():
-        name = str(raw_name or "").strip()
-        if not name:
-            continue
-        item = raw_item if isinstance(raw_item, dict) else {}
-
-        zero_since = str(item.get("zero_since") or "").strip() or None
-        last_checked = str(item.get("last_checked") or "").strip() or None
-        daily_date = str(item.get("daily_date") or "").strip()
-
-        try:
-            daily_updates = int(item.get("daily_updates", 0))
-        except Exception:
-            daily_updates = 0
-        daily_updates = max(0, daily_updates)
-
-        providers[name] = {
-            "zero_since": zero_since,
-            "last_checked": last_checked,
-            "daily_date": daily_date,
-            "daily_updates": daily_updates,
-        }
-
-    return {"providers": providers}
+    return provider_service.sanitize_provider_recovery_state(data)
 
 
 def load_provider_recovery_state() -> dict:
-    raw = load_json(PROVIDER_RECOVERY_FILE, default_provider_recovery_state())
-    return sanitize_provider_recovery_state(raw)
+    return provider_service.load_provider_recovery_state()
 
 
 def save_provider_recovery_state(data: dict) -> None:
-    payload = sanitize_provider_recovery_state(data)
-    save_json(PROVIDER_RECOVERY_FILE, payload)
+    provider_service.save_provider_recovery_state(data)
 
 
 def build_provider_rows(payload) -> list[dict]:
-    raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
-    if not isinstance(raw_providers, dict):
-        raw_providers = {}
-
-    rows: list[dict] = []
-    for provider_name, item in raw_providers.items():
-        if not isinstance(item, dict):
-            continue
-
-        proxies = item.get("proxies", [])
-        proxy_count = 0
-        alive_count = 0
-        if isinstance(proxies, list):
-            proxy_count = len(proxies)
-            alive_count = sum(
-                1
-                for proxy in proxies
-                if isinstance(proxy, dict) and proxy.get("alive") is True
-            )
-
-        subscription_info = item.get("subscriptionInfo")
-        if not isinstance(subscription_info, dict):
-            subscription_info = {}
-
-        rows.append(
-            {
-                "name": str(provider_name),
-                "type": str(item.get("type", "")),
-                "vehicle_type": str(item.get("vehicleType", "")),
-                "proxy_count": proxy_count,
-                "alive_count": alive_count,
-                "updated_at": str(item.get("updatedAt", "")),
-                "has_subscription_info": bool(subscription_info),
-                "subscription_info": subscription_info,
-            }
-        )
-
-    rows.sort(key=lambda x: x["name"].lower())
-    return rows
+    return provider_service.build_provider_rows(payload)
 
 
 def fetch_provider_rows(timeout: int = 8) -> list[dict]:
-    resp = requests.get(
-        f"{CLASH_API}/providers/proxies",
-        headers=clash_headers(),
-        timeout=timeout,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"clash api error: {resp.status_code}")
-    payload = resp.json() if resp.content else {}
-    return build_provider_rows(payload)
+    return provider_service.fetch_provider_rows(timeout=timeout)
 
 
 def refresh_provider_subscription(provider_name: str) -> tuple[bool, str]:
-    encoded_name = quote(provider_name, safe="")
-    try:
-        resp = requests.put(
-            f"{CLASH_API}/providers/proxies/{encoded_name}",
-            headers=clash_headers(),
-            timeout=12,
-        )
-    except Exception as exc:
-        return False, str(exc)
-
-    if resp.status_code in (200, 204):
-        return True, "ok"
-
-    message = ""
-    try:
-        payload = resp.json() if resp.content else {}
-        if isinstance(payload, dict):
-            message = str(payload.get("message", "")).strip()
-    except Exception:
-        message = ""
-    if not message:
-        message = (resp.text or "").strip()
-    if not message:
-        message = f"http {resp.status_code}"
-    return False, message
+    return provider_service.refresh_provider_subscription(provider_name)
 
 
 def provider_auto_recovery_loop() -> None:
-    threshold_seconds = PROVIDER_ZERO_ALIVE_MINUTES * 60
-    while True:
-        time.sleep(PROVIDER_RECOVERY_CHECK_INTERVAL)
-        if not PROVIDER_AUTO_REFRESH_ENABLED:
-            continue
-
-        try:
-            rows = fetch_provider_rows(timeout=8)
-        except Exception as exc:
-            emit_log(f"provider auto-refresh skipped: fetch providers failed ({exc})", "WARN")
-            continue
-
-        now = datetime.now().replace(microsecond=0)
-        now_iso_text = now.isoformat()
-        today = now.strftime("%Y-%m-%d")
-        pending_refresh: list[tuple[str, int, int]] = []
-        state_changed = False
-
-        with provider_recovery_lock:
-            state = load_provider_recovery_state()
-            providers = state.get("providers", {})
-            if not isinstance(providers, dict):
-                providers = {}
-                state["providers"] = providers
-
-            for row in rows:
-                provider_name = str(row.get("name", "")).strip()
-                if not provider_name:
-                    continue
-
-                key = normalize_provider_name(provider_name, provider_name)
-                entry = providers.get(key, {})
-                if not isinstance(entry, dict):
-                    entry = {}
-
-                zero_since_raw = str(entry.get("zero_since") or "").strip()
-                zero_since_dt = None
-                if zero_since_raw:
-                    try:
-                        zero_since_dt = datetime.fromisoformat(zero_since_raw)
-                    except Exception:
-                        zero_since_dt = None
-                try:
-                    daily_updates = max(0, int(entry.get("daily_updates", 0)))
-                except Exception:
-                    daily_updates = 0
-                daily_date = str(entry.get("daily_date") or "").strip()
-                if daily_date != today:
-                    daily_date = today
-                    daily_updates = 0
-
-                try:
-                    proxy_count = max(0, int(row.get("proxy_count", 0)))
-                except Exception:
-                    proxy_count = 0
-                try:
-                    alive_count = max(0, int(row.get("alive_count", 0)))
-                except Exception:
-                    alive_count = 0
-
-                vehicle_type = str(row.get("vehicle_type", "")).strip().lower()
-                supports_refresh = vehicle_type == "http"
-
-                if proxy_count <= 0 or alive_count > 0 or not supports_refresh:
-                    if zero_since_dt is not None:
-                        state_changed = True
-                    zero_since_dt = None
-                else:
-                    if zero_since_dt is None:
-                        zero_since_dt = now
-                    elapsed_seconds = max(
-                        0,
-                        int((now - zero_since_dt).total_seconds()),
-                    )
-                    if elapsed_seconds >= threshold_seconds:
-                        if daily_updates < PROVIDER_AUTO_REFRESH_MAX_PER_DAY:
-                            daily_updates += 1
-                            pending_refresh.append(
-                                (
-                                    provider_name,
-                                    elapsed_seconds,
-                                    daily_updates,
-                                )
-                            )
-                            # Reset timing window after each refresh attempt.
-                            zero_since_dt = now
-                            state_changed = True
-
-                next_zero_since = zero_since_dt.isoformat() if zero_since_dt else None
-                next_entry = {
-                    "zero_since": next_zero_since,
-                    "last_checked": now_iso_text,
-                    "daily_date": daily_date,
-                    "daily_updates": daily_updates,
-                }
-                if providers.get(key) != next_entry:
-                    state_changed = True
-                providers[key] = next_entry
-
-            if state_changed:
-                save_provider_recovery_state(state)
-
-        for provider_name, elapsed_seconds, daily_updates in pending_refresh:
-            ok, message = refresh_provider_subscription(provider_name)
-            elapsed_minutes = max(1, elapsed_seconds // 60)
-            if ok:
-                emit_log(
-                    (
-                        f"provider auto-refresh triggered: {provider_name}, "
-                        f"zero_for={elapsed_minutes}m, "
-                        f"daily={daily_updates}/{PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
-                    ),
-                    "SUCCESS",
-                )
-            else:
-                emit_log(
-                    (
-                        f"provider auto-refresh failed: {provider_name}, "
-                        f"zero_for={elapsed_minutes}m, "
-                        f"daily={daily_updates}/{PROVIDER_AUTO_REFRESH_MAX_PER_DAY}, msg={message}"
-                    ),
-                    "WARN",
-                )
+    provider_service.provider_auto_recovery_loop()
 
 
 def list_subscriptions():
@@ -1250,76 +506,35 @@ def sync_override_script_with_sets(sub_sets: dict) -> None:
 
 
 def default_schedule() -> dict:
-    return {
-        "enabled": False,
-        "interval_minutes": 60,
-        "next_run": None,
-        "last_run": None,
-        "last_status": "",
-    }
+    return merge_service.default_schedule()
 
 
 def sanitize_schedule(data: dict) -> dict:
-    payload = default_schedule()
-    payload["enabled"] = bool(data.get("enabled", False))
-    interval = data.get("interval_minutes", 60)
-    try:
-        interval = int(interval)
-    except Exception:
-        interval = 60
-    payload["interval_minutes"] = max(5, min(1440, interval))
-    payload["next_run"] = data.get("next_run")
-    payload["last_run"] = data.get("last_run")
-    payload["last_status"] = str(data.get("last_status", ""))
-    return payload
+    return merge_service.sanitize_schedule(data)
 
 
 def load_schedule() -> dict:
-    raw = load_json(SCHEDULE_FILE, default_schedule())
-    return sanitize_schedule(raw)
+    return merge_service.load_schedule()
 
 
 def save_schedule(data: dict) -> dict:
-    payload = sanitize_schedule(data)
-    save_json(SCHEDULE_FILE, payload)
-    return payload
+    return merge_service.save_schedule(data)
 
 
 def default_schedule_history() -> dict:
-    return {"items": []}
+    return merge_service.default_schedule_history()
 
 
 def sanitize_schedule_history_items(items) -> list[dict]:
-    if not isinstance(items, list):
-        return []
-    rows: list[dict] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        rows.append(
-            {
-                "started_at": str(item.get("started_at", "")),
-                "ended_at": str(item.get("ended_at", "")),
-                "trigger": str(item.get("trigger", "")),
-                "action": str(item.get("action", "")),
-                "status": str(item.get("status", "")),
-                "message": str(item.get("message", "")),
-            }
-        )
-    if len(rows) > MAX_SCHEDULE_HISTORY:
-        rows = rows[-MAX_SCHEDULE_HISTORY:]
-    return rows
+    return merge_service.sanitize_schedule_history_items(items)
 
 
 def load_schedule_history() -> list[dict]:
-    raw = load_json(SCHEDULE_HISTORY_FILE, default_schedule_history())
-    items = sanitize_schedule_history_items(raw.get("items", []))
-    return items
+    return merge_service.load_schedule_history()
 
 
 def save_schedule_history(items: list[dict]) -> None:
-    payload = {"items": sanitize_schedule_history_items(items)}
-    save_json(SCHEDULE_HISTORY_FILE, payload)
+    merge_service.save_schedule_history(items)
 
 
 def append_schedule_history(
@@ -1330,27 +545,22 @@ def append_schedule_history(
     started_at: str | None = None,
     ended_at: str | None = None,
 ) -> None:
-    entry = {
-        "started_at": started_at or now_iso(),
-        "ended_at": ended_at or now_iso(),
-        "trigger": trigger,
-        "action": "merge_and_reload" if do_reload else "merge",
-        "status": status,
-        "message": message,
-    }
-    with history_lock:
-        items = load_schedule_history()
-        items.append(entry)
-        save_schedule_history(items)
+    merge_service.append_schedule_history(
+        trigger=trigger,
+        do_reload=do_reload,
+        status=status,
+        message=message,
+        started_at=started_at,
+        ended_at=ended_at,
+    )
 
 
 def now_iso() -> str:
-    return datetime.now().replace(microsecond=0).isoformat()
+    return merge_service.now_iso()
 
 
 def add_minutes_iso(minutes: int) -> str:
-    next_dt = datetime.now().timestamp() + minutes * 60
-    return datetime.fromtimestamp(next_dt).replace(microsecond=0).isoformat()
+    return merge_service.add_minutes_iso(minutes)
 
 
 @app.route("/api/health", methods=["GET"])
@@ -1500,124 +710,15 @@ def action_kernel_update():
 
 
 def run_merge_job(do_reload: bool, trigger: str) -> tuple[bool, str]:
-    emit_log(f"{trigger}: merge started")
-    try:
-        process = subprocess.run(
-            [PYTHON_BIN, str(MERGE_SCRIPT_FILE), "merge"],
-            capture_output=True,
-            text=True,
-            timeout=240,
-        )
-    except subprocess.TimeoutExpired:
-        emit_log(f"{trigger}: merge timeout", "ERROR")
-        return False, "merge timeout"
-    except Exception as exc:
-        emit_log(f"{trigger}: merge error {exc}", "ERROR")
-        return False, f"merge error: {exc}"
-
-    stdout = (process.stdout or "").strip()
-    stderr = (process.stderr or "").strip()
-    if stdout:
-        for line in stdout.splitlines():
-            emit_log(line)
-    if stderr:
-        for line in stderr.splitlines():
-            emit_log(line, "WARN")
-
-    if process.returncode != 0:
-        emit_log(f"{trigger}: merge failed, rc={process.returncode}", "ERROR")
-        return False, f"merge failed rc={process.returncode}"
-
-    if do_reload:
-        ok = reload_clash()
-        if ok:
-            emit_log(f"{trigger}: reload done", "SUCCESS")
-            return True, "merge and reload success"
-        emit_log(f"{trigger}: reload failed", "ERROR")
-        return False, "merge success but reload failed"
-
-    emit_log(f"{trigger}: merge done", "SUCCESS")
-    return True, "merge success"
+    return merge_service.run_merge_job(do_reload=do_reload, trigger=trigger)
 
 
 def start_merge_job(do_reload: bool, trigger: str) -> bool:
-    if not merge_lock.acquire(blocking=False):
-        return False
-
-    def runner():
-        started_at = now_iso()
-        success = False
-        message = "unknown"
-        try:
-            success, message = run_merge_job(do_reload=do_reload, trigger=trigger)
-        finally:
-            ended_at = now_iso()
-            append_schedule_history(
-                trigger=trigger,
-                do_reload=do_reload,
-                status="success" if success else "failed",
-                message=message,
-                started_at=started_at,
-                ended_at=ended_at,
-            )
-            if trigger == "scheduler":
-                with schedule_lock:
-                    schedule = load_schedule()
-                    schedule["last_run"] = ended_at
-                    schedule["last_status"] = "success" if success else "failed"
-                    save_schedule(schedule)
-            merge_lock.release()
-
-    threading.Thread(target=runner, daemon=True).start()
-    return True
+    return merge_service.start_merge_job(do_reload=do_reload, trigger=trigger)
 
 
 def scheduler_loop() -> None:
-    while True:
-        time.sleep(5)
-        with schedule_lock:
-            schedule = load_schedule()
-
-        if not schedule.get("enabled", False):
-            continue
-
-        next_run = str(schedule.get("next_run") or "").strip()
-        if not next_run:
-            schedule["next_run"] = add_minutes_iso(schedule["interval_minutes"])
-            with schedule_lock:
-                save_schedule(schedule)
-            continue
-
-        try:
-            next_dt = datetime.fromisoformat(next_run)
-        except Exception:
-            schedule["next_run"] = add_minutes_iso(schedule["interval_minutes"])
-            with schedule_lock:
-                save_schedule(schedule)
-            continue
-
-        if datetime.now() < next_dt:
-            continue
-
-        started_at = now_iso()
-        started = start_merge_job(do_reload=True, trigger="scheduler")
-        schedule["last_run"] = started_at
-        schedule["last_status"] = "started" if started else "skipped_busy"
-        schedule["next_run"] = add_minutes_iso(schedule["interval_minutes"])
-        with schedule_lock:
-            save_schedule(schedule)
-        if started:
-            emit_log("scheduler: merge+reload launched")
-        else:
-            append_schedule_history(
-                trigger="scheduler",
-                do_reload=True,
-                status="skipped_busy",
-                message="skip because previous merge task is running",
-                started_at=started_at,
-                ended_at=started_at,
-            )
-            emit_log("scheduler: skipped, merge busy", "WARN")
+    merge_service.scheduler_loop()
 
 
 @app.route("/api/subscriptions", methods=["GET"])
@@ -2119,181 +1220,77 @@ def _clash_delay_request(
     test_url: str = "http://www.gstatic.com/generate_204",
     timeout_ms: int = 6000,
 ) -> tuple[bool, int, str]:
-    encoded = quote(proxy_name, safe="")
-    timeout_ms = max(1000, min(20000, int(timeout_ms)))
-    request_timeout = max(3.0, timeout_ms / 1000.0 + 2.0)
-    try:
-        resp = requests.get(
-            f"{CLASH_API}/proxies/{encoded}/delay",
-            headers=clash_headers(),
-            params={"url": test_url, "timeout": timeout_ms},
-            timeout=request_timeout,
-        )
-        if resp.status_code != 200:
-            return False, -1, f"clash api error: {resp.status_code}"
-        payload = resp.json() if resp.content else {}
-        delay_raw = payload.get("delay") if isinstance(payload, dict) else None
-        delay = int(delay_raw) if delay_raw is not None else -1
-        if delay < 0:
-            return False, -1, "delay timeout"
-        return True, delay, ""
-    except Exception as exc:
-        return False, -1, str(exc)
+    return geo_service.clash_delay_request(
+        proxy_name=proxy_name,
+        test_url=test_url,
+        timeout_ms=timeout_ms,
+    )
 
 
 def _fetch_rule_provider_rows() -> tuple[list[dict], str]:
-    try:
-        resp = requests.get(
-            f"{CLASH_API}/providers/rules",
-            headers=clash_headers(),
-            timeout=8,
-        )
-        if resp.status_code != 200:
-            return [], f"clash api error: {resp.status_code}"
-        payload = resp.json() if resp.content else {}
-        raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
-        if not isinstance(raw_providers, dict):
-            raw_providers = {}
-
-        rows: list[dict] = []
-        for provider_name, item in raw_providers.items():
-            if not isinstance(item, dict):
-                continue
-            rule_count_raw = item.get("ruleCount", 0)
-            try:
-                rule_count = max(0, int(rule_count_raw))
-            except Exception:
-                rule_count = 0
-            rows.append(
-                {
-                    "name": str(provider_name),
-                    "type": str(item.get("type", "")),
-                    "behavior": str(item.get("behavior", "")),
-                    "format": str(item.get("format", "")),
-                    "vehicle_type": str(item.get("vehicleType", "")),
-                    "rule_count": rule_count,
-                    "updated_at": str(item.get("updatedAt", "")),
-                }
-            )
-
-        rows.sort(key=lambda x: x["name"].lower())
-        return rows, ""
-    except Exception as exc:
-        return [], str(exc)
+    return geo_service.fetch_rule_provider_rows()
 
 
 def _geo_proxy_check(
     test_url: str = "http://www.gstatic.com/generate_204",
     timeout_ms: int = 6000,
 ) -> dict:
-    try:
-        resp = requests.get(f"{CLASH_API}/proxies", headers=clash_headers(), timeout=6)
-        if resp.status_code != 200:
-            return {
-                "ok": False,
-                "message": f"clash api error: {resp.status_code}",
-                "tested_url": test_url,
-                "attempts": [],
-            }
-        payload = resp.json() if resp.content else {}
-        raw_proxies = payload.get("proxies", {}) if isinstance(payload, dict) else {}
-        if not isinstance(raw_proxies, dict):
-            raw_proxies = {}
-    except Exception as exc:
-        return {
-            "ok": False,
-            "message": str(exc),
-            "tested_url": test_url,
-            "attempts": [],
-        }
+    return geo_service.geo_proxy_check(test_url=test_url, timeout_ms=timeout_ms)
 
-    groups: list[dict] = []
-    for group_name, item in raw_proxies.items():
-        if not isinstance(item, dict):
-            continue
-        options = item.get("all")
-        if not isinstance(options, list) or not options:
-            continue
-        name = str(group_name).strip()
-        now = str(item.get("now", "")).strip()
-        nodes = [str(x).strip() for x in options if str(x).strip()]
-        if not nodes:
-            continue
-        groups.append({"name": name, "now": now, "nodes": nodes})
 
-    def group_rank(group: dict) -> tuple[int, int]:
-        lowered = str(group.get("name", "")).lower()
-        score = 0
-        if "proxy" in lowered:
-            score += 120
-        if "auto" in lowered:
-            score += 90
-        if "global" in lowered:
-            score += 80
-        if "select" in lowered or "选择" in lowered:
-            score += 40
-        if "google" in lowered:
-            score += 20
-        nodes = group.get("nodes", [])
-        return (-score, -len(nodes) if isinstance(nodes, list) else 0)
+def _infer_geo_new_data(message: str) -> str:
+    return geo_service.infer_geo_new_data(message=message)
 
-    groups.sort(key=group_rank)
 
-    attempts: list[dict] = []
-    for group in groups:
-        group_name = str(group["name"])
-        nodes = list(group["nodes"])
-        candidates: list[str] = []
-        current = str(group.get("now", "")).strip()
-        if current:
-            candidates.append(current)
-        candidates.extend(nodes)
+def _format_geo_db_summary(geo_item: dict) -> str:
+    return geo_service.format_geo_db_summary(geo_item=geo_item)
 
-        deduped: list[str] = []
-        seen: set[str] = set()
-        for node in candidates:
-            key = node.upper()
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(node)
 
-        for node in deduped:
-            if node.upper() in SYSTEM_PROXY_NAMES:
-                continue
-            ok, delay, error = _clash_delay_request(node, test_url=test_url, timeout_ms=timeout_ms)
-            attempt = {
-                "group": group_name,
-                "proxy": node,
-                "ok": ok,
-                "delay": delay,
-                "error": error,
-            }
-            attempts.append(attempt)
-            if ok:
-                return {
-                    "ok": True,
-                    "message": "proxy reachable",
-                    "tested_url": test_url,
-                    "group": group_name,
-                    "proxy": node,
-                    "delay": delay,
-                    "attempts": attempts[:6],
-                }
-            if len(attempts) >= 8:
-                return {
-                    "ok": False,
-                    "message": "no reachable proxy in tested groups",
-                    "tested_url": test_url,
-                    "attempts": attempts,
-                }
+def _clash_request_with_retry(
+    method: str,
+    path: str,
+    timeout: float,
+    attempts: int = 1,
+) -> tuple[requests.Response | None, str]:
+    return geo_service.clash_request_with_retry(
+        method=method,
+        path=path,
+        timeout=timeout,
+        attempts=attempts,
+    )
 
-    return {
-        "ok": False,
-        "message": "no candidate proxy groups",
-        "tested_url": test_url,
-        "attempts": attempts,
-    }
+
+def _response_error_text(response: requests.Response) -> str:
+    return geo_service.response_error_text(response=response)
+
+
+def _perform_geo_db_update() -> dict:
+    return geo_service.perform_geo_db_update()
+
+
+def _empty_rule_provider_update_result() -> dict:
+    return geo_service.empty_rule_provider_update_result()
+
+
+def _update_rule_providers() -> dict:
+    return geo_service.update_rule_providers()
+
+
+def _compose_geo_update_result(
+    check_result: dict,
+    geo_db_result: dict,
+    provider_result: dict,
+    *,
+    update_geo_db: bool,
+    update_rule_providers: bool,
+) -> dict:
+    return geo_service.compose_geo_update_result(
+        check_result=check_result,
+        geo_db_result=geo_db_result,
+        provider_result=provider_result,
+        update_geo_db=update_geo_db,
+        update_rule_providers=update_rule_providers,
+    )
 
 
 @app.route("/api/clash/geo/settings", methods=["PUT"])
@@ -2457,113 +1454,6 @@ def action_geo_update():
     if update_rule_providers is None:
         update_rule_providers = True
 
-    def infer_geo_new_data(message: str) -> str:
-        lowered = message.lower()
-        if not lowered:
-            return "unknown"
-
-        no_tokens = [
-            "already",
-            "up-to-date",
-            "up to date",
-            "latest",
-            "no update",
-            "unchanged",
-            "已是最新",
-            "无需更新",
-            "没有更新",
-            "无更新",
-        ]
-        yes_tokens = [
-            "downloaded",
-            "updated",
-            "fetched",
-            "success",
-            "completed",
-            "更新完成",
-            "已更新",
-            "下载完成",
-        ]
-        if any(token in lowered for token in no_tokens):
-            return "no"
-        if any(token in lowered for token in yes_tokens):
-            return "yes"
-        return "unknown"
-
-    def format_geo_db_summary(geo_item: dict) -> str:
-        status = str(geo_item.get("status", "unknown"))
-        message = str(geo_item.get("message", "")).strip()
-        new_data = str(geo_item.get("new_data", "unknown"))
-
-        if status == "updated":
-            if new_data == "yes":
-                text = "GEO 库：已更新，检测到新数据"
-            elif new_data == "no":
-                text = "GEO 库：已检查，当前已是最新"
-            else:
-                text = "GEO 库：更新请求已执行，是否有新数据未知"
-        elif status == "busy":
-            text = "GEO 库：已有更新任务在进行，当前请求被跳过"
-        elif status == "failed":
-            text = "GEO 库：更新失败"
-        elif status == "skipped":
-            text = "GEO 库：未执行"
-        else:
-            text = f"GEO 库：状态 {status}"
-
-        if message and message not in {"not requested", "geo database update triggered"}:
-            text = f"{text}（{message}）"
-        return text
-
-    retryable_status_codes = {408, 409, 423, 425, 429, 500, 502, 503, 504}
-
-    def clash_request_with_retry(
-        method: str,
-        path: str,
-        timeout: float,
-        attempts: int = 1,
-    ) -> tuple[requests.Response | None, str]:
-        safe_attempts = max(1, int(attempts))
-        last_error = ""
-        for attempt in range(1, safe_attempts + 1):
-            try:
-                response = requests.request(
-                    method,
-                    f"{CLASH_API}{path}",
-                    headers=clash_headers(),
-                    timeout=timeout,
-                )
-                if response.status_code in (200, 204):
-                    return response, ""
-                if response.status_code in retryable_status_codes and attempt < safe_attempts:
-                    time.sleep(0.5 * attempt)
-                    continue
-                return response, ""
-            except Exception as exc:
-                last_error = str(exc)
-                if attempt < safe_attempts:
-                    time.sleep(0.5 * attempt)
-                    continue
-                return None, last_error
-        return None, last_error
-
-    def response_error_text(response: requests.Response) -> str:
-        default_error = f"clash api error: {response.status_code}"
-        try:
-            payload = response.json() if response.content else {}
-        except Exception:
-            payload = {}
-
-        if isinstance(payload, dict):
-            detail = str(payload.get("message", "")).strip()
-            if detail:
-                return f"{default_error} ({detail})"
-
-        raw_text = str(getattr(response, "text", "") or "").strip()
-        if raw_text:
-            return f"{default_error} ({raw_text[:180]})"
-        return default_error
-
     check_result = {
         "ok": True,
         "message": "skipped",
@@ -2611,311 +1501,44 @@ def action_geo_update():
             }
         )
 
-    geo_db_result = {"status": "skipped", "message": "not requested", "new_data": "unknown"}
-    if update_geo_db:
-        geo_resp, geo_error = clash_request_with_retry(
-            "POST",
-            "/configs/geo",
-            timeout=45,
-            attempts=3,
-        )
-        if geo_resp is None:
-            geo_db_result = {
-                "status": "failed",
-                "message": geo_error or "request failed",
-                "new_data": "unknown",
-            }
-        else:
-            payload: dict | list | str | int | float | None = {}
-            if geo_resp.content:
-                try:
-                    payload = geo_resp.json()
-                except Exception:
-                    payload = {}
-            message = ""
-            if isinstance(payload, dict):
-                message = str(payload.get("message", "")).strip()
-            if not message:
-                raw_text = str(getattr(geo_resp, "text", "") or "").strip()
-                # Keep response hints short so frontend logs/toasts stay readable.
-                if raw_text:
-                    message = raw_text[:280]
+    geo_db_result = (
+        _perform_geo_db_update()
+        if update_geo_db
+        else {"status": "skipped", "message": "not requested", "new_data": "unknown"}
+    )
+    provider_result = (
+        _update_rule_providers() if update_rule_providers else _empty_rule_provider_update_result()
+    )
 
-            if geo_resp.status_code in (200, 204):
-                if not message:
-                    message = "geo database update triggered"
-                geo_db_result = {
-                    "status": "updated",
-                    "message": message,
-                    "new_data": infer_geo_new_data(message),
-                }
-            else:
-                if not message:
-                    message = response_error_text(geo_resp)
-                lowered = message.lower()
-                if "updating" in lowered and "skip" in lowered:
-                    geo_db_result = {"status": "busy", "message": message, "new_data": "unknown"}
-                else:
-                    geo_db_result = {"status": "failed", "message": message, "new_data": "unknown"}
+    result = _compose_geo_update_result(
+        check_result,
+        geo_db_result,
+        provider_result,
+        update_geo_db=update_geo_db,
+        update_rule_providers=update_rule_providers,
+    )
 
-    provider_rows: list[dict] = []
-    provider_items: list[dict] = []
-    providers_error = ""
-    provider_before_map: dict[str, dict] = {}
-    provider_after_map: dict[str, dict] = {}
-    provider_after_error = ""
-    if update_rule_providers:
-        provider_rows, providers_error = _fetch_rule_provider_rows()
-        if providers_error:
-            provider_items.append({"name": "_all_", "ok": False, "error": providers_error})
-        else:
-            for row in provider_rows:
-                name = str(row.get("name", "")).strip()
-                if not name:
-                    continue
-                provider_before_map[name] = {
-                    "updated_at": str(row.get("updated_at", "")).strip(),
-                    "rule_count": row.get("rule_count", 0),
-                }
-                encoded = quote(name, safe="")
-                resp, request_error = clash_request_with_retry(
-                    "PUT",
-                    f"/providers/rules/{encoded}",
-                    timeout=30,
-                    attempts=2,
-                )
-                if resp is None:
-                    provider_items.append(
-                        {"name": name, "ok": False, "error": request_error or "request failed"}
-                    )
-                    continue
-
-                ok = resp.status_code in (200, 204)
-                err = "" if ok else response_error_text(resp)
-                provider_items.append({"name": name, "ok": ok, "error": err})
-
-            retry_candidates = [
-                item
-                for item in provider_items
-                if not item.get("ok") and str(item.get("name", "")).strip() not in {"", "_all_"}
-            ]
-            if retry_candidates:
-                time.sleep(1.0)
-                for item in retry_candidates:
-                    name = str(item.get("name", "")).strip()
-                    if not name:
-                        continue
-                    encoded = quote(name, safe="")
-                    resp, request_error = clash_request_with_retry(
-                        "PUT",
-                        f"/providers/rules/{encoded}",
-                        timeout=35,
-                        attempts=2,
-                    )
-                    if resp is None:
-                        retry_error = request_error or "request failed"
-                        prev_error = str(item.get("error", "")).strip()
-                        if prev_error and prev_error != retry_error:
-                            item["error"] = f"{prev_error}; retry={retry_error}"
-                        else:
-                            item["error"] = retry_error or prev_error
-                        continue
-
-                    ok = resp.status_code in (200, 204)
-                    if ok:
-                        item["ok"] = True
-                        item["error"] = ""
-                        continue
-
-                    retry_error = response_error_text(resp)
-                    prev_error = str(item.get("error", "")).strip()
-                    if prev_error and prev_error != retry_error:
-                        item["error"] = f"{prev_error}; retry={retry_error}"
-                    else:
-                        item["error"] = retry_error or prev_error
-
-            provider_after_rows, provider_after_error = _fetch_rule_provider_rows()
-            if not provider_after_error:
-                for row in provider_after_rows:
-                    name = str(row.get("name", "")).strip()
-                    if not name:
-                        continue
-                    provider_after_map[name] = {
-                        "updated_at": str(row.get("updated_at", "")).strip(),
-                        "rule_count": row.get("rule_count", 0),
-                    }
-
-    failed_count = len([x for x in provider_items if not x.get("ok")])
-    updated_count = len([x for x in provider_items if x.get("ok")])
-    total_count = len(provider_items)
-    provider_changed_count = 0
-    provider_unchanged_count = 0
-    provider_unknown_count = 0
-    provider_failed_names: list[str] = []
-
-    for item in provider_items:
-        name = str(item.get("name", "")).strip()
-        ok = bool(item.get("ok"))
-        if not ok:
-            if name and name != "_all_":
-                provider_failed_names.append(name)
-            item["status"] = "failed"
-            item["new_data"] = "unknown"
-            provider_unknown_count += 1
-            continue
-
-        before_meta = provider_before_map.get(name, {})
-        after_meta = provider_after_map.get(name, {})
-        before_updated_at = str(before_meta.get("updated_at", "")).strip()
-        after_updated_at = str(after_meta.get("updated_at", "")).strip()
-        item["before_updated_at"] = before_updated_at
-        item["after_updated_at"] = after_updated_at
-
-        try:
-            before_rule_count = int(before_meta.get("rule_count", 0))
-        except Exception:
-            before_rule_count = 0
-        try:
-            after_rule_count = int(after_meta.get("rule_count", 0))
-        except Exception:
-            after_rule_count = 0
-        item["before_rule_count"] = before_rule_count
-        item["after_rule_count"] = after_rule_count
-
-        if provider_after_error:
-            item["status"] = "unknown"
-            item["new_data"] = "unknown"
-            provider_unknown_count += 1
-            continue
-
-        if not after_meta:
-            item["status"] = "unknown"
-            item["new_data"] = "unknown"
-            provider_unknown_count += 1
-            continue
-
-        changed = False
-        if before_updated_at and after_updated_at and before_updated_at != after_updated_at:
-            changed = True
-        elif before_rule_count != after_rule_count:
-            changed = True
-        elif (not before_updated_at) and after_updated_at:
-            changed = True
-
-        if changed:
-            item["status"] = "updated"
-            item["new_data"] = "yes"
-            provider_changed_count += 1
-        else:
-            item["status"] = "no_change"
-            item["new_data"] = "no"
-            provider_unchanged_count += 1
-
-    if providers_error and not provider_rows:
-        total_count = 0
-        updated_count = 0
-        failed_count = 1
-        provider_unknown_count = max(provider_unknown_count, 1)
-
-    geo_ok = geo_db_result["status"] in {"updated", "busy", "skipped"}
-    providers_ok = (not update_rule_providers) or failed_count == 0
-    overall_ok = bool(check_result.get("ok")) and geo_ok and providers_ok
-    geo_new_state = str(geo_db_result.get("new_data", "unknown"))
-
-    rules_new_state = "unknown"
-    if update_rule_providers:
-        if provider_changed_count > 0:
-            rules_new_state = "yes"
-        elif failed_count == 0 and provider_unknown_count == 0 and total_count > 0:
-            rules_new_state = "no"
-
-    new_data_candidates: list[str] = []
-    if update_geo_db:
-        new_data_candidates.append(geo_new_state)
-    if update_rule_providers:
-        new_data_candidates.append(rules_new_state)
-
-    new_data_state = "unknown"
-    if "yes" in new_data_candidates:
-        new_data_state = "yes"
-    elif new_data_candidates and all(x == "no" for x in new_data_candidates):
-        new_data_state = "no"
-
-    summary_parts = [f"ok={overall_ok}"]
-    summary_parts.append(f"new_data={new_data_state}")
+    summary_parts = [f"ok={result['ok']}"]
+    summary_parts.append(f"new_data={result['new_data']}")
     if update_geo_db:
         summary_parts.append(f"geo_db={geo_db_result['status']}")
-        summary_parts.append(f"geo_new={geo_new_state}")
+        summary_parts.append(f"geo_new={geo_db_result.get('new_data', 'unknown')}")
     if update_rule_providers:
-        summary_parts.append(f"rules={updated_count}/{total_count}")
+        summary_parts.append(f"rules={provider_result['updated']}/{provider_result['total']}")
         summary_parts.append(
-            f"rules_changed={provider_changed_count},rules_unchanged={provider_unchanged_count}"
+            f"rules_changed={provider_result['changed']},"
+            f"rules_unchanged={provider_result['unchanged']}"
         )
-        if failed_count:
-            summary_parts.append(f"rules_failed={failed_count}")
-        if provider_failed_names:
-            summary_parts.append(f"failed_names={'|'.join(provider_failed_names[:3])}")
-        if provider_after_error:
+        if provider_result["failed"]:
+            summary_parts.append(f"rules_failed={provider_result['failed']}")
+        failed_names = provider_result.get("failed_names", [])
+        if failed_names:
+            summary_parts.append(f"failed_names={'|'.join(failed_names[:3])}")
+        if provider_result.get("compare_error"):
             summary_parts.append("rules_compare=failed")
     emit_log(f"geo update finished: {', '.join(summary_parts)}")
 
-    if overall_ok:
-        if new_data_state == "yes":
-            message = "GEO 更新成功：检测到新数据并已刷新"
-        elif new_data_state == "no":
-            message = "GEO 更新成功：已检查完成，当前已是最新"
-        else:
-            message = "GEO 更新已执行：成功但无法确认是否有新数据"
-    elif geo_db_result["status"] == "failed" and failed_count > 0:
-        message = "GEO 更新失败：GEO 库和规则提供者都存在失败"
-    elif geo_db_result["status"] == "failed":
-        message = "GEO 更新部分失败：GEO 库更新失败"
-    elif failed_count > 0:
-        message = "GEO 更新部分失败：规则提供者更新失败"
-    else:
-        message = "GEO 更新部分失败或未执行"
-
-    geo_db_summary = format_geo_db_summary(geo_db_result)
-    rules_summary = (
-        f"规则提供者：成功 {updated_count}/{total_count}，失败 {failed_count}，"
-        f"有更新 {provider_changed_count}，无变化 {provider_unchanged_count}"
-    )
-    if provider_unknown_count:
-        rules_summary = f"{rules_summary}，结果未知 {provider_unknown_count}"
-    if provider_after_error:
-        rules_summary = f"{rules_summary}（结果比对失败: {provider_after_error}）"
-
-    return jsonify(
-        {
-            "success": True,
-            "data": {
-                "ok": overall_ok,
-                "message": message,
-                "new_data": new_data_state,
-                "check": check_result,
-                "geo_db": geo_db_result,
-                "rule_providers": {
-                    "total": total_count,
-                    "updated": updated_count,
-                    "failed": failed_count,
-                    "changed": provider_changed_count,
-                    "unchanged": provider_unchanged_count,
-                    "unknown": provider_unknown_count,
-                    "compare_error": provider_after_error,
-                    "items": provider_items,
-                },
-                "update_summary": {
-                    "overall_ok": overall_ok,
-                    "overall_status": "success" if overall_ok else "partial_failed",
-                    "new_data": new_data_state,
-                    "message": message,
-                    "geo_db": geo_db_summary,
-                    "rules": rules_summary,
-                    "failed_rules": provider_failed_names,
-                },
-            },
-        }
-    )
+    return jsonify({"success": True, "data": result})
 
 
 @app.route("/api/clash/groups", methods=["GET"])
@@ -3092,7 +1715,7 @@ def get_override_script():
 def put_override_script():
     body = ensure_json_body()
     content = str(body.get("content", ""))
-    ok, reason = validate_js_override(content)
+    ok, reason = validate_js_override(content, node_bin=NODE_BIN, timeout=JS_VALIDATE_TIMEOUT)
     if not ok:
         return json_error(f"javascript error: {reason}", 400)
     make_backup(OVERRIDE_SCRIPT_FILE, "override_js")
@@ -3226,7 +1849,7 @@ def put_file(key):
         elif suffix == ".py":
             compile(content, str(path), "exec")
         elif suffix == ".js":
-            ok, reason = validate_js_override(content)
+            ok, reason = validate_js_override(content, node_bin=NODE_BIN, timeout=JS_VALIDATE_TIMEOUT)
             if not ok:
                 raise ValueError(reason)
     except Exception as exc:
@@ -3240,18 +1863,14 @@ def put_file(key):
 
 @app.route("/api/logs", methods=["GET"])
 def get_logs():
-    with log_lock:
-        items = list(log_history[-200:])
+    items = get_recent_logs(limit=200)
     return jsonify({"success": True, "data": items})
 
 
 @app.route("/api/logs/stream", methods=["GET"])
 def log_stream():
     def generate():
-        q: queue.Queue = queue.Queue(maxsize=128)
-        with log_lock:
-            log_queues.append(q)
-            history = list(log_history[-30:])
+        q, history = subscribe_log_queue(maxsize=128, history_limit=30)
         try:
             for item in history:
                 yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
@@ -3262,11 +1881,7 @@ def log_stream():
                 except queue.Empty:
                     yield ": ping\n\n"
         finally:
-            with log_lock:
-                try:
-                    log_queues.remove(q)
-                except ValueError:
-                    pass
+            unsubscribe_log_queue(q)
 
     return Response(
         stream_with_context(generate()),
