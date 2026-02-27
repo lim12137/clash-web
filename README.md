@@ -107,6 +107,21 @@ graph TB
 
 ### 方式一：镜像部署（推荐）
 
+#### Base 镜像 + 宿主机代码（快速迭代）
+
+```powershell
+# 1) 准备环境变量
+Copy-Item .env.base.example .env
+# 修改 IMAGE_REF=ghcr.io/<owner>/clash2web-base:latest
+
+# 2) 启动（代码直接使用宿主机 ./scripts ./web）
+docker compose -f docker-compose.base.yml pull
+docker compose -f docker-compose.base.yml up -d
+
+# 3) 健康检查
+Invoke-WebRequest http://127.0.0.1:18080/api/health
+```
+
 **前提条件**
 - ✅ Docker 与 Docker Compose 已安装
 - ✅ 当前目录包含本仓库文件
