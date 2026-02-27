@@ -193,3 +193,79 @@
 - 更新成功后会显示版本变更和重启状态，失败时显示错误原因。
 - 内核卡片新增“更新过程日志”，通过 SSE 日志流实时展示内核更新关键阶段。
 - 更新过程日志已升级为“阶段标签 + 颜色分级”（请求/准备/下载/校验/自检/完成/重启/失败）。
+
+## 增量记录（2026-02-27 路由与启动链路修复）
+
+### 本轮目标
+- 审核并修复 `proxy-records` 改造后的关键回归风险。
+- 修复 API 启动链路，确保容器场景使用 gunicorn。
+- 完成接口回归：`/api/health`、`/api/proxy-records*`、`/api/status`、`/`。
+
+### 实施结果
+1. 代码问题定位（已完成）
+   - 发现 `scripts/api_server.py` 存在 `IndentationError`，导致文件无法解析。
+   - 发现 `entrypoint.sh` 已改用 `gunicorn`，但 `Dockerfile` 未安装 `gunicorn`。
+   - 发现新增路由位置和 `__main__` 启动逻辑耦合，存在脚本模式下路由未注册风险。
+
+2. 代码修复（已完成）
+   - `scripts/api_server.py`：
+     - 清理损坏的重复 gunicorn 启动片段并修复缩进。
+     - 新增 `start_runtime_services()`，将 `bootstrap_files` 与后台线程初始化从 `__main__` 中抽离，兼容 gunicorn 模块导入。
+     - 本地脚本启动改为 `threaded=False`，规避 Flask 内置 threaded 路由异常风险。
+     - 保留并修正 `proxy-records` 路由及 `web_entry` 兜底匹配逻辑。
+   - `entrypoint.sh`：
+     - API 启动改为 `\"${PYTHON_BIN}\" -m gunicorn api_server:app ...`。
+   - `Dockerfile`：
+     - `pip3 install` 增加 `gunicorn`。
+
+3. 运行与回归（已完成）
+   - 语法检查通过：
+     - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py`
+     - `node --check web/app.js`
+   - 容器接口回归通过（HTTP 200）：
+     - `GET /api/health`
+     - `GET /api/proxy-records`
+     - `POST /api/proxy-records`
+     - `GET /api/proxy-records/stats`
+     - `GET /api/status`
+     - `GET /`
+
+### 当前阻塞与结论
+- 远程镜像 `ghcr.io/lim12137/clash2web:latest`（`dd4737a2dd4b`）仍为旧启动逻辑：
+  - 容器内 `/entrypoint.sh` 仍是 `\"${PYTHON_BIN}\" /scripts/api_server.py`。
+  - 运行日志显示 Flask dev server，而非 gunicorn。
+- 已定位本机构建脚本：`scripts/build_with_proxy.bat`。
+- 已确认本地镜像存在：`nexent:proxy-test`、`nexent:proxy-test-arg`（`621b9f179824`）。
+
+### 下一步
+- 使用本地镜像（如 `IMAGE_REF=nexent:proxy-test`）进行部署回归，或先将最新镜像推送后再切回远程 `latest`。
+
+## 增量记录（2026-02-27 本地镜像部署回归）
+
+### 本轮目标
+- 执行上一轮“下一步”，基于本地镜像 `nexent:proxy-test` 完成部署回归。
+
+### 问题定位
+- 首次启动容器持续重启，日志报错：`exec /entrypoint.sh: no such file or directory`。
+- 根因为 `entrypoint.sh` 使用 CRLF，容器 shebang 解析为 `/bin/sh\r` 导致启动失败。
+
+### 修复动作
+1. 将 `entrypoint.sh` 换行统一为 LF（已完成）。
+2. 新增 `.gitattributes` 规则 `*.sh text eol=lf`，防止后续再次引入 CRLF（已完成）。
+3. 重建镜像并回归：
+   - `docker build --pull=false -t nexent:proxy-test .`
+   - `IMAGE_REF=nexent:proxy-test docker compose up -d --pull never`
+
+### 回归验证
+- 容器状态：`clash-meta-manager` 为 `healthy`。
+- 接口回归（HTTP 200）：
+  - `GET /api/health`
+  - `GET /api/proxy-records`
+  - `POST /api/proxy-records`
+  - `GET /api/proxy-records/stats`
+  - `GET /api/status`
+  - `GET /`
+- 进程验证：容器内 API 进程为 `python3 -m gunicorn api_server:app ...`（非 Flask dev server）。
+
+### 当前状态
+- 本地镜像部署回归已闭环，可继续“推送最新镜像到远程并切回 `ghcr.io/lim12137/clash2web:latest`”。

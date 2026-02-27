@@ -16,6 +16,7 @@ import threading
 import time
 import hashlib
 import gzip
+from collections import Counter
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -46,6 +47,7 @@ SCHEDULE_FILE = SCRIPTS_DIR / "schedule.json"
 SCHEDULE_HISTORY_FILE = SCRIPTS_DIR / "schedule_history.json"
 PROVIDER_RECOVERY_FILE = SCRIPTS_DIR / "provider_recovery_state.json"
 MERGE_SCRIPT_FILE = SCRIPTS_DIR / "merge.py"
+PROXY_RECORDS_FILE = SCRIPTS_DIR / "proxy_records.json"
 
 PYTHON_BIN = os.environ.get("PYTHON_BIN", "/usr/bin/python3")
 NODE_BIN = os.environ.get("NODE_BIN", "node")
@@ -1328,27 +1330,6 @@ def now_iso() -> str:
 def add_minutes_iso(minutes: int) -> str:
     next_dt = datetime.now().timestamp() + minutes * 60
     return datetime.fromtimestamp(next_dt).replace(microsecond=0).isoformat()
-
-
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def web_entry(path: str):
-    if path.startswith("api/"):
-        return json_error("not found", 404)
-    if not WEB_DIR.exists():
-        return json_error(f"web dir not found: {WEB_DIR}", 404)
-
-    safe_root = WEB_DIR.resolve()
-    target = (safe_root / path).resolve()
-    inside_root = target == safe_root or safe_root in target.parents
-
-    if path and inside_root and target.exists() and target.is_file():
-        return send_from_directory(str(safe_root), path)
-
-    index_file = safe_root / "index.html"
-    if index_file.exists():
-        return send_from_directory(str(safe_root), "index.html")
-    return json_error("index.html not found", 404)
 
 
 @app.route("/api/health", methods=["GET"])
@@ -3376,30 +3357,271 @@ def bootstrap_files():
     sync_override_script_with_sets(load_subscription_sets())
 
 
+# ==================== Proxy Records ====================
+
+MAX_PROXY_RECORDS = 1000
+
+
+def _load_proxy_records() -> dict:
+    """加载代理记录数据"""
+    try:
+        if PROXY_RECORDS_FILE.exists():
+            with open(PROXY_RECORDS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"records": [], "version": 1}
+
+
+def _save_proxy_records(data: dict) -> bool:
+    """保存代理记录数据"""
+    try:
+        with open(PROXY_RECORDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+def _cleanup_old_records(records: list, max_count: int = MAX_PROXY_RECORDS) -> list:
+    """清理旧记录，只保留最新的指定数量"""
+    if len(records) <= max_count:
+        return records
+    # 按时间戳排序，保留最新的
+    sorted_records = sorted(records, key=lambda x: x.get("timestamp", 0), reverse=True)
+    return sorted_records[:max_count]
+
+
+@app.route("/api/proxy-records", methods=["GET"])
+def get_proxy_records():
+    """获取代理记录列表，支持筛选"""
+    try:
+        data = _load_proxy_records()
+        records = data.get("records", [])
+
+        # 获取筛选参数
+        keyword = request.args.get("keyword", "").strip().lower()
+        subscription = request.args.get("subscription", "").strip()
+        record_type = request.args.get("type", "").strip()
+        limit = request.args.get("limit", 100)
+        try:
+            limit = int(limit)
+            limit = max(10, min(500, limit))
+        except Exception:
+            limit = 100
+
+        # 应用筛选
+        filtered = records
+        if keyword:
+            filtered = [
+                r for r in filtered
+                if keyword in r.get("proxy_name", "").lower()
+                or keyword in r.get("group_name", "").lower()
+                or keyword in r.get("target_node", "").lower()
+            ]
+        if subscription:
+            filtered = [
+                r for r in filtered
+                if subscription.lower() in r.get("subscription", "").lower()
+            ]
+        if record_type:
+            filtered = [r for r in filtered if r.get("type") == record_type]
+
+        # 按时间倒序排列
+        filtered = sorted(filtered, key=lambda x: x.get("timestamp", 0), reverse=True)
+
+        # 限制返回数量
+        result = filtered[:limit]
+
+        # 获取统计信息
+        stats = {
+            "total": len(records),
+            "filtered": len(filtered),
+            "returned": len(result),
+        }
+
+        return jsonify({"success": True, "data": result, "stats": stats})
+    except Exception as exc:
+        return json_error(f"failed to load proxy records: {exc}", 500)
+
+
+@app.route("/api/proxy-records", methods=["POST"])
+@require_write_auth
+def add_proxy_record():
+    """添加代理记录"""
+    body = ensure_json_body()
+    try:
+        data = _load_proxy_records()
+        records = data.get("records", [])
+
+        record = {
+            "id": f"rec_{int(time.time() * 1000)}_{len(records)}",
+            "timestamp": int(time.time()),
+            "type": str(body.get("type", "switch")),  # switch, test, select
+            "proxy_name": str(body.get("proxy_name", "")),
+            "group_name": str(body.get("group_name", "")),
+            "target_node": str(body.get("target_node", "")),
+            "subscription": str(body.get("subscription", "")),
+            "provider": str(body.get("provider", "")),
+            "delay_ms": body.get("delay_ms", -1),
+            "success": bool(body.get("success", True)),
+            "note": str(body.get("note", "")),
+        }
+
+        records.append(record)
+        records = _cleanup_old_records(records)
+        data["records"] = records
+
+        if _save_proxy_records(data):
+            return jsonify({"success": True, "record": record})
+        return json_error("failed to save proxy record", 500)
+    except Exception as exc:
+        return json_error(f"failed to add proxy record: {exc}", 500)
+
+
+@app.route("/api/proxy-records/<record_id>", methods=["DELETE"])
+@require_write_auth
+def delete_proxy_record(record_id):
+    """删除指定代理记录"""
+    try:
+        data = _load_proxy_records()
+        records = data.get("records", [])
+
+        original_count = len(records)
+        records = [r for r in records if r.get("id") != record_id]
+
+        if len(records) == original_count:
+            return json_error("record not found", 404)
+
+        data["records"] = records
+        if _save_proxy_records(data):
+            return jsonify({"success": True})
+        return json_error("failed to save proxy records", 500)
+    except Exception as exc:
+        return json_error(f"failed to delete proxy record: {exc}", 500)
+
+
+@app.route("/api/proxy-records/clear", methods=["POST"])
+@require_write_auth
+def clear_proxy_records():
+    """清空所有代理记录"""
+    try:
+        body = ensure_json_body() or {}
+        confirm = str(body.get("confirm", ""))
+        if confirm != "yes":
+            return json_error("confirmation required", 400)
+
+        data = {"records": [], "version": 1}
+        if _save_proxy_records(data):
+            emit_log("proxy records cleared")
+            return jsonify({"success": True})
+        return json_error("failed to clear proxy records", 500)
+    except Exception as exc:
+        return json_error(f"failed to clear proxy records: {exc}", 500)
+
+
+@app.route("/api/proxy-records/stats", methods=["GET"])
+def get_proxy_records_stats():
+    """获取代理记录统计信息"""
+    try:
+        data = _load_proxy_records()
+        records = data.get("records", [])
+
+        subscriptions = Counter(r.get("subscription", "未知") for r in records)
+        providers = Counter(r.get("provider", "未知") for r in records)
+        types = Counter(r.get("type", "unknown") for r in records)
+
+        daily_counts = Counter()
+        for r in records:
+            ts = r.get("timestamp", 0)
+            if ts:
+                day = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                daily_counts[day] += 1
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "total": len(records),
+                "subscriptions": dict(subscriptions),
+                "providers": dict(providers),
+                "types": dict(types),
+                "daily_counts": dict(daily_counts),
+            }
+        })
+    except Exception as exc:
+        return json_error(f"failed to get proxy records stats: {exc}", 500)
+
+
+# === WEB ENTRY ===
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def web_entry(path: str):
+    # Skip API-like paths so explicit routes handle them.
+    if (
+        path in {"api", "clash-api", "logs"}
+        or path.startswith("api/")
+        or path.startswith("clash-api/")
+        or path.startswith("logs/")
+    ):
+        return json_error("not found", 404)
+
+    if not WEB_DIR.exists():
+        return json_error(f"web dir not found: {WEB_DIR}", 404)
+
+    safe_root = WEB_DIR.resolve()
+    target = (safe_root / path).resolve()
+    inside_root = target == safe_root or safe_root in target.parents
+
+    if path and inside_root and target.exists() and target.is_file():
+        return send_from_directory(str(safe_root), path)
+
+    index_file = safe_root / "index.html"
+    if index_file.exists():
+        return send_from_directory(str(safe_root), "index.html")
+    return json_error("index.html not found", 404)
+
+
+runtime_init_lock = threading.Lock()
+runtime_initialized = False
+
+
+def start_runtime_services() -> None:
+    global runtime_initialized
+    with runtime_init_lock:
+        if runtime_initialized:
+            return
+        bootstrap_files()
+        threading.Thread(target=scheduler_loop, daemon=True).start()
+        threading.Thread(target=provider_auto_recovery_loop, daemon=True).start()
+        emit_log(
+            (
+                "provider auto-refresh "
+                f"{'enabled' if PROVIDER_AUTO_REFRESH_ENABLED else 'disabled'}, "
+                f"interval={PROVIDER_RECOVERY_CHECK_INTERVAL}s, "
+                f"zero_window={PROVIDER_ZERO_ALIVE_MINUTES}m, "
+                f"max_per_day={PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
+            )
+        )
+        emit_log(
+            (
+                "kernel update "
+                f"repo={DEFAULT_CORE_REPO}, allowed={','.join(sorted(CORE_UPDATE_ALLOWED_REPOS))}, "
+                f"checksum_required={CORE_UPDATE_REQUIRE_CHECKSUM}, core_bin={MIHOMO_BIN}"
+            )
+        )
+        runtime_initialized = True
+
+
+# Gunicorn imports `api_server:app` directly, so init must happen outside __main__.
+start_runtime_services()
+
+
 if __name__ == "__main__":
-    bootstrap_files()
-    threading.Thread(target=scheduler_loop, daemon=True).start()
-    threading.Thread(target=provider_auto_recovery_loop, daemon=True).start()
     host = os.environ.get("API_HOST", "0.0.0.0")
     try:
         port = int(os.environ.get("API_PORT", "19092"))
     except ValueError:
         port = 19092
-    emit_log(
-        (
-            "provider auto-refresh "
-            f"{'enabled' if PROVIDER_AUTO_REFRESH_ENABLED else 'disabled'}, "
-            f"interval={PROVIDER_RECOVERY_CHECK_INTERVAL}s, "
-            f"zero_window={PROVIDER_ZERO_ALIVE_MINUTES}m, "
-            f"max_per_day={PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
-        )
-    )
-    emit_log(
-        (
-            "kernel update "
-            f"repo={DEFAULT_CORE_REPO}, allowed={','.join(sorted(CORE_UPDATE_ALLOWED_REPOS))}, "
-            f"checksum_required={CORE_UPDATE_REQUIRE_CHECKSUM}, core_bin={MIHOMO_BIN}"
-        )
-    )
     emit_log(f"management api starting on {host}:{port}")
-    app.run(host=host, port=port, debug=False, threaded=True)
+    # Keep local script mode single-threaded to avoid routing anomalies in Werkzeug threaded mode.
+    app.run(host=host, port=port, debug=False, threaded=False)

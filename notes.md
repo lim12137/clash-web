@@ -56,3 +56,34 @@
   - `-1` -> `超时`
   - `>=0` -> `${delay} ms`
 - 节点切换右上新增手动“测延时”按钮；测试中禁用防重复点击。
+
+## 增量笔记（2026-02-27）
+
+### 路由与启动链路
+- `scripts/api_server.py` 已修复结构性问题（缩进错误、重复启动块、初始化位置）。
+- 初始化改为 `start_runtime_services()`，兼容 gunicorn 的模块导入方式。
+- `entrypoint.sh` 已改为 `\"${PYTHON_BIN}\" -m gunicorn api_server:app`。
+- `Dockerfile` 已补充 `gunicorn` 安装。
+
+### 镜像与验证结论
+- 接口回归已通过：`/api/health`、`/api/proxy-records*`、`/api/status`、`/`。
+- 远程 `ghcr.io/lim12137/clash2web:latest`（`dd4737a2dd4b`）仍是旧入口脚本，容器中实际运行 Flask dev server。
+- 本地可用镜像：`nexent:proxy-test`、`nexent:proxy-test-arg`（`621b9f179824`）。
+- 本地代理构建脚本：`scripts/build_with_proxy.bat`（会先 pull 镜像站 alpine，再本地 build）。
+
+## 增量笔记（2026-02-27 本地镜像部署回归）
+
+### 关键发现
+- 按“下一步”使用 `IMAGE_REF=nexent:proxy-test` 回归时，容器持续重启。
+- `docker logs` 报错：`exec /entrypoint.sh: no such file or directory`。
+- 根因为 `entrypoint.sh` 被 CRLF 破坏 shebang 解析（`/bin/sh\r`）。
+
+### 修复与防回归
+- 将 `entrypoint.sh` 统一为 LF。
+- 新增 `.gitattributes`：`*.sh text eol=lf`，防止再次写入 CRLF。
+- 重建镜像：`docker build --pull=false -t nexent:proxy-test .`。
+
+### 回归结论
+- `docker compose up -d --pull never` 启动成功，容器状态 `healthy`。
+- `GET /api/health`、`GET /api/proxy-records`、`POST /api/proxy-records`、`GET /api/proxy-records/stats`、`GET /api/status`、`GET /` 全部 200。
+- 容器内 API 进程确认为 `python3 -m gunicorn api_server:app ...`。

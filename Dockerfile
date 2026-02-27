@@ -4,7 +4,7 @@ RUN apk add --no-cache \
     bash curl jq nginx tzdata ca-certificates wget nodejs \
     python3 py3-pip py3-yaml py3-requests
 
-RUN pip3 install --break-system-packages flask flask-cors
+RUN pip3 install --break-system-packages flask flask-cors gunicorn
 
 ARG TARGETARCH=amd64
 RUN set -eux; \

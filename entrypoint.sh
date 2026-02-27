@@ -192,7 +192,7 @@ if ! kernel_self_check "${MIHOMO_BIN}"; then
 fi
 
 if [ -f /scripts/api_server.py ]; then
-  "${PYTHON_BIN}" /scripts/api_server.py &
+  cd /scripts && "${PYTHON_BIN}" -m gunicorn api_server:app -b 0.0.0.0:${API_PORT} -w 1 --threads 4 --timeout 120 --keep-alive 5 &
   echo "[ok] api server started on ${API_PORT}"
 fi
 

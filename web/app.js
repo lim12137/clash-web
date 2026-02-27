@@ -63,6 +63,7 @@ const SECTION_TITLES = {
   config: "配置",
   logs: "日志",
   connections: "连接",
+  "proxy-records": "代理记录",
   settings: "设置",
 };
 
@@ -2586,11 +2587,23 @@ function createNodeCard(nodeName, group) {
       });
       showToast(`已切换到: ${nodeName}`);
 
+      // 记录代理切换
+      const providerName = nodeProviderMap.get(nodeName) || "";
+      recordProxySwitch(group.name, nodeName, {
+        provider: providerName,
+        success: true,
+      });
+
       // 更新本地状态并重新渲染
       group.now = nodeName;
       renderNodesGrid();
     } catch (err) {
       showToast(`切换失败: ${err.message}`);
+      // 记录失败的切换
+      recordProxySwitch(group.name, nodeName, {
+        success: false,
+        note: err.message,
+      });
     }
   };
 
@@ -2646,6 +2659,12 @@ async function testAllNodeLatencies() {
           const delay = await testSingleNodeLatency(nodeName);
           nodeLatencies.set(nodeName, delay);
           updateNodeLatencyDisplay(nodeName, delay);
+          // 记录测速结果
+          const providerName = nodeProviderMap.get(nodeName) || "";
+          recordProxyTest(nodeName, delay, {
+            provider: providerName,
+            success: delay > 0,
+          });
         })
       );
     }
@@ -2917,6 +2936,19 @@ function bindEvents() {
   };
   document.getElementById("history-only-scheduler").onchange = renderScheduleHistory;
   document.getElementById("history-only-failed").onchange = renderScheduleHistory;
+
+  // 代理记录事件绑定
+  document.getElementById("reload-proxy-records").onclick = loadProxyRecords;
+  document.getElementById("clear-proxy-records").onclick = clearProxyRecords;
+  document.getElementById("apply-proxy-record-filters").onclick = loadProxyRecords;
+  document.getElementById("reset-proxy-record-filters").onclick = resetProxyRecordFilters;
+  document.getElementById("proxy-record-keyword").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") loadProxyRecords();
+  });
+  document.getElementById("proxy-record-subscription").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") loadProxyRecords();
+  });
+
   document.getElementById("bulk-import-submit").onclick = applyBulkImportRows;
   document.getElementById("bulk-import-cancel").onclick = closeBulkImportModal;
   document.getElementById("bulk-import-modal").onclick = (evt) => {
@@ -2950,11 +2982,187 @@ async function boot() {
   await loadGroups();
   await loadSchedule();
   await loadScheduleHistory();
+  await loadProxyRecords();
   await loadEditor();
   setInterval(refreshStatus, 5000);
   setInterval(() => loadKernelStatusAndHistory(true), 30000);
   setInterval(loadSchedule, 30000);
   setInterval(loadScheduleHistory, 30000);
+}
+
+// ==================== Proxy Records Functions ====================
+
+let currentProxyRecords = [];
+
+function formatRecordTime(timestamp) {
+  if (!timestamp) return "-";
+  const dt = new Date(timestamp * 1000);
+  return dt.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+// 代理记录类型配置
+const RECORD_TYPE_CONFIG = {
+  switch: { label: "切换", class: "badge warn" },
+  test: { label: "测速", class: "badge info" },
+  select: { label: "选择", class: "badge success" },
+};
+
+function getRecordTypeLabel(type) {
+  return RECORD_TYPE_CONFIG[type]?.label || type || "未知";
+}
+
+function getRecordTypeClass(type) {
+  return RECORD_TYPE_CONFIG[type]?.class || "badge";
+}
+
+async function loadProxyRecords() {
+  const keyword = document.getElementById("proxy-record-keyword")?.value?.trim() || "";
+  const subscription = document.getElementById("proxy-record-subscription")?.value?.trim() || "";
+  const type = document.getElementById("proxy-record-type")?.value || "";
+  const limit = document.getElementById("proxy-record-limit")?.value || "100";
+
+  const params = new URLSearchParams();
+  if (keyword) params.append("keyword", keyword);
+  if (subscription) params.append("subscription", subscription);
+  if (type) params.append("type", type);
+  params.append("limit", limit);
+
+  try {
+    const result = await api(`/proxy-records?${params.toString()}`);
+    currentProxyRecords = result.data || [];
+    renderProxyRecords(result.stats);
+  } catch (err) {
+    showToast(`加载代理记录失败: ${err.message}`);
+    renderProxyRecords({ total: 0, filtered: 0, returned: 0 });
+  }
+}
+
+// 获取延迟等级信息
+function getDelayInfo(delayMs) {
+  if (delayMs <= 0) {
+    return { text: "-", class: "" };
+  }
+  let cssClass;
+  if (delayMs < 200) {
+    cssClass = "success";
+  } else if (delayMs < 500) {
+    cssClass = "warn";
+  } else {
+    cssClass = "error";
+  }
+  return { text: `${delayMs}ms`, class: cssClass };
+}
+
+function renderProxyRecords(stats) {
+  const tbody = document.getElementById("proxy-records-tbody");
+  const statsEl = document.getElementById("proxy-records-stats");
+
+  if (!tbody || !statsEl) return;
+
+  statsEl.textContent = `总计: ${stats.total} 条 | 筛选后: ${stats.filtered} 条 | 显示: ${stats.returned} 条`;
+
+  if (!currentProxyRecords || currentProxyRecords.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">暂无记录</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = currentProxyRecords
+    .map((record) => {
+      const delayInfo = getDelayInfo(record.delay_ms);
+      const statusText = record.success !== false ? "成功" : "失败";
+      const statusClass = record.success !== false ? "success" : "error";
+
+      return `
+      <tr>
+        <td>${formatRecordTime(record.timestamp)}</td>
+        <td><span class="${getRecordTypeClass(record.type)}">${getRecordTypeLabel(record.type)}</span></td>
+        <td>${escapeHtml(record.group_name || "-")}</td>
+        <td>${escapeHtml(record.target_node || record.proxy_name || "-")}</td>
+        <td>${escapeHtml(record.subscription || "-")}</td>
+        <td class="${delayInfo.class}">${delayInfo.text}</td>
+        <td><span class="badge ${statusClass}">${statusText}</span></td>
+        <td>
+          <button class="btn-small" onclick="deleteProxyRecord('${record.id}')">删除</button>
+        </td>
+      </tr>
+    `;
+    })
+    .join("");
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function deleteProxyRecord(recordId) {
+  if (!confirm("确定要删除这条记录吗？")) return;
+
+  try {
+    await api(`/proxy-records/${recordId}`, { method: "DELETE" });
+    showToast("记录已删除");
+    await loadProxyRecords();
+  } catch (err) {
+    showToast(`删除失败: ${err.message}`);
+  }
+}
+
+async function clearProxyRecords() {
+  if (!confirm("确定要清空所有代理记录吗？此操作不可恢复。")) return;
+
+  try {
+    await api("/proxy-records/clear", {
+      method: "POST",
+      body: { confirm: "yes" },
+    });
+    showToast("记录已清空");
+    await loadProxyRecords();
+  } catch (err) {
+    showToast(`清空失败: ${err.message}`);
+  }
+}
+
+function resetProxyRecordFilters() {
+  document.getElementById("proxy-record-keyword").value = "";
+  document.getElementById("proxy-record-subscription").value = "";
+  document.getElementById("proxy-record-type").value = "";
+  document.getElementById("proxy-record-limit").value = "100";
+  loadProxyRecords();
+}
+
+// 记录代理事件的通用函数
+async function recordProxyEvent(recordType, data, extra = {}) {
+  const record = {
+    type: recordType,
+    ...data,
+    subscription: extra.subscription || "",
+    provider: extra.provider || "",
+    delay_ms: extra.delay_ms ?? -1,
+    success: extra.success !== false,
+    note: extra.note || "",
+  };
+  try {
+    await api("/proxy-records", { method: "POST", body: record });
+  } catch (err) {
+    console.error(`Failed to record proxy ${recordType}:`, err);
+  }
+}
+
+// 记录代理切换事件
+function recordProxySwitch(groupName, targetNode, extra = {}) {
+  return recordProxyEvent("switch", { group_name: groupName, target_node: targetNode }, extra);
+}
+
+// 记录代理测速事件
+function recordProxyTest(proxyName, delayMs, extra = {}) {
+  return recordProxyEvent("test", { proxy_name: proxyName, target_node: proxyName, delay_ms: delayMs }, extra);
 }
 
 boot();

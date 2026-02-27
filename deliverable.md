@@ -91,3 +91,61 @@
   - 节点切换页支持自动批量测延迟。
   - 右上新增手动“测延时”按钮。
   - 超时明确显示为“超时”。
+
+## 增量交付（2026-02-27 路由与启动链路修复）
+
+14. 后端启动与路由稳定性修复
+- 文件: `scripts/api_server.py`, `entrypoint.sh`, `Dockerfile`
+- 目标:
+  - 修复 `proxy-records` 相关改造后的结构性问题与启动链路风险。
+  - 让容器路径使用 gunicorn，避免 Flask threaded 模式潜在异常。
+
+- 变更:
+  - `scripts/api_server.py`
+    - 修复尾部损坏代码（缩进错误、重复 gunicorn 启动段）。
+    - 新增 `start_runtime_services()`，将 `bootstrap_files` 和后台线程初始化从 `__main__` 抽离，兼容 gunicorn `api_server:app` 导入模式。
+    - 脚本直跑模式改为 `threaded=False`。
+    - 保留并修正 `proxy-records` 路由与 `web_entry` 兜底规则。
+  - `entrypoint.sh`
+    - API 启动改为 `\"${PYTHON_BIN}\" -m gunicorn api_server:app -b 0.0.0.0:${API_PORT} -w 1 --threads 4 --timeout 120 --keep-alive 5 &`。
+  - `Dockerfile`
+    - `pip3 install` 增加 `gunicorn`。
+
+- 验证:
+  - 语法检查通过：
+    - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py`
+    - `node --check web/app.js`
+  - 接口回归通过（HTTP 200）：
+    - `GET /api/health`
+    - `GET /api/proxy-records`
+    - `POST /api/proxy-records`
+    - `GET /api/proxy-records/stats`
+    - `GET /api/status`
+    - `GET /`
+
+- 额外结论:
+  - 远程镜像 `ghcr.io/lim12137/clash2web:latest`（当前拉取到 `dd4737a2dd4b`）仍包含旧版 `/entrypoint.sh`（`python /scripts/api_server.py`），运行时仍为 Flask dev server。
+  - 本地已存在可测镜像：`nexent:proxy-test`、`nexent:proxy-test-arg`（`621b9f179824`）。
+  - 本地构建脚本：`scripts/build_with_proxy.bat`。
+
+## 增量交付（2026-02-27 本地镜像部署回归闭环）
+
+15. 本地镜像部署回归与启动故障修复
+- 文件: `entrypoint.sh`, `.gitattributes`
+- 问题:
+  - 使用本地镜像 `nexent:proxy-test` 部署时，容器重启并报错 `exec /entrypoint.sh: no such file or directory`。
+  - 根因为 `entrypoint.sh` 为 CRLF，容器 shebang 被解析为 `/bin/sh\r`。
+- 修复:
+  - 将 `entrypoint.sh` 统一为 LF。
+  - 新增 `.gitattributes`，固定 `*.sh text eol=lf`，防止回归。
+  - 重建镜像：`docker build --pull=false -t nexent:proxy-test .`。
+- 回归:
+  - `docker compose up -d --pull never` 启动后容器 `healthy`。
+  - 以下接口均返回 200：
+    - `GET /api/health`
+    - `GET /api/proxy-records`
+    - `POST /api/proxy-records`
+    - `GET /api/proxy-records/stats`
+    - `GET /api/status`
+    - `GET /`
+  - 容器内 API 进程确认为 gunicorn：`python3 -m gunicorn api_server:app ...`。
