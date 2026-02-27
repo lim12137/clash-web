@@ -20,7 +20,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 import signal
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import requests
 import yaml
@@ -37,127 +37,17 @@ from api.services.geo_service import GeoService
 from api.services.kernel_service import KernelService
 from api.services.merge_service import MergeService
 from api.services.provider_service import ProviderService
+from api.common.config import get_config
 
-BASE_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
-SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
-PROJECT_DIR = SCRIPTS_DIR.parent
-WEB_DIR = Path(os.environ.get("WEB_DIR", str(PROJECT_DIR / "web")))
+cfg = get_config()
 
-SUBS_DIR = BASE_DIR / "subs"
-BACKUP_DIR = BASE_DIR / "backups"
-CONFIG_FILE = BASE_DIR / "config.yaml"
-
-SUBS_CONFIG = SCRIPTS_DIR / "subscriptions.json"
-OVERRIDE_FILE = SCRIPTS_DIR / "override.yaml"
-OVERRIDE_SCRIPT_FILE = SCRIPTS_DIR / "override.js"
-TEMPLATE_FILE = SCRIPTS_DIR / "template.yaml"
-SITE_POLICY_FILE = SCRIPTS_DIR / "site_policy.yaml"
-SUBSCRIPTION_SETS_FILE = SCRIPTS_DIR / "subscription_sets.json"
-SCHEDULE_FILE = SCRIPTS_DIR / "schedule.json"
-SCHEDULE_HISTORY_FILE = SCRIPTS_DIR / "schedule_history.json"
-PROVIDER_RECOVERY_FILE = SCRIPTS_DIR / "provider_recovery_state.json"
-MERGE_SCRIPT_FILE = SCRIPTS_DIR / "merge.py"
-PROXY_RECORDS_FILE = SCRIPTS_DIR / "proxy_records.json"
-
-PYTHON_BIN = os.environ.get("PYTHON_BIN", "/usr/bin/python3")
-NODE_BIN = os.environ.get("NODE_BIN", "node")
-JS_VALIDATE_TIMEOUT = int(os.environ.get("JS_VALIDATE_TIMEOUT", "10"))
-CLASH_API = os.environ.get("CLASH_API", "http://127.0.0.1:9090")
-CLASH_SECRET = os.environ.get("CLASH_SECRET", "")
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
-MIHOMO_CORE_DIR = Path(os.environ.get("MIHOMO_CORE_DIR", "/opt/mihomo-core"))
-MIHOMO_BIN = Path(os.environ.get("MIHOMO_BIN", str(MIHOMO_CORE_DIR / "mihomo")))
-MIHOMO_PREV_BIN = Path(os.environ.get("MIHOMO_PREV_BIN", str(MIHOMO_CORE_DIR / "mihomo.prev")))
-
-CORE_UPDATE_API = os.environ.get("CORE_UPDATE_API", "https://api.github.com").rstrip("/")
-DEFAULT_CORE_REPO = str(os.environ.get("CORE_UPDATE_REPO", "MetaCubeX/mihomo")).strip() or "MetaCubeX/mihomo"
-CORE_UPDATE_ALLOWED_REPOS = {
-    item.strip()
-    for item in str(os.environ.get("CORE_UPDATE_ALLOWED_REPOS", DEFAULT_CORE_REPO)).split(",")
-    if item.strip()
-}
-if DEFAULT_CORE_REPO not in CORE_UPDATE_ALLOWED_REPOS:
-    CORE_UPDATE_ALLOWED_REPOS.add(DEFAULT_CORE_REPO)
-
-CORE_UPDATE_REQUIRE_CHECKSUM = str(
-    os.environ.get("CORE_UPDATE_REQUIRE_CHECKSUM", "1")
-).strip().lower() in {"1", "true", "yes", "on"}
-try:
-    CORE_UPDATE_DOWNLOAD_TIMEOUT = max(
-        20,
-        int(os.environ.get("CORE_UPDATE_DOWNLOAD_TIMEOUT", "180")),
-    )
-except ValueError:
-    CORE_UPDATE_DOWNLOAD_TIMEOUT = 180
-try:
-    CORE_UPDATE_RESTART_DELAY = max(
-        0.5,
-        float(os.environ.get("CORE_UPDATE_RESTART_DELAY", "1.5")),
-    )
-except ValueError:
-    CORE_UPDATE_RESTART_DELAY = 1.5
-
-KERNEL_UPDATE_LOG_FILE = SCRIPTS_DIR / "kernel_update_history.jsonl"
-
-SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
-SAFE_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-AUTO_SET_BLOCK_START = "// === AUTO-SUB-SETS:START ==="
-AUTO_SET_BLOCK_END = "// === AUTO-SUB-SETS:END ==="
-MAX_SCHEDULE_HISTORY = 200
-SYSTEM_PROXY_NAMES = {"DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"}
-
-try:
-    PROVIDER_AUTO_REFRESH_MAX_PER_DAY = max(
-        1,
-        int(os.environ.get("PROVIDER_AUTO_REFRESH_MAX_PER_DAY", "3")),
-    )
-except ValueError:
-    PROVIDER_AUTO_REFRESH_MAX_PER_DAY = 3
-
-try:
-    PROVIDER_RECOVERY_CHECK_INTERVAL = max(
-        10,
-        int(os.environ.get("PROVIDER_RECOVERY_CHECK_INTERVAL", "60")),
-    )
-except ValueError:
-    PROVIDER_RECOVERY_CHECK_INTERVAL = 60
-
-try:
-    PROVIDER_ZERO_ALIVE_MINUTES = max(
-        1,
-        int(os.environ.get("PROVIDER_ZERO_ALIVE_MINUTES", "30")),
-    )
-except ValueError:
-    PROVIDER_ZERO_ALIVE_MINUTES = 30
-
-PROVIDER_AUTO_REFRESH_ENABLED = os.environ.get(
-    "PROVIDER_AUTO_REFRESH_ENABLED",
-    "1",
-).strip().lower() in {"1", "true", "yes", "on"}
-CONNECTION_RECORD_ENABLED = os.environ.get(
-    "CONNECTION_RECORD_ENABLED",
-    "1",
-).strip().lower() in {"1", "true", "yes", "on"}
-
-try:
-    CONNECTION_RECORD_INTERVAL = max(
-        3,
-        int(os.environ.get("CONNECTION_RECORD_INTERVAL", "6")),
-    )
-except ValueError:
-    CONNECTION_RECORD_INTERVAL = 6
-
-try:
-    MAX_PROXY_RECORDS = max(
-        100,
-        int(os.environ.get("MAX_PROXY_RECORDS", "1000")),
-    )
-except ValueError:
-    MAX_PROXY_RECORDS = 1000
+# Validate security settings on startup
+for warning in cfg.validate_security():
+    print(f"[Security] {warning}", flush=True)
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-configure_write_auth(ADMIN_TOKEN)
+configure_write_auth(cfg.auth.admin_token)
 
 merge_lock = threading.Lock()
 schedule_lock = threading.Lock()
@@ -168,25 +58,25 @@ restart_lock = threading.Lock()
 
 
 def clash_headers() -> dict:
-    return build_clash_headers(CLASH_SECRET)
+    return build_clash_headers(cfg.auth.clash_secret)
 
 
 def reload_clash() -> bool:
     return reload_clash_config(
-        config_file=CONFIG_FILE,
-        clash_api=CLASH_API,
-        clash_secret=CLASH_SECRET,
+        config_file=cfg.paths.config_file,
+        clash_api=cfg.auth.clash_api,
+        clash_secret=cfg.auth.clash_secret,
         emit_log=emit_log,
-        preferred_reload_path=os.environ.get("CLASH_RELOAD_PATH", "").strip(),
+        preferred_reload_path=cfg.runtime.clash_reload_path,
     )
 
 
 merge_service = MergeService(
-    python_bin=PYTHON_BIN,
-    merge_script_file=MERGE_SCRIPT_FILE,
-    schedule_file=SCHEDULE_FILE,
-    schedule_history_file=SCHEDULE_HISTORY_FILE,
-    max_schedule_history=MAX_SCHEDULE_HISTORY,
+    python_bin=cfg.runtime.python_bin,
+    merge_script_file=cfg.script_paths.merge_script_file,
+    schedule_file=cfg.script_paths.schedule_file,
+    schedule_history_file=cfg.script_paths.schedule_history_file,
+    max_schedule_history=cfg.constants.max_schedule_history,
     load_json=load_json,
     save_json=save_json,
     emit_log=emit_log,
@@ -197,13 +87,13 @@ merge_service = MergeService(
 )
 
 provider_service = ProviderService(
-    clash_api=CLASH_API,
+    clash_api=cfg.auth.clash_api,
     clash_headers=clash_headers,
-    provider_recovery_file=PROVIDER_RECOVERY_FILE,
-    provider_auto_refresh_enabled=PROVIDER_AUTO_REFRESH_ENABLED,
-    provider_recovery_check_interval=PROVIDER_RECOVERY_CHECK_INTERVAL,
-    provider_zero_alive_minutes=PROVIDER_ZERO_ALIVE_MINUTES,
-    provider_auto_refresh_max_per_day=PROVIDER_AUTO_REFRESH_MAX_PER_DAY,
+    provider_recovery_file=cfg.script_paths.provider_recovery_file,
+    provider_auto_refresh_enabled=cfg.provider.enabled,
+    provider_recovery_check_interval=cfg.provider.check_interval,
+    provider_zero_alive_minutes=cfg.provider.zero_alive_minutes,
+    provider_auto_refresh_max_per_day=cfg.provider.max_per_day,
     load_json=load_json,
     save_json=save_json,
     emit_log=emit_log,
@@ -211,33 +101,33 @@ provider_service = ProviderService(
 )
 
 kernel_service = KernelService(
-    base_dir=BASE_DIR,
-    config_file=CONFIG_FILE,
-    scripts_dir=SCRIPTS_DIR,
-    mihomo_core_dir=MIHOMO_CORE_DIR,
-    mihomo_bin=MIHOMO_BIN,
-    mihomo_prev_bin=MIHOMO_PREV_BIN,
-    core_update_api=CORE_UPDATE_API,
-    default_core_repo=DEFAULT_CORE_REPO,
-    core_update_allowed_repos=CORE_UPDATE_ALLOWED_REPOS,
-    core_update_require_checksum=CORE_UPDATE_REQUIRE_CHECKSUM,
-    core_update_download_timeout=CORE_UPDATE_DOWNLOAD_TIMEOUT,
-    core_update_restart_delay=CORE_UPDATE_RESTART_DELAY,
-    kernel_update_log_file=KERNEL_UPDATE_LOG_FILE,
+    base_dir=cfg.paths.base_dir,
+    config_file=cfg.paths.config_file,
+    scripts_dir=cfg.paths.scripts_dir,
+    mihomo_core_dir=cfg.paths.mihomo_core_dir,
+    mihomo_bin=cfg.paths.mihomo_bin,
+    mihomo_prev_bin=cfg.paths.mihomo_prev_bin,
+    core_update_api=cfg.kernel_update.api_url,
+    default_core_repo=cfg.kernel_update.default_repo,
+    core_update_allowed_repos=cfg.kernel_update.allowed_repos,
+    core_update_require_checksum=cfg.kernel_update.require_checksum,
+    core_update_download_timeout=cfg.kernel_update.download_timeout,
+    core_update_restart_delay=cfg.kernel_update.restart_delay,
+    kernel_update_log_file=cfg.script_paths.kernel_update_log_file,
     emit_log=emit_log,
     kernel_update_lock=kernel_update_lock,
     restart_lock=restart_lock,
 )
 
 geo_service = GeoService(
-    clash_api=CLASH_API,
+    clash_api=cfg.auth.clash_api,
     clash_headers=clash_headers,
-    system_proxy_names=SYSTEM_PROXY_NAMES,
+    system_proxy_names=set(cfg.constants.system_proxy_names),
 )
 
 
 def ensure_safe_name(name: str) -> bool:
-    return bool(SAFE_NAME_RE.fullmatch(name))
+    return bool(cfg.constants.safe_name_pattern.fullmatch(name))
 
 
 def ensure_json_body():
@@ -269,6 +159,67 @@ def parse_optional_port(value):
     if 1 <= port <= 65535:
         return port
     return None
+
+
+def parse_host_header(value: str) -> tuple[str, int | None]:
+    raw = str(value or "").split(",")[0].strip()
+    if not raw:
+        return "", None
+    try:
+        parsed = urlparse(f"//{raw}", scheme="http")
+    except Exception:
+        return raw, None
+    host = str(parsed.hostname or "").strip()
+    try:
+        parsed_port = parsed.port
+    except ValueError:
+        parsed_port = None
+    port = parse_optional_port(parsed_port)
+    return host, port
+
+
+def parse_port_from_url(value: str, default: int | None = None) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        parsed = urlparse(text if "://" in text else f"http://{text}")
+    except Exception:
+        return default
+    try:
+        parsed_port = parsed.port
+    except ValueError:
+        parsed_port = None
+    port = parse_optional_port(parsed_port)
+    return port if port is not None else default
+
+
+def collect_runtime_endpoint_info() -> dict:
+    forwarded_host = str(request.headers.get("X-Forwarded-Host", "")).strip()
+    request_host_raw = forwarded_host or str(request.host or "").strip()
+    request_host, request_port = parse_host_header(request_host_raw)
+    access_host = str(os.environ.get("PUBLIC_HOST", "")).strip() or request_host or "127.0.0.1"
+
+    web_port = parse_optional_port(os.environ.get("WEB_PORT")) or request_port or 80
+    mixed_port = parse_optional_port(os.environ.get("MIXED_PORT"))
+    socks_port = parse_optional_port(os.environ.get("SOCKS_PORT"))
+    controller_external_port = parse_optional_port(os.environ.get("CONTROLLER_PORT"))
+    controller_internal_port = parse_port_from_url(cfg.auth.clash_api, 9090)
+
+    return {
+        "access_host": access_host,
+        "request_host": request_host or access_host,
+        "request_port": request_port,
+        "external_ports": {
+            "web_port": web_port,
+            "mixed_port": mixed_port,
+            "socks_port": socks_port,
+            "controller_port": controller_external_port,
+        },
+        "internal_ports": {
+            "controller_port": controller_internal_port,
+        },
+    }
 
 
 def normalize_core_repo(value: str) -> str:
@@ -387,7 +338,7 @@ def provider_auto_recovery_loop() -> None:
 
 
 def list_subscriptions():
-    payload = load_json(SUBS_CONFIG, {"subscriptions": []})
+    payload = load_json(cfg.script_paths.subs_config, {"subscriptions": []})
     subs = payload.get("subscriptions", [])
     if not isinstance(subs, list):
         return []
@@ -395,7 +346,7 @@ def list_subscriptions():
 
 
 def save_subscriptions(subs: list[dict]) -> None:
-    save_json(SUBS_CONFIG, {"subscriptions": subs})
+    save_json(cfg.script_paths.subs_config, {"subscriptions": subs})
 
 
 def normalize_subscription_set_entries(raw) -> list[dict]:
@@ -441,7 +392,7 @@ def default_subscription_sets() -> dict:
 
 
 def load_subscription_sets() -> dict:
-    data = load_json(SUBSCRIPTION_SETS_FILE, default_subscription_sets())
+    data = load_json(cfg.script_paths.subscription_sets_file, default_subscription_sets())
     return {
         "set1": normalize_subscription_set_entries(data.get("set1")),
         "set2": normalize_subscription_set_entries(data.get("set2")),
@@ -455,7 +406,7 @@ def save_subscription_sets(data: dict) -> dict:
         "set2": normalize_subscription_set_entries(data.get("set2")),
         "us_auto": normalize_us_auto_config(data.get("us_auto")),
     }
-    save_json(SUBSCRIPTION_SETS_FILE, payload)
+    save_json(cfg.script_paths.subscription_sets_file, payload)
     return payload
 
 
@@ -467,26 +418,26 @@ def render_auto_set_block(sub_sets: dict) -> str:
     set2_json = json.dumps(set2, ensure_ascii=False, indent=2)
     us_auto_json = json.dumps(us_auto, ensure_ascii=False, indent=2)
     lines = [
-        AUTO_SET_BLOCK_START,
-        "// 自动生成区块：请在管理面板的“订阅集合”里维护，不建议手工改这里。",
+        cfg.constants.auto_set_block_start,
+        '// 自动生成区块：请在管理面板的"订阅集合"里维护，不建议手工改这里。',
         f"const SUB_SET1 = {set1_json};",
         f"const SUB_SET2 = {set2_json};",
         f"const US_AUTO_PRIORITY = {us_auto_json};",
-        "const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || \"\").trim();",
-        "const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || \"\").trim();",
+        'const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || "").trim();',
+        'const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || "").trim();',
         "const SUB_SET1_URLS = SUB_SET1.map((x) => x.url).filter(Boolean);",
         "const SUB_SET2_URLS = SUB_SET2.map((x) => x.url).filter(Boolean);",
-        AUTO_SET_BLOCK_END,
+        cfg.constants.auto_set_block_end,
     ]
     return "\n".join(lines)
 
 
 def inject_auto_set_block(script: str, block: str) -> str:
     text = script or ""
-    start_idx = text.find(AUTO_SET_BLOCK_START)
-    end_idx = text.find(AUTO_SET_BLOCK_END)
+    start_idx = text.find(cfg.constants.auto_set_block_start)
+    end_idx = text.find(cfg.constants.auto_set_block_end)
     if start_idx >= 0 and end_idx > start_idx:
-        end_cut = end_idx + len(AUTO_SET_BLOCK_END)
+        end_cut = end_idx + len(cfg.constants.auto_set_block_end)
         prefix = text[:start_idx].rstrip()
         suffix = text[end_cut:].lstrip("\r\n")
         if prefix:
@@ -498,11 +449,11 @@ def inject_auto_set_block(script: str, block: str) -> str:
 
 
 def sync_override_script_with_sets(sub_sets: dict) -> None:
-    current = read_text(OVERRIDE_SCRIPT_FILE)
+    current = read_text(cfg.script_paths.override_script_file)
     block = render_auto_set_block(sub_sets)
     updated = inject_auto_set_block(current, block)
     if updated != current:
-        write_text(OVERRIDE_SCRIPT_FILE, updated)
+        write_text(cfg.script_paths.override_script_file, updated)
 
 
 def default_schedule() -> dict:
@@ -571,20 +522,26 @@ def health():
 @app.route("/api/status", methods=["GET"])
 def status():
     kernel_status_payload = collect_kernel_status()
+    runtime_endpoint_payload = collect_runtime_endpoint_info()
     return jsonify(
         {
             "success": True,
-            "admin_token_enabled": bool(ADMIN_TOKEN),
+            "admin_token_enabled": cfg.auth.has_admin_token,
             "runtime": {
-                "clash_api": CLASH_API,
+                "clash_api": cfg.auth.clash_api,
                 "core_bin": kernel_status_payload.get("core_bin"),
                 "core_version": kernel_status_payload.get("core_version"),
+                "access_host": runtime_endpoint_payload.get("access_host"),
+                "request_host": runtime_endpoint_payload.get("request_host"),
+                "request_port": runtime_endpoint_payload.get("request_port"),
+                "external_ports": runtime_endpoint_payload.get("external_ports"),
+                "internal_ports": runtime_endpoint_payload.get("internal_ports"),
             },
             "kernel": kernel_status_payload,
             "paths": {
-                "base": str(BASE_DIR),
-                "scripts": str(SCRIPTS_DIR),
-                "config": str(CONFIG_FILE),
+                "base": str(cfg.paths.base_dir),
+                "scripts": str(cfg.paths.scripts_dir),
+                "config": str(cfg.paths.config_file),
             },
         }
     )
@@ -607,7 +564,7 @@ def kernel_update_history():
 
 @app.route("/api/kernel/release/latest", methods=["GET"])
 def kernel_release_latest():
-    raw_repo = str(request.args.get("repo", DEFAULT_CORE_REPO)).strip()
+    raw_repo = str(request.args.get("repo", cfg.kernel_update.default_repo)).strip()
     try:
         repo = normalize_core_repo(raw_repo)
         ensure_core_repo_allowed(repo)
@@ -647,7 +604,7 @@ def action_kernel_update():
         return json_error("kernel update already running", 429)
 
     body = ensure_json_body()
-    raw_repo = str(body.get("repo", body.get("source_repo", DEFAULT_CORE_REPO))).strip()
+    raw_repo = str(body.get("repo", body.get("source_repo", cfg.kernel_update.default_repo))).strip()
     raw_tag = str(body.get("tag", "")).strip()
     target_tag = raw_tag or None
     restart = parse_optional_bool(body.get("restart"))
@@ -728,7 +685,7 @@ def get_subscriptions():
     for sub in subs:
         item = dict(sub)
         name = str(item.get("name", "")).strip()
-        cache_file = SUBS_DIR / f"{name}.yaml"
+        cache_file = cfg.paths.subs_dir / f"{name}.yaml"
         item["cached"] = cache_file.exists()
         if cache_file.exists():
             parsed = load_yaml(cache_file, {"proxies": []})
@@ -879,8 +836,8 @@ def update_subscription(name):
         target["enabled"] = bool(body.get("enabled"))
 
     if new_name != name:
-        old_cache = SUBS_DIR / f"{name}.yaml"
-        new_cache = SUBS_DIR / f"{new_name}.yaml"
+        old_cache = cfg.paths.subs_dir / f"{name}.yaml"
+        new_cache = cfg.paths.subs_dir / f"{new_name}.yaml"
         target["name"] = new_name
         if old_cache.exists():
             old_cache.rename(new_cache)
@@ -898,7 +855,7 @@ def delete_subscription(name):
     subs = list_subscriptions()
     new_subs = [item for item in subs if str(item.get("name")) != name]
     save_subscriptions(new_subs)
-    cache_file = SUBS_DIR / f"{name}.yaml"
+    cache_file = cfg.paths.subs_dir / f"{name}.yaml"
     if cache_file.exists():
         cache_file.unlink()
     emit_log(f"subscription deleted: {name}")
@@ -986,7 +943,7 @@ def merge_and_reload():
 @app.route("/api/clash/status", methods=["GET"])
 def clash_status():
     try:
-        resp = requests.get(CLASH_API, headers=clash_headers(), timeout=3)
+        resp = requests.get(cfg.auth.clash_api, headers=clash_headers(), timeout=3)
         info = resp.json()
         return jsonify(
             {
@@ -1004,7 +961,7 @@ def clash_status():
 def clash_traffic():
     try:
         resp = requests.get(
-            f"{CLASH_API}/traffic",
+            f"{cfg.auth.clash_api}/traffic",
             headers=clash_headers(),
             timeout=(3, 3),
             stream=True,
@@ -1030,7 +987,7 @@ def clash_traffic():
         if not payload:
             # Fallback for adapters that do not yield promptly via iter_lines.
             resp2 = requests.get(
-                f"{CLASH_API}/traffic",
+                f"{cfg.auth.clash_api}/traffic",
                 headers=clash_headers(),
                 timeout=(3, 3),
                 stream=True,
@@ -1091,7 +1048,7 @@ def clash_traffic():
 @app.route("/api/clash/config", methods=["GET"])
 def get_clash_config():
     try:
-        resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=5)
+        resp = requests.get(f"{cfg.auth.clash_api}/configs", headers=clash_headers(), timeout=5)
         if resp.status_code != 200:
             return json_error(f"clash api error: {resp.status_code}", 502)
 
@@ -1199,7 +1156,7 @@ def put_clash_config():
 
 def _apply_clash_config_patch(payload: dict, timeout: float = 5):
     resp = requests.patch(
-        f"{CLASH_API}/configs",
+        f"{cfg.auth.clash_api}/configs",
         headers=clash_headers(),
         json=payload,
         timeout=timeout,
@@ -1207,7 +1164,7 @@ def _apply_clash_config_patch(payload: dict, timeout: float = 5):
     if resp.status_code not in (200, 204) and resp.status_code in (404, 405, 501):
         # Compatibility fallback for runtimes that only accept PUT /configs.
         resp = requests.put(
-            f"{CLASH_API}/configs",
+            f"{cfg.auth.clash_api}/configs",
             headers=clash_headers(),
             json=payload,
             timeout=timeout,
@@ -1326,7 +1283,7 @@ def put_geo_settings():
             return json_error(f"clash api error: {resp.status_code}", 502)
 
         # Read back runtime value. Some cores acknowledge but don't apply these fields dynamically.
-        verify_resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=5)
+        verify_resp = requests.get(f"{cfg.auth.clash_api}/configs", headers=clash_headers(), timeout=5)
         runtime_applied = False
         runtime_values: dict = {}
         if verify_resp.status_code == 200:
@@ -1352,12 +1309,12 @@ def put_geo_settings():
         applied_via = "runtime"
         if not runtime_applied:
             # Fallback: persist to current config file then reload clash.
-            config_payload = load_yaml(CONFIG_FILE, {})
+            config_payload = load_yaml(cfg.paths.config_file, {})
             if not isinstance(config_payload, dict):
                 config_payload = {}
             config_payload.update(payload)
-            make_backup(CONFIG_FILE, "geo_settings")
-            save_yaml(CONFIG_FILE, config_payload)
+            make_backup(cfg.paths.config_file, "geo_settings")
+            save_yaml(cfg.paths.config_file, config_payload)
             reloaded = reload_clash()
             applied_via = "config_reload"
             if not reloaded:
@@ -1381,7 +1338,7 @@ def put_geo_settings():
 @app.route("/api/clash/geo/status", methods=["GET"])
 def clash_geo_status():
     try:
-        config_resp = requests.get(f"{CLASH_API}/configs", headers=clash_headers(), timeout=6)
+        config_resp = requests.get(f"{cfg.auth.clash_api}/configs", headers=clash_headers(), timeout=6)
         if config_resp.status_code != 200:
             return json_error(f"clash api error: {config_resp.status_code}", 502)
         config_payload = config_resp.json() if config_resp.content else {}
@@ -1544,7 +1501,7 @@ def action_geo_update():
 @app.route("/api/clash/groups", methods=["GET"])
 def clash_groups():
     try:
-        resp = requests.get(f"{CLASH_API}/proxies", headers=clash_headers(), timeout=5)
+        resp = requests.get(f"{cfg.auth.clash_api}/proxies", headers=clash_headers(), timeout=5)
         data = resp.json()
         proxies = data.get("proxies", {})
         groups = []
@@ -1572,7 +1529,7 @@ def clash_groups():
 @app.route("/api/clash/proxy-meta", methods=["GET"])
 def clash_proxy_meta():
     try:
-        resp = requests.get(f"{CLASH_API}/proxies", headers=clash_headers(), timeout=6)
+        resp = requests.get(f"{cfg.auth.clash_api}/proxies", headers=clash_headers(), timeout=6)
         if resp.status_code != 200:
             return json_error(f"clash api error: {resp.status_code}", 502)
 
@@ -1632,7 +1589,7 @@ def clash_proxy_delay():
     request_timeout = max(3.0, timeout_ms / 1000.0 + 2.0)
     try:
         resp = requests.get(
-            f"{CLASH_API}/proxies/{encoded}/delay",
+            f"{cfg.auth.clash_api}/proxies/{encoded}/delay",
             headers=clash_headers(),
             params={"url": test_url, "timeout": timeout_ms},
             timeout=request_timeout,
@@ -1672,7 +1629,7 @@ def clash_group_select(group_name):
     encoded = quote(group_name, safe="")
     try:
         resp = requests.put(
-            f"{CLASH_API}/proxies/{encoded}",
+            f"{cfg.auth.clash_api}/proxies/{encoded}",
             headers=clash_headers(),
             json={"name": target},
             timeout=5,
@@ -1687,7 +1644,7 @@ def clash_group_select(group_name):
 
 @app.route("/api/override", methods=["GET"])
 def get_override():
-    return jsonify({"success": True, "content": read_text(OVERRIDE_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.script_paths.override_file)})
 
 
 @app.route("/api/override", methods=["PUT"])
@@ -1699,15 +1656,15 @@ def put_override():
         yaml.safe_load(content)
     except yaml.YAMLError as exc:
         return json_error(f"yaml error: {exc}", 400)
-    make_backup(OVERRIDE_FILE, "override")
-    write_text(OVERRIDE_FILE, content)
+    make_backup(cfg.script_paths.override_file, "override")
+    write_text(cfg.script_paths.override_file, content)
     emit_log("override.yaml updated")
     return jsonify({"success": True})
 
 
 @app.route("/api/override-script", methods=["GET"])
 def get_override_script():
-    return jsonify({"success": True, "content": read_text(OVERRIDE_SCRIPT_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.script_paths.override_script_file)})
 
 
 @app.route("/api/override-script", methods=["PUT"])
@@ -1715,18 +1672,18 @@ def get_override_script():
 def put_override_script():
     body = ensure_json_body()
     content = str(body.get("content", ""))
-    ok, reason = validate_js_override(content, node_bin=NODE_BIN, timeout=JS_VALIDATE_TIMEOUT)
+    ok, reason = validate_js_override(content, node_bin=cfg.runtime.node_bin, timeout=cfg.runtime.js_validate_timeout)
     if not ok:
         return json_error(f"javascript error: {reason}", 400)
-    make_backup(OVERRIDE_SCRIPT_FILE, "override_js")
-    write_text(OVERRIDE_SCRIPT_FILE, content)
+    make_backup(cfg.script_paths.override_script_file, "override_js")
+    write_text(cfg.script_paths.override_script_file, content)
     emit_log("override.js updated")
     return jsonify({"success": True})
 
 
 @app.route("/api/site-policy", methods=["GET"])
 def get_site_policy():
-    return jsonify({"success": True, "content": read_text(SITE_POLICY_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.script_paths.site_policy_file)})
 
 
 @app.route("/api/site-policy", methods=["PUT"])
@@ -1740,15 +1697,15 @@ def put_site_policy():
             return json_error("site policy must be yaml object", 400)
     except yaml.YAMLError as exc:
         return json_error(f"yaml error: {exc}", 400)
-    make_backup(SITE_POLICY_FILE, "site_policy")
-    write_text(SITE_POLICY_FILE, content)
+    make_backup(cfg.script_paths.site_policy_file, "site_policy")
+    write_text(cfg.script_paths.site_policy_file, content)
     emit_log("site_policy.yaml updated")
     return jsonify({"success": True})
 
 
 @app.route("/api/template", methods=["GET"])
 def get_template():
-    return jsonify({"success": True, "content": read_text(TEMPLATE_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.script_paths.template_file)})
 
 
 @app.route("/api/template", methods=["PUT"])
@@ -1760,15 +1717,15 @@ def put_template():
         yaml.safe_load(content)
     except yaml.YAMLError as exc:
         return json_error(f"yaml error: {exc}", 400)
-    make_backup(TEMPLATE_FILE, "template")
-    write_text(TEMPLATE_FILE, content)
+    make_backup(cfg.script_paths.template_file, "template")
+    write_text(cfg.script_paths.template_file, content)
     emit_log("template.yaml updated")
     return jsonify({"success": True})
 
 
 @app.route("/api/merge-script", methods=["GET"])
 def get_merge_script():
-    return jsonify({"success": True, "content": read_text(MERGE_SCRIPT_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.script_paths.merge_script_file)})
 
 
 @app.route("/api/merge-script", methods=["PUT"])
@@ -1777,31 +1734,31 @@ def put_merge_script():
     body = ensure_json_body()
     content = str(body.get("content", ""))
     try:
-        compile(content, str(MERGE_SCRIPT_FILE), "exec")
+        compile(content, str(cfg.script_paths.merge_script_file), "exec")
     except SyntaxError as exc:
         return json_error(f"python error: {exc}", 400)
-    make_backup(MERGE_SCRIPT_FILE, "merge")
-    write_text(MERGE_SCRIPT_FILE, content)
+    make_backup(cfg.script_paths.merge_script_file, "merge")
+    write_text(cfg.script_paths.merge_script_file, content)
     emit_log("merge.py updated")
     return jsonify({"success": True})
 
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
-    return jsonify({"success": True, "content": read_text(CONFIG_FILE)})
+    return jsonify({"success": True, "content": read_text(cfg.paths.config_file)})
 
 
 EDITABLE_FILES = {
-    "subscriptions": SUBS_CONFIG,
-    "subscription_sets": SUBSCRIPTION_SETS_FILE,
-    "override": OVERRIDE_FILE,
-    "override_script": OVERRIDE_SCRIPT_FILE,
-    "site_policy": SITE_POLICY_FILE,
-    "schedule": SCHEDULE_FILE,
-    "schedule_history": SCHEDULE_HISTORY_FILE,
-    "template": TEMPLATE_FILE,
-    "merge_script": MERGE_SCRIPT_FILE,
-    "config": CONFIG_FILE,
+    "subscriptions": cfg.script_paths.subs_config,
+    "subscription_sets": cfg.script_paths.subscription_sets_file,
+    "override": cfg.script_paths.override_file,
+    "override_script": cfg.script_paths.override_script_file,
+    "site_policy": cfg.script_paths.site_policy_file,
+    "schedule": cfg.script_paths.schedule_file,
+    "schedule_history": cfg.script_paths.schedule_history_file,
+    "template": cfg.script_paths.template_file,
+    "merge_script": cfg.script_paths.merge_script_file,
+    "config": cfg.paths.config_file,
 }
 
 
@@ -1849,7 +1806,7 @@ def put_file(key):
         elif suffix == ".py":
             compile(content, str(path), "exec")
         elif suffix == ".js":
-            ok, reason = validate_js_override(content, node_bin=NODE_BIN, timeout=JS_VALIDATE_TIMEOUT)
+            ok, reason = validate_js_override(content, node_bin=cfg.runtime.node_bin, timeout=cfg.runtime.js_validate_timeout)
             if not ok:
                 raise ValueError(reason)
     except Exception as exc:
@@ -1895,9 +1852,9 @@ def log_stream():
 
 @app.route("/api/backups", methods=["GET"])
 def backups():
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    cfg.paths.backup_dir.mkdir(parents=True, exist_ok=True)
     rows = []
-    for item in sorted(BACKUP_DIR.glob("*"), reverse=True):
+    for item in sorted(cfg.paths.backup_dir.glob("*"), reverse=True):
         if not item.is_file():
             continue
         rows.append(
@@ -1915,7 +1872,7 @@ def backups():
 def delete_backup(name):
     if "/" in name or "\\" in name:
         return json_error("invalid backup name", 400)
-    backup_file = BACKUP_DIR / name
+    backup_file = cfg.paths.backup_dir / name
     if backup_file.exists() and backup_file.is_file():
         backup_file.unlink()
         emit_log(f"backup deleted: {name}")
@@ -1927,34 +1884,34 @@ def delete_backup(name):
 def restore_backup(name):
     if "/" in name or "\\" in name:
         return json_error("invalid backup name", 400)
-    backup_file = BACKUP_DIR / name
+    backup_file = cfg.paths.backup_dir / name
     if not backup_file.exists() or not backup_file.is_file():
         return json_error("backup not found", 404)
-    shutil.copy2(backup_file, CONFIG_FILE)
+    shutil.copy2(backup_file, cfg.paths.config_file)
     ok = reload_clash()
     emit_log(f"backup restored: {name} (reload={ok})")
     return jsonify({"success": True, "reloaded": ok})
 
 
 def bootstrap_files():
-    BASE_DIR.mkdir(parents=True, exist_ok=True)
-    SUBS_DIR.mkdir(parents=True, exist_ok=True)
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
-    MIHOMO_CORE_DIR.mkdir(parents=True, exist_ok=True)
-    if not SUBS_CONFIG.exists():
-        save_json(SUBS_CONFIG, {"subscriptions": []})
-    if not SUBSCRIPTION_SETS_FILE.exists():
-        save_json(SUBSCRIPTION_SETS_FILE, default_subscription_sets())
-    if not SCHEDULE_FILE.exists():
-        save_json(SCHEDULE_FILE, default_schedule())
-    if not SCHEDULE_HISTORY_FILE.exists():
-        save_json(SCHEDULE_HISTORY_FILE, default_schedule_history())
-    if not PROVIDER_RECOVERY_FILE.exists():
-        save_json(PROVIDER_RECOVERY_FILE, default_provider_recovery_state())
-    if not SITE_POLICY_FILE.exists():
+    cfg.paths.base_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.subs_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.backup_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.scripts_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.mihomo_core_dir.mkdir(parents=True, exist_ok=True)
+    if not cfg.script_paths.subs_config.exists():
+        save_json(cfg.script_paths.subs_config, {"subscriptions": []})
+    if not cfg.script_paths.subscription_sets_file.exists():
+        save_json(cfg.script_paths.subscription_sets_file, default_subscription_sets())
+    if not cfg.script_paths.schedule_file.exists():
+        save_json(cfg.script_paths.schedule_file, default_schedule())
+    if not cfg.script_paths.schedule_history_file.exists():
+        save_json(cfg.script_paths.schedule_history_file, default_schedule_history())
+    if not cfg.script_paths.provider_recovery_file.exists():
+        save_json(cfg.script_paths.provider_recovery_file, default_provider_recovery_state())
+    if not cfg.script_paths.site_policy_file.exists():
         save_yaml(
-            SITE_POLICY_FILE,
+            cfg.script_paths.site_policy_file,
             {
                 "groups": [{"name": "AI", "type": "select", "use_all_proxies": True}],
                 "rules": [
@@ -1963,9 +1920,9 @@ def bootstrap_files():
                 ],
             },
         )
-    if not OVERRIDE_FILE.exists():
+    if not cfg.script_paths.override_file.exists():
         save_yaml(
-            OVERRIDE_FILE,
+            cfg.script_paths.override_file,
             {
                 "dns": {
                     "enable": True,
@@ -1974,9 +1931,9 @@ def bootstrap_files():
                 }
             },
         )
-    if not OVERRIDE_SCRIPT_FILE.exists():
+    if not cfg.script_paths.override_script_file.exists():
         write_text(
-            OVERRIDE_SCRIPT_FILE,
+            cfg.script_paths.override_script_file,
             "\n".join(
                 [
                     "// JS override script",
@@ -1996,7 +1953,7 @@ def bootstrap_files():
 
 # ==================== Proxy Records ====================
 
-proxy_record_store = ProxyRecordStore(PROXY_RECORDS_FILE, max_records=MAX_PROXY_RECORDS)
+proxy_record_store = ProxyRecordStore(cfg.script_paths.proxy_records_file, max_records=cfg.connection_record.max_records)
 connection_recorder: ClashConnectionRecorder | None = None
 
 
@@ -2084,7 +2041,7 @@ def get_proxy_records_stats():
 @require_write_auth
 def capture_proxy_records():
     """手动采样一次连接记录"""
-    if not CONNECTION_RECORD_ENABLED or connection_recorder is None:
+    if not cfg.connection_record.enabled or connection_recorder is None:
         return json_error("connection recorder disabled", 400)
     try:
         captured = int(connection_recorder.capture_once())
@@ -2096,9 +2053,9 @@ def capture_proxy_records():
 @app.route("/api/proxy-records/recorder", methods=["GET"])
 def get_proxy_recorder_status():
     data = {
-        "enabled": bool(CONNECTION_RECORD_ENABLED),
+        "enabled": cfg.connection_record.enabled,
         "running": False,
-        "poll_interval": CONNECTION_RECORD_INTERVAL,
+        "poll_interval": cfg.connection_record.interval,
         "active_connections": 0,
     }
     if connection_recorder is not None:
@@ -2121,10 +2078,10 @@ def web_entry(path: str):
     ):
         return json_error("not found", 404)
 
-    if not WEB_DIR.exists():
-        return json_error(f"web dir not found: {WEB_DIR}", 404)
+    if not cfg.paths.web_dir.exists():
+        return json_error(f"web dir not found: {cfg.paths.web_dir}", 404)
 
-    safe_root = WEB_DIR.resolve()
+    safe_root = cfg.paths.web_dir.resolve()
     target = (safe_root / path).resolve()
     inside_root = target == safe_root or safe_root in target.parents
 
@@ -2149,20 +2106,20 @@ def start_runtime_services() -> None:
         bootstrap_files()
         threading.Thread(target=scheduler_loop, daemon=True).start()
         threading.Thread(target=provider_auto_recovery_loop, daemon=True).start()
-        if CONNECTION_RECORD_ENABLED:
+        if cfg.connection_record.enabled:
             connection_recorder = ClashConnectionRecorder(
-                clash_api=CLASH_API,
+                clash_api=cfg.auth.clash_api,
                 headers_func=clash_headers,
                 store=proxy_record_store,
                 emit_log=emit_log,
-                poll_interval=CONNECTION_RECORD_INTERVAL,
+                poll_interval=cfg.connection_record.interval,
                 request_timeout=5,
             )
             connection_recorder.start()
             emit_log(
                 (
                     "connection recorder enabled, "
-                    f"interval={CONNECTION_RECORD_INTERVAL}s, max_records={MAX_PROXY_RECORDS}"
+                    f"interval={cfg.connection_record.interval}s, max_records={cfg.connection_record.max_records}"
                 )
             )
         else:
@@ -2170,17 +2127,17 @@ def start_runtime_services() -> None:
         emit_log(
             (
                 "provider auto-refresh "
-                f"{'enabled' if PROVIDER_AUTO_REFRESH_ENABLED else 'disabled'}, "
-                f"interval={PROVIDER_RECOVERY_CHECK_INTERVAL}s, "
-                f"zero_window={PROVIDER_ZERO_ALIVE_MINUTES}m, "
-                f"max_per_day={PROVIDER_AUTO_REFRESH_MAX_PER_DAY}"
+                f"{'enabled' if cfg.provider.enabled else 'disabled'}, "
+                f"interval={cfg.provider.check_interval}s, "
+                f"zero_window={cfg.provider.zero_alive_minutes}m, "
+                f"max_per_day={cfg.provider.max_per_day}"
             )
         )
         emit_log(
             (
                 "kernel update "
-                f"repo={DEFAULT_CORE_REPO}, allowed={','.join(sorted(CORE_UPDATE_ALLOWED_REPOS))}, "
-                f"checksum_required={CORE_UPDATE_REQUIRE_CHECKSUM}, core_bin={MIHOMO_BIN}"
+                f"repo={cfg.kernel_update.default_repo}, allowed={','.join(sorted(cfg.kernel_update.allowed_repos))}, "
+                f"checksum_required={cfg.kernel_update.require_checksum}, core_bin={cfg.paths.mihomo_bin}"
             )
         )
         runtime_initialized = True
@@ -2191,9 +2148,9 @@ start_runtime_services()
 
 
 if __name__ == "__main__":
-    host = os.environ.get("API_HOST", "0.0.0.0")
+    host = cfg.server.host
     try:
-        port = int(os.environ.get("API_PORT", "19092"))
+        port = cfg.server.port
     except ValueError:
         port = 19092
     emit_log(f"management api starting on {host}:{port}")

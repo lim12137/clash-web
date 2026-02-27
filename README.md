@@ -157,6 +157,25 @@ Invoke-WebRequest http://127.0.0.1:19092/api/health
 scripts\restart_local_api.bat
 ```
 
+### 方式四：离线最小包（跨设备高成功率）
+
+适用于目标设备反复构建失败、网络拉取不稳定的场景。
+
+```powershell
+# 运行目录：dist/runtime-minimal-offline
+# 1) 在源设备导出镜像（已完成可跳过）
+docker save nexent:local -o dist\runtime-minimal-offline\nexent-local.tar
+
+# 2) 将 dist/runtime-minimal-offline 整个目录拷贝到目标设备
+# 3) 在目标设备目录内一键启动
+start.bat
+
+# 4) 健康检查
+check_health.bat
+```
+
+详细说明见：`dist/runtime-minimal-offline/README.md`
+
 ---
 
 ## 🎨 核心特性

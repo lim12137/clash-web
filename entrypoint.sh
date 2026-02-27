@@ -17,9 +17,30 @@ MIHOMO_BIN="${MIHOMO_BIN:-${MIHOMO_CORE_DIR}/mihomo}"
 MIHOMO_PREV_BIN="${MIHOMO_PREV_BIN:-${MIHOMO_CORE_DIR}/mihomo.prev}"
 GEOIP_METADB_SEED="${GEOIP_METADB_SEED:-/usr/local/share/mihomo/geoip.metadb}"
 GEOIP_METADB_TARGET="${MIHOMO_DIR}/geoip.metadb"
+SEED_SCRIPTS_DIR="${SEED_SCRIPTS_DIR:-/opt/nexent-seed/scripts}"
 export MIHOMO_DIR MIHOMO_CORE_DIR MIHOMO_BIN MIHOMO_PREV_BIN GEOIP_METADB_SEED GEOIP_METADB_TARGET
 
 mkdir -p "${MIHOMO_DIR}/subs" "${MIHOMO_DIR}/backups" "${MIHOMO_DIR}/ui" "${MIHOMO_CORE_DIR}" /scripts /web
+
+sync_seed_runtime_files() {
+  if [ ! -d "${SEED_SCRIPTS_DIR}" ]; then
+    return 0
+  fi
+
+  if [ -f "${SEED_SCRIPTS_DIR}/api_server.py" ]; then
+    cp -f "${SEED_SCRIPTS_DIR}/api_server.py" /scripts/api_server.py
+  fi
+  if [ -f "${SEED_SCRIPTS_DIR}/connection_recorder.py" ]; then
+    cp -f "${SEED_SCRIPTS_DIR}/connection_recorder.py" /scripts/connection_recorder.py
+  fi
+  if [ -d "${SEED_SCRIPTS_DIR}/api" ]; then
+    rm -rf /scripts/api
+    cp -R "${SEED_SCRIPTS_DIR}/api" /scripts/api
+  fi
+  echo "[ok] synced runtime api code from seed: ${SEED_SCRIPTS_DIR}"
+}
+
+sync_seed_runtime_files
 
 if [ -s "${GEOIP_METADB_SEED}" ] && [ ! -s "${GEOIP_METADB_TARGET}" ]; then
   if cp "${GEOIP_METADB_SEED}" "${GEOIP_METADB_TARGET}"; then

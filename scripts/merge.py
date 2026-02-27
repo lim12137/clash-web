@@ -20,23 +20,59 @@ from typing import Any
 import requests
 import yaml
 
-MIHOMO_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
-SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
-
-SUBS_DIR = MIHOMO_DIR / "subs"
-BACKUP_DIR = MIHOMO_DIR / "backups"
-CONFIG_FILE = MIHOMO_DIR / "config.yaml"
-
-SUBS_CONFIG = SCRIPTS_DIR / "subscriptions.json"
-TEMPLATE_FILE = SCRIPTS_DIR / "template.yaml"
-OVERRIDE_FILE = SCRIPTS_DIR / "override.yaml"
-OVERRIDE_SCRIPT_FILE = SCRIPTS_DIR / "override.js"
-SITE_POLICY_FILE = SCRIPTS_DIR / "site_policy.yaml"
-
-REQUEST_TIMEOUT = int(os.environ.get("SUB_REQUEST_TIMEOUT", "20"))
-JS_OVERRIDE_TIMEOUT = int(os.environ.get("JS_OVERRIDE_TIMEOUT", "20"))
-NODE_BIN = os.environ.get("NODE_BIN", "node")
 DEFAULT_EXTERNAL_CONTROLLER = "0.0.0.0:9090"
+
+# Import unified configuration
+# Note: When merge.py is imported as a module, cfg is already available in api_server.py
+# When run standalone, we need to initialize it
+try:
+    from api.common.config import get_config
+    cfg = get_config()
+except ImportError:
+    # Fallback for standalone execution
+    MIHOMO_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
+    SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
+    SUBS_DIR = MIHOMO_DIR / "subs"
+    BACKUP_DIR = MIHOMO_DIR / "backups"
+    CONFIG_FILE = MIHOMO_DIR / "config.yaml"
+    SUBS_CONFIG = SCRIPTS_DIR / "subscriptions.json"
+    TEMPLATE_FILE = SCRIPTS_DIR / "template.yaml"
+    OVERRIDE_FILE = SCRIPTS_DIR / "override.yaml"
+    OVERRIDE_SCRIPT_FILE = SCRIPTS_DIR / "override.js"
+    SITE_POLICY_FILE = SCRIPTS_DIR / "site_policy.yaml"
+    REQUEST_TIMEOUT = int(os.environ.get("SUB_REQUEST_TIMEOUT", "20"))
+    JS_OVERRIDE_TIMEOUT = int(os.environ.get("JS_OVERRIDE_TIMEOUT", "20"))
+    NODE_BIN = os.environ.get("NODE_BIN", "node")
+
+    class _FallbackConfig:
+        paths = type('obj', (object,), {
+            'subs_dir': SUBS_DIR,
+            'backup_dir': BACKUP_DIR,
+            'base_dir': MIHOMO_DIR,
+            'config_file': CONFIG_FILE,
+        })()
+        script_paths = type('obj', (object,), {
+            'subs_config': SUBS_CONFIG,
+            'template_file': TEMPLATE_FILE,
+            'override_file': OVERRIDE_FILE,
+            'override_script_file': OVERRIDE_SCRIPT_FILE,
+            'site_policy_file': SITE_POLICY_FILE,
+        })()
+        runtime = type('obj', (object,), {
+            'sub_request_timeout': REQUEST_TIMEOUT,
+            'js_override_timeout': JS_OVERRIDE_TIMEOUT,
+            'node_bin': NODE_BIN,
+        })()
+        auth = type('obj', (object,), {
+            'clash_api': f"http://{os.environ.get('CLASH_EXTERNAL_CONTROLLER', DEFAULT_EXTERNAL_CONTROLLER)}",
+        })()
+
+    cfg = _FallbackConfig()
+
+
+def get_external_controller() -> str:
+    configured = os.environ.get("CLASH_EXTERNAL_CONTROLLER", "").strip()
+    return configured or "0.0.0.0:9090"
 
 
 def log(message: str) -> None:
@@ -54,20 +90,15 @@ def read_int_env(var_name: str) -> int | None:
         return None
 
 
-def get_external_controller() -> str:
-    configured = os.environ.get("CLASH_EXTERNAL_CONTROLLER", "").strip()
-    return configured or DEFAULT_EXTERNAL_CONTROLLER
-
-
 def env_flag(var_name: str) -> bool:
     value = os.environ.get(var_name, "").strip().lower()
     return value in {"1", "true", "yes", "on"}
 
 
 def ensure_dirs() -> None:
-    SUBS_DIR.mkdir(parents=True, exist_ok=True)
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    MIHOMO_DIR.mkdir(parents=True, exist_ok=True)
+    cfg.paths.subs_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.backup_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.base_dir.mkdir(parents=True, exist_ok=True)
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -118,7 +149,7 @@ def make_backup(src: Path, prefix: str = "config") -> None:
     if not src.exists():
         return
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup = BACKUP_DIR / f"{prefix}_{stamp}.yaml"
+    backup = cfg.paths.backup_dir / f"{prefix}_{stamp}.yaml"
     shutil.copy2(src, backup)
     log(f"backup created: {backup.name}")
 
@@ -218,7 +249,7 @@ def fetch_subscription(sub: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     response = requests.get(
         url,
         headers={"User-Agent": "clash-manager/1.0"},
-        timeout=REQUEST_TIMEOUT,
+        timeout=cfg.runtime.sub_request_timeout,
     )
     response.raise_for_status()
 
@@ -343,7 +374,7 @@ def build_default_template() -> dict[str, Any]:
         "bind-address": "*",
         "mode": "rule",
         "log-level": "info",
-        "external-controller": DEFAULT_EXTERNAL_CONTROLLER,
+        "external-controller": "0.0.0.0:9090",
         "secret": "",
         "proxies": [],
         "proxy-groups": [
@@ -558,11 +589,11 @@ process.stdout.write(JSON.stringify(output));
     payload = {"config": config, "script": script}
     try:
         result = subprocess.run(
-            [NODE_BIN, "-e", js_runner],
+            [cfg.runtime.node_bin, "-e", js_runner],
             input=json.dumps(payload, ensure_ascii=False),
             capture_output=True,
             text=True,
-            timeout=JS_OVERRIDE_TIMEOUT,
+            timeout=cfg.runtime.js_override_timeout,
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"node runtime not found: {exc}") from exc
@@ -585,14 +616,14 @@ process.stdout.write(JSON.stringify(output));
 
 def merge_subscriptions() -> int:
     ensure_dirs()
-    subscriptions = load_json(SUBS_CONFIG, {"subscriptions": []}).get("subscriptions", [])
+    subscriptions = load_json(cfg.script_paths.subs_config, {"subscriptions": []}).get("subscriptions", [])
     if not isinstance(subscriptions, list):
         subscriptions = []
 
-    template = load_yaml(TEMPLATE_FILE, build_default_template())
-    override = load_yaml(OVERRIDE_FILE, {})
-    site_policy = load_yaml(SITE_POLICY_FILE, {"groups": [], "rules": []})
-    override_script = read_text(OVERRIDE_SCRIPT_FILE)
+    template = load_yaml(cfg.script_paths.template_file, build_default_template())
+    override = load_yaml(cfg.script_paths.override_file, {})
+    site_policy = load_yaml(cfg.script_paths.site_policy_file, {"groups": [], "rules": []})
+    override_script = read_text(cfg.script_paths.override_script_file)
 
     merged_proxies: list[dict[str, Any]] = []
     enabled_count = 0
@@ -608,11 +639,11 @@ def merge_subscriptions() -> int:
         try:
             proxies, raw_text = fetch_subscription(sub)
             merged_proxies.extend(proxies)
-            save_yaml(SUBS_DIR / f"{name}.yaml", {"proxies": proxies})
+            save_yaml(cfg.paths.subs_dir / f"{name}.yaml", {"proxies": proxies})
             log(f"{name}: fetched={len(proxies)}")
             # Keep raw response for future debugging if needed.
             if sub.get("save_raw", False):
-                (SUBS_DIR / f"{name}.raw.txt").write_text(raw_text, encoding="utf-8")
+                (cfg.paths.subs_dir / f"{name}.raw.txt").write_text(raw_text, encoding="utf-8")
         except Exception as exc:
             log(f"{name}: failed -> {exc}")
 
@@ -630,9 +661,9 @@ def merge_subscriptions() -> int:
     config = sanitize_proxy_groups(config)
     config = maybe_disable_geoip_rules(config)
 
-    make_backup(CONFIG_FILE)
-    save_yaml(CONFIG_FILE, config)
-    log(f"config written -> {CONFIG_FILE}")
+    make_backup(cfg.paths.config_file)
+    save_yaml(cfg.paths.config_file, config)
+    log(f"config written -> {cfg.paths.config_file}")
 
     return 0
 

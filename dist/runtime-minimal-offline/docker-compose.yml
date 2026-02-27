@@ -1,19 +1,11 @@
 services:
   clash:
-    image: ${IMAGE_REF:?IMAGE_REF is required (for example ghcr.io/your-org/clash2web:latest)}
-    pull_policy: always
-    container_name: clash-meta-manager
+    image: ${IMAGE_REF:-nexent:local}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-18080}:80"
       - "${MIXED_PORT:-27890}:17890"
       - "${SOCKS_PORT:-27891}:7891"
-    volumes:
-      - ./config:/root/.config/mihomo
-      - ./scripts:/scripts
-      - ./web:/web
-      - ./web:/root/.config/mihomo/ui:ro
-      - core_data:/opt/mihomo-core
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       CLASH_SECRET: ${CLASH_SECRET:-}
@@ -30,6 +22,11 @@ services:
       CORE_UPDATE_REQUIRE_CHECKSUM: ${CORE_UPDATE_REQUIRE_CHECKSUM:-1}
     cap_add:
       - NET_ADMIN
+    volumes:
+      - config_data:/root/.config/mihomo
+      - scripts_data:/scripts
+      - core_data:/opt/mihomo-core
+      - ./web:/web
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/api/health || exit 1"]
       interval: 30s
@@ -37,4 +34,6 @@ services:
       retries: 5
 
 volumes:
+  config_data:
+  scripts_data:
   core_data:

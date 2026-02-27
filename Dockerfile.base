@@ -35,13 +35,9 @@ COPY --from=downloader /tmp/mihomo-share/geoip.metadb /usr/local/share/mihomo/ge
 
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
-COPY scripts/ /scripts/
-COPY scripts/ /opt/nexent-seed/scripts/
-COPY web/ /web/
-COPY web/ /opt/nexent-seed/web/
 RUN chmod +x /entrypoint.sh
 
-RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /scripts /web /usr/local/share/mihomo /opt/nexent-seed/scripts /opt/nexent-seed/web
+RUN mkdir -p /root/.config/mihomo/subs /root/.config/mihomo/backups /scripts /web /usr/local/share/mihomo
 
 EXPOSE 80 7890 7891 9090
 

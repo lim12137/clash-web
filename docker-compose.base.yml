@@ -1,6 +1,6 @@
 services:
   clash:
-    image: ${IMAGE_REF:?IMAGE_REF is required (for example ghcr.io/your-org/clash2web:latest)}
+    image: ${IMAGE_REF:?IMAGE_REF is required (for example ghcr.io/your-org/clash2web-base:latest)}
     pull_policy: always
     container_name: clash-meta-manager
     restart: unless-stopped

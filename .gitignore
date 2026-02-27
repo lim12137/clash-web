@@ -75,3 +75,4 @@ dist/*.tar.gz
 
 # Windows odd temp artifact
 nul
+.gitnexus

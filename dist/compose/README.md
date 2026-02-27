@@ -6,6 +6,7 @@
 
 - `docker-compose.yml`：直接使用 `image:` 拉取 GHCR 镜像
 - `.env.example`：可选环境变量模板
+- `web/`：前端静态文件目录（挂载到容器，修改后刷新页面即可生效）
 
 ## 使用方式
 
