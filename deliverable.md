@@ -216,3 +216,258 @@
 24. 计划文件按新规则完成归档与摘要回写
 - 归档文件: `task_plan.archive.20260227.md`
 - 当前计划文件: `task_plan.md` 已保留“前期摘要 + 归档链接 + 本轮执行结果”。
+
+## 增量交付（2026-02-27 `api_server.py` 结构化分割调研）
+
+25. 单文件复杂度调研与拆分边界输出
+- 调研对象: `scripts/api_server.py`
+- 结论要点:
+  - 当前文件规模 `3095` 行，路由 `62` 个，函数 `140` 个。
+  - 最大结构热点：`action_geo_update`（`471` 行）。
+  - 当前主要耦合为“路由 + 业务 + 外部请求 + 文件 IO + 线程状态”同文件集中。
+
+26. 提供可执行的目标架构
+- 新增调研文档: `api_server_split_research.md`
+- 建议目录: `scripts/api/{app.py,settings.py,deps.py,common/*,services/*,routes/*}`
+- 兼容要求:
+  - 保持 `gunicorn api_server:app` 入口不变。
+  - 保持 URL 和响应结构不变。
+
+27. 提供低风险迁移路线
+- 阶段顺序:
+  1. 先抽公共能力（不迁移路由）。
+  2. 再抽服务层（kernel/merge/provider/file/geo）。
+  3. 最后蓝图化路由并逐组回归。
+- 首个 PR 建议:
+  - 仅搭框架并抽 `common`，不改业务行为，确保快速合并。
+
+## 增量交付（2026-02-27 方案1落地 + 全项目验收标准固化）
+
+28. 方案1代码落地（公共层抽离，路由不迁移）
+- 新增文件:
+  - `scripts/api/common/responses.py`
+  - `scripts/api/common/io.py`
+  - `scripts/api/common/auth.py`
+  - `scripts/api/common/logging.py`
+  - `scripts/api/app.py`
+  - `scripts/api/settings.py`
+  - `scripts/api/__init__.py`
+  - `scripts/api/common/__init__.py`
+- 变更文件:
+  - `scripts/api_server.py`
+- 实现要点:
+  - 将 `json_error`、`require_write_auth`、`emit_log`、`load/save/read/write/make_backup` 从单文件抽到 `scripts/api/common/*`。
+  - `api_server.py` 保持原有路由与 URL，不改对外接口结构。
+  - 入口兼容约束保持：`api_server:app` 可用。
+
+29. 默认执行与验收标准升级为全项目规则
+- 变更文件:
+  - `AGENTS.md`
+- 新增内容:
+  - `默认执行约定（全项目）`
+  - `验收标准（全项目）`
+- 规则效果:
+  - 用户输入“执行/继续/默认执行”时默认直接落地实现并自检。
+  - 验收覆盖通用语法检查、merge链路、API回归、部署回归、UI关键流程。
+
+30. 按新标准完成一轮实测回归
+- 验证命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py scripts/api/app.py scripts/api/settings.py scripts/api/common/*.py`
+  - `node --check web/app.js`
+  - `D:\py311\python.exe scripts/merge.py merge`
+  - `GET /api/health`、`GET /api/status`、`GET /api/logs`、`GET /api/files`
+- 验证结果:
+  - 语法检查通过。
+  - merge 成功并写入配置。
+  - 4 个 API 接口均返回 `HTTP 200` 且 `success=true`。
+
+31. Phase 2 启动：`file_service` 首刀拆分（低风险）
+- 新增文件:
+  - `scripts/api/services/file_service.py`
+  - `scripts/api/services/__init__.py`
+- 变更文件:
+  - `scripts/api_server.py`
+- 变更点:
+  - 将 `validate_js_override` 从 `api_server.py` 迁移至 `services/file_service.py`。
+  - `api_server.py` 通过服务层调用该校验逻辑，参数继续使用 `NODE_BIN` 与 `JS_VALIDATE_TIMEOUT`。
+  - 路由、URL、响应结构未变化。
+
+32. Phase 2 首刀回归验证
+- 验证命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py scripts/api/services/file_service.py ...`
+  - `node --check web/app.js`
+  - `GET /api/health`、`GET /api/status`、`GET /api/logs`、`GET /api/files`
+  - `GET + PUT /api/override-script`（PUT 使用原内容回写）
+- 验证结果:
+  - 所有命令执行成功。
+  - 关键接口均返回 `HTTP 200` 且 `success=true`。
+
+## 增量交付（2026-02-27 Phase 2 第二刀：merge/scheduler/reload 服务层拆分）
+
+33. 新增服务模块并接管核心流程
+- 新增文件:
+  - `scripts/api/services/merge_service.py`
+  - `scripts/api/services/clash_client.py`
+- 更新文件:
+  - `scripts/api/services/__init__.py`
+  - `scripts/api_server.py`
+- 交付内容:
+  - `merge_service` 承接 `schedule` 读写清洗、`schedule_history`、`run_merge_job`、`start_merge_job`、`scheduler_loop`。
+  - `clash_client` 承接 `clash_headers` 与 reload HTTP 包装（含 `allowed paths` 安全路径回退）。
+  - `api_server.py` 保留原函数名作为薄封装，路由与接口行为不变。
+
+34. 本地验收（按全项目标准）
+- 执行命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/api/services/clash_client.py scripts/api/services/merge_service.py scripts/api/services/file_service.py scripts/api/common/auth.py scripts/api/common/io.py scripts/api/common/logging.py scripts/api/common/responses.py scripts/api/app.py scripts/api/settings.py`
+  - `node --check web/app.js`
+  - `D:\py311\python.exe scripts/merge.py merge`
+  - 本地 API：
+    - `GET /api/health`
+    - `GET /api/status`
+    - `GET /api/logs`
+    - `GET /api/files`
+    - `GET /api/schedule`
+    - `GET /api/schedule/history`
+    - `POST /api/actions/merge`
+    - `POST /api/actions/reload`
+  - 兼容入口：
+    - `D:\py311\python.exe -c "import api_server; print(bool(api_server.app))"`
+- 结果:
+  - 全部通过，接口返回 `HTTP 200` 且 `success=true`，入口兼容输出 `True`。
+
+35. 容器同等回归（用户选项 3）
+- 执行命令:
+  - `docker build --pull=false -t nexent:proxy-test .`
+  - `$env:IMAGE_REF='nexent:proxy-test'; docker compose up -d --pull never --force-recreate`
+  - `GET /api/health|status|logs|files`（`http://127.0.0.1:18080`）
+  - `PUT /api/override-script`（回写同内容）
+  - `docker top clash-meta-manager`
+- 结果:
+  - 容器状态 `healthy`。
+  - 关键接口均 `HTTP 200` 且 `success=true`。
+  - gunicorn 进程正常：`python3 -m gunicorn api_server:app ...`。
+
+## 增量交付（2026-02-27 Phase 2 第三刀：provider 服务层拆分）
+
+36. provider 查询与自动恢复逻辑下沉
+- 新增文件:
+  - `scripts/api/services/provider_service.py`
+- 更新文件:
+  - `scripts/api/services/__init__.py`
+  - `scripts/api_server.py`
+- 交付内容:
+  - 引入 `ProviderService` 承接 provider 状态读写、provider 列表构建、provider 订阅刷新、自动恢复循环。
+  - `api_server.py` 保留原函数名作为薄封装，接口路径与响应结构保持不变。
+
+37. 本地验收（API 改动标准）
+- 执行命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/api/services/provider_service.py scripts/api/services/merge_service.py scripts/api/services/clash_client.py scripts/api/services/file_service.py scripts/api/services/__init__.py`
+  - `node --check web/app.js`
+  - `D:\py311\python.exe scripts/merge.py merge`
+  - `GET /api/health|status|logs|files|clash/providers`（19092）
+  - `D:\py311\python.exe -c "import api_server; print(bool(api_server.app))"`
+- 结果:
+  - 全部通过；接口均 `HTTP 200` 且 `success=true`；入口兼容输出 `True`。
+
+38. 容器回归（同等验证）
+- 执行命令:
+  - `docker build --pull=false -t nexent:proxy-test .`
+  - `$env:IMAGE_REF='nexent:proxy-test'; docker compose up -d --pull never --force-recreate`
+  - `GET /api/health|status|logs|files|clash/providers`（18080）
+  - `docker inspect -f \"{{.State.Health.Status}}\" clash-meta-manager`
+  - `docker top clash-meta-manager`
+- 结果:
+  - 容器 `healthy`。
+  - provider 接口在容器内回归通过（`200 + success=true`）。
+  - gunicorn 进程正常运行。
+
+## 增量交付（2026-02-27：`重构2.txt` 分析与重构计划整理）
+
+39. 分析结论
+- 输入文件：`重构2.txt`。
+- 对照结果：
+  - 路由数量不变（`62`）。
+  - 差异规模大（`+1983/-1901`），不适合整文件替换。
+  - `action_geo_update` 在重构稿中已拆为编排函数，具备可迁移价值。
+- 风险判断：
+  - `重构2.txt` 是文档形态（说明 + 代码块），不能直接覆盖 `api_server.py`。
+
+40. 阻塞核验与产出
+- 执行命令：
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py`（成功）
+  - 提取重构代码块后：`D:\py311\python.exe -m py_compile tmp_refactor2_extracted.py`（失败）
+- 失败阻塞点：
+  - 提取代码存在语法错误（未转义引号，位于 `订阅集合` 文案行）。
+- 新增产出：
+  - `refactor2_plan.md`（按阶段可执行计划：Phase B kernel -> Phase C geo 拆解 -> Phase D geo 服务化）
+  - `task_plan.md` 已同步下一步动作。
+
+## 增量交付（2026-02-27 Phase B：`kernel_service` 服务层拆分）
+
+41. 核心更新能力下沉到独立服务
+- 新增文件:
+  - `scripts/api/services/kernel_service.py`
+- 更新文件:
+  - `scripts/api/services/__init__.py`
+  - `scripts/api_server.py`
+- 交付内容:
+  - 新增 `KernelService` 承接 kernel 相关 helper 与流程：repo/架构解析、release 查询、资产选择、sha256 校验、二进制校验、状态汇总、更新执行、更新历史读写、重启调度。
+  - `api_server.py` 保留同名函数薄封装与现有路由，URL/响应结构保持不变。
+
+42. 按项目验收标准完成回归
+- 执行命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/api/services/kernel_service.py scripts/api/services/__init__.py scripts/api/services/merge_service.py scripts/api/services/provider_service.py scripts/api/services/file_service.py`
+  - `node --check web/app.js`
+  - `D:\py311\python.exe scripts/merge.py merge`
+  - `GET /api/health|status|logs|files|kernel/status|kernel/updates?limit=5`（19092）
+  - `D:\py311\python.exe -c "import api_server; print(bool(api_server.app))"`（workdir=`scripts`）
+- 结果:
+  - 上述命令均成功，接口返回 `HTTP 200` 且 `success=true`，入口兼容输出 `True`。
+
+43. 额外观测
+- `GET /api/kernel/release/latest` 在当前本地 Windows 回归环境返回 `HTTP 500`，报错 `unsupported linux arch: unknown`；kernel 更新本身为 Linux 容器场景能力，不影响本轮结构迁移正确性。
+
+## 增量交付（2026-02-27 Phase C：`action_geo_update` 拆解）
+
+44. GEO 更新路由从“超长函数”收敛为编排流程
+- 更新文件:
+  - `scripts/api_server.py`
+- 交付内容:
+  - 将 `/api/actions/geo/update` 主流程拆解为“参数解析 + 分步执行 + 结果合成”。
+  - 提取 GEO 相关 helper（代理检测、GEO 文件更新、规则集更新、结果合成），降低单函数复杂度。
+  - 保持接口路径与响应字段不变。
+
+45. Phase C 验收
+- 执行命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py`
+  - `GET /api/health|status|logs|files`（19092）
+  - `POST /api/actions/geo/update`（`{"check_proxy":false,"update_geo_db":false,"update_rule_providers":false}`）
+- 结果:
+  - 命令通过，接口均返回 `HTTP 200` 且 `success=true`。
+
+## 增量交付（2026-02-27 Phase D：`geo_service` 服务化）
+
+46. GEO 能力下沉到独立服务
+- 新增文件:
+  - `scripts/api/services/geo_service.py`
+- 更新文件:
+  - `scripts/api/services/__init__.py`
+  - `scripts/api_server.py`
+- 交付内容:
+  - 新增 `GeoService`，承接 GEO 链路的 HTTP 调用、规则集遍历、数据变更推断、结果拼装等逻辑。
+  - `api_server.py` 注入 `geo_service` 并将原 helper 改为薄封装，保证兼容入口不变。
+
+47. 兼容性约束保持
+- `/api/actions/geo/update` URL 保持不变。
+- 响应结构保持不变（`success`、`message`、`check_proxy`、`geo_db`、`rule_providers` 等字段仍可用）。
+- `api_server.py` 继续保留旧 helper 名称作为兼容封装，避免外部调用断裂。
+
+48. 收尾回归（Phase E）
+- 执行命令:
+  - `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/api/services/geo_service.py scripts/api/services/__init__.py`
+  - `GET /api/health|status|logs|files`（19092）
+  - `POST /api/actions/geo/update`（空操作参数）
+  - `D:\py311\python.exe -c "import api_server; print('APP_BOOL', bool(api_server.app))"`（workdir=`scripts`）
+- 结果:
+  - 所有检查通过；关键接口均 `HTTP 200` 且 `success=true`。
+  - 入口兼容校验输出 `APP_BOOL True`（伴随初始化日志输出）。
