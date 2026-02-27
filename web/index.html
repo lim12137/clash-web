@@ -807,13 +807,14 @@
 
             <!-- 筛选控件 -->
             <div class="proxy-records-filters" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-              <input id="proxy-record-keyword" type="text" placeholder="搜索关键字（节点名/分组名）" style="flex: 1; min-width: 200px;">
+              <input id="proxy-record-keyword" type="text" placeholder="搜索关键字（节点/分组/软件/网址）" style="flex: 1; min-width: 200px;">
               <input id="proxy-record-subscription" type="text" placeholder="筛选订阅名称" style="flex: 1; min-width: 150px;">
               <select id="proxy-record-type" style="min-width: 100px;">
                 <option value="">全部类型</option>
                 <option value="switch">切换</option>
                 <option value="test">测速</option>
                 <option value="select">选择</option>
+                <option value="connection">连接</option>
               </select>
               <select id="proxy-record-limit" style="min-width: 80px;">
                 <option value="50">50条</option>
@@ -837,15 +838,17 @@
                     <th>类型</th>
                     <th>分组</th>
                     <th>节点</th>
+                    <th>软件</th>
+                    <th>网址</th>
                     <th>订阅</th>
-                    <th>延迟</th>
+                    <th>延迟/流量</th>
                     <th>状态</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="proxy-records-tbody">
                   <tr>
-                    <td colspan="8" class="muted">暂无记录</td>
+                    <td colspan="10" class="muted">暂无记录</td>
                   </tr>
                 </tbody>
               </table>

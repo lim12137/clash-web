@@ -87,3 +87,39 @@
 - `docker compose up -d --pull never` 启动成功，容器状态 `healthy`。
 - `GET /api/health`、`GET /api/proxy-records`、`POST /api/proxy-records`、`GET /api/proxy-records/stats`、`GET /api/status`、`GET /` 全部 200。
 - 容器内 API 进程确认为 `python3 -m gunicorn api_server:app ...`。
+
+## 增量笔记（2026-02-27 连接记录模块化）
+
+### 拆分策略
+- 目标是避免 `api_server.py` 继续膨胀，记录与采样能力放入独立模块。
+- 新建 `scripts/connection_recorder.py`：
+  - `ProxyRecordStore`: 负责 `proxy_records.json` 线程安全读写、筛选、统计。
+  - `ClashConnectionRecorder`: 负责轮询 `CLASH_API/connections`，提取连接元数据并合并入库。
+
+### 字段映射（连接 -> 记录）
+- 软件：`metadata.process / processName / process_name` -> `app_name`
+- 软件路径：`metadata.processPath / process_path` -> `process_path`
+- 网址：`metadata.host / sniffHost / sniff_host` -> `host`
+- 目标地址：`metadata.remoteDestination` 或 `destinationIP:destinationPort` -> `destination`
+- 规则：`rule` / `rulePayload`
+- 节点链路：`chains`（末尾作为 `target_node`，首段作为 `group_name`）
+- 流量：`upload` / `download`
+
+### 合并去重策略
+- 活跃连接去重：按 `connection id + fingerprint` 判断是否变化，未变化不重复落盘。
+- 历史记录合并：按 `merge_key` 合并累计（`hit_count`、最大流量、最新时间）。
+- 记录总量上限：`MAX_PROXY_RECORDS`（默认 1000）。
+
+### API 接入变化
+- `api_server.py` 仅做路由层调用：
+  - `GET /api/proxy-records`（支持 keyword / subscription / type / app / host / limit）
+  - `POST /api/proxy-records`
+  - `DELETE /api/proxy-records/<id>`
+  - `POST /api/proxy-records/clear`
+  - `GET /api/proxy-records/stats`
+  - `POST /api/proxy-records/capture`
+  - `GET /api/proxy-records/recorder`
+
+### 前端变化
+- `web/index.html`：新增 `软件`、`网址` 两列，类型增加 `connection`。
+- `web/app.js`：`connection` 类型显示 `↑upload ↓download`，其他类型继续显示延迟。

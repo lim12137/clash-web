@@ -269,3 +269,40 @@
 
 ### 当前状态
 - 本地镜像部署回归已闭环，可继续“推送最新镜像到远程并切回 `ghcr.io/lim12137/clash2web:latest`”。
+
+## 增量记录（2026-02-27 连接记录模块拆分）
+
+### 本轮目标
+- 按要求不要把逻辑都堆在 `api_server.py`。
+- 将“软件/网址调用了哪些节点”的记录能力拆到独立脚本并接入现有 API。
+- 前端“代理记录”页面补充软件与网址可视化字段。
+
+### 实施结果
+1. 后端模块拆分（已完成）
+   - 新增独立文件：`scripts/connection_recorder.py`。
+   - 新增 `ProxyRecordStore`（记录读写/筛选/统计）。
+   - 新增 `ClashConnectionRecorder`（轮询 `/connections`，提取 `app_name/host/target_node/chains/rule` 等并入库）。
+
+2. API 薄路由接入（已完成）
+   - `scripts/api_server.py` 改为调用独立模块，不再内嵌记录实现细节。
+   - 新增配置项：
+     - `CONNECTION_RECORD_ENABLED`（默认开启）
+     - `CONNECTION_RECORD_INTERVAL`（默认 6 秒）
+     - `MAX_PROXY_RECORDS`（默认 1000）
+   - 新增接口：
+     - `POST /api/proxy-records/capture`（手动采样一次连接）
+     - `GET /api/proxy-records/recorder`（采样器状态）
+   - 现有 `/api/proxy-records` 保持兼容，增强检索维度（软件/网址）。
+
+3. 前端展示增强（已完成）
+   - `web/index.html` 代理记录表新增列：`软件`、`网址`。
+   - 类型筛选新增：`connection`。
+   - `web/app.js` 对 `connection` 类型改为显示上/下行流量；其他类型保持延迟显示。
+
+### 验证记录
+- `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py scripts/connection_recorder.py` 通过。
+- `node --check web/app.js` 通过。
+
+### 当前状态
+- 代码拆分与前端展示已完成，已保存进度文件。
+- 未执行容器级联调与真实 `/connections` 数据回灌验证（待下一轮环境验证）。

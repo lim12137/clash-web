@@ -3011,6 +3011,7 @@ const RECORD_TYPE_CONFIG = {
   switch: { label: "切换", class: "badge warn" },
   test: { label: "测速", class: "badge info" },
   select: { label: "选择", class: "badge success" },
+  connection: { label: "连接", class: "badge" },
 };
 
 function getRecordTypeLabel(type) {
@@ -3059,6 +3060,37 @@ function getDelayInfo(delayMs) {
   return { text: `${delayMs}ms`, class: cssClass };
 }
 
+function getRecordMetricInfo(record) {
+  if (String(record.type || "") === "connection") {
+    const upload = Math.max(0, Number(record.upload || 0));
+    const download = Math.max(0, Number(record.download || 0));
+    if (upload <= 0 && download <= 0) {
+      return { text: "-", class: "" };
+    }
+    return {
+      text: `↑${formatTraffic(upload)} ↓${formatTraffic(download)}`,
+      class: "",
+    };
+  }
+  return getDelayInfo(Number(record.delay_ms ?? -1));
+}
+
+function getRecordAppName(record) {
+  const appName = String(record.app_name || "").trim();
+  if (appName) return appName;
+  const processPath = String(record.process_path || "").trim();
+  if (!processPath) return "-";
+  const chunks = processPath.split(/[\\/]/);
+  return chunks[chunks.length - 1] || processPath;
+}
+
+function getRecordHost(record) {
+  const host = String(record.host || "").trim();
+  if (host) return host;
+  const destination = String(record.destination || "").trim();
+  return destination || "-";
+}
+
 function renderProxyRecords(stats) {
   const tbody = document.getElementById("proxy-records-tbody");
   const statsEl = document.getElementById("proxy-records-stats");
@@ -3068,15 +3100,17 @@ function renderProxyRecords(stats) {
   statsEl.textContent = `总计: ${stats.total} 条 | 筛选后: ${stats.filtered} 条 | 显示: ${stats.returned} 条`;
 
   if (!currentProxyRecords || currentProxyRecords.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">暂无记录</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">暂无记录</td></tr>';
     return;
   }
 
   tbody.innerHTML = currentProxyRecords
     .map((record) => {
-      const delayInfo = getDelayInfo(record.delay_ms);
+      const metricInfo = getRecordMetricInfo(record);
       const statusText = record.success !== false ? "成功" : "失败";
       const statusClass = record.success !== false ? "success" : "error";
+      const appName = getRecordAppName(record);
+      const host = getRecordHost(record);
 
       return `
       <tr>
@@ -3084,8 +3118,10 @@ function renderProxyRecords(stats) {
         <td><span class="${getRecordTypeClass(record.type)}">${getRecordTypeLabel(record.type)}</span></td>
         <td>${escapeHtml(record.group_name || "-")}</td>
         <td>${escapeHtml(record.target_node || record.proxy_name || "-")}</td>
+        <td>${escapeHtml(appName)}</td>
+        <td>${escapeHtml(host)}</td>
         <td>${escapeHtml(record.subscription || "-")}</td>
-        <td class="${delayInfo.class}">${delayInfo.text}</td>
+        <td class="${metricInfo.class}">${metricInfo.text}</td>
         <td><span class="badge ${statusClass}">${statusText}</span></td>
         <td>
           <button class="btn-small" onclick="deleteProxyRecord('${record.id}')">删除</button>

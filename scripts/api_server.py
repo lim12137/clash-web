@@ -27,6 +27,7 @@ import requests
 import yaml
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
+from connection_recorder import ClashConnectionRecorder, ProxyRecordStore
 
 BASE_DIR = Path(os.environ.get("MIHOMO_DIR", "/root/.config/mihomo"))
 SCRIPTS_DIR = Path(os.environ.get("SCRIPTS_DIR", "/scripts"))
@@ -124,6 +125,26 @@ PROVIDER_AUTO_REFRESH_ENABLED = os.environ.get(
     "PROVIDER_AUTO_REFRESH_ENABLED",
     "1",
 ).strip().lower() in {"1", "true", "yes", "on"}
+CONNECTION_RECORD_ENABLED = os.environ.get(
+    "CONNECTION_RECORD_ENABLED",
+    "1",
+).strip().lower() in {"1", "true", "yes", "on"}
+
+try:
+    CONNECTION_RECORD_INTERVAL = max(
+        3,
+        int(os.environ.get("CONNECTION_RECORD_INTERVAL", "6")),
+    )
+except ValueError:
+    CONNECTION_RECORD_INTERVAL = 6
+
+try:
+    MAX_PROXY_RECORDS = max(
+        100,
+        int(os.environ.get("MAX_PROXY_RECORDS", "1000")),
+    )
+except ValueError:
+    MAX_PROXY_RECORDS = 1000
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -3355,90 +3376,33 @@ def bootstrap_files():
             ),
         )
     sync_override_script_with_sets(load_subscription_sets())
+    proxy_record_store.ensure_file()
 
 
 # ==================== Proxy Records ====================
 
-MAX_PROXY_RECORDS = 1000
-
-
-def _load_proxy_records() -> dict:
-    """加载代理记录数据"""
-    try:
-        if PROXY_RECORDS_FILE.exists():
-            with open(PROXY_RECORDS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return {"records": [], "version": 1}
-
-
-def _save_proxy_records(data: dict) -> bool:
-    """保存代理记录数据"""
-    try:
-        with open(PROXY_RECORDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
-
-
-def _cleanup_old_records(records: list, max_count: int = MAX_PROXY_RECORDS) -> list:
-    """清理旧记录，只保留最新的指定数量"""
-    if len(records) <= max_count:
-        return records
-    # 按时间戳排序，保留最新的
-    sorted_records = sorted(records, key=lambda x: x.get("timestamp", 0), reverse=True)
-    return sorted_records[:max_count]
+proxy_record_store = ProxyRecordStore(PROXY_RECORDS_FILE, max_records=MAX_PROXY_RECORDS)
+connection_recorder: ClashConnectionRecorder | None = None
 
 
 @app.route("/api/proxy-records", methods=["GET"])
 def get_proxy_records():
     """获取代理记录列表，支持筛选"""
     try:
-        data = _load_proxy_records()
-        records = data.get("records", [])
-
-        # 获取筛选参数
-        keyword = request.args.get("keyword", "").strip().lower()
+        keyword = request.args.get("keyword", "").strip()
         subscription = request.args.get("subscription", "").strip()
         record_type = request.args.get("type", "").strip()
+        app_name = request.args.get("app", "").strip()
+        host = request.args.get("host", "").strip()
         limit = request.args.get("limit", 100)
-        try:
-            limit = int(limit)
-            limit = max(10, min(500, limit))
-        except Exception:
-            limit = 100
-
-        # 应用筛选
-        filtered = records
-        if keyword:
-            filtered = [
-                r for r in filtered
-                if keyword in r.get("proxy_name", "").lower()
-                or keyword in r.get("group_name", "").lower()
-                or keyword in r.get("target_node", "").lower()
-            ]
-        if subscription:
-            filtered = [
-                r for r in filtered
-                if subscription.lower() in r.get("subscription", "").lower()
-            ]
-        if record_type:
-            filtered = [r for r in filtered if r.get("type") == record_type]
-
-        # 按时间倒序排列
-        filtered = sorted(filtered, key=lambda x: x.get("timestamp", 0), reverse=True)
-
-        # 限制返回数量
-        result = filtered[:limit]
-
-        # 获取统计信息
-        stats = {
-            "total": len(records),
-            "filtered": len(filtered),
-            "returned": len(result),
-        }
+        result, stats = proxy_record_store.query_records(
+            keyword=keyword,
+            subscription=subscription,
+            record_type=record_type,
+            app_name=app_name,
+            host=host,
+            limit=limit,
+        )
 
         return jsonify({"success": True, "data": result, "stats": stats})
     except Exception as exc:
@@ -3451,28 +3415,8 @@ def add_proxy_record():
     """添加代理记录"""
     body = ensure_json_body()
     try:
-        data = _load_proxy_records()
-        records = data.get("records", [])
-
-        record = {
-            "id": f"rec_{int(time.time() * 1000)}_{len(records)}",
-            "timestamp": int(time.time()),
-            "type": str(body.get("type", "switch")),  # switch, test, select
-            "proxy_name": str(body.get("proxy_name", "")),
-            "group_name": str(body.get("group_name", "")),
-            "target_node": str(body.get("target_node", "")),
-            "subscription": str(body.get("subscription", "")),
-            "provider": str(body.get("provider", "")),
-            "delay_ms": body.get("delay_ms", -1),
-            "success": bool(body.get("success", True)),
-            "note": str(body.get("note", "")),
-        }
-
-        records.append(record)
-        records = _cleanup_old_records(records)
-        data["records"] = records
-
-        if _save_proxy_records(data):
+        ok, record = proxy_record_store.add_record(body)
+        if ok and record is not None:
             return jsonify({"success": True, "record": record})
         return json_error("failed to save proxy record", 500)
     except Exception as exc:
@@ -3484,17 +3428,10 @@ def add_proxy_record():
 def delete_proxy_record(record_id):
     """删除指定代理记录"""
     try:
-        data = _load_proxy_records()
-        records = data.get("records", [])
-
-        original_count = len(records)
-        records = [r for r in records if r.get("id") != record_id]
-
-        if len(records) == original_count:
+        ok, found = proxy_record_store.delete_record(record_id)
+        if not found:
             return json_error("record not found", 404)
-
-        data["records"] = records
-        if _save_proxy_records(data):
+        if ok:
             return jsonify({"success": True})
         return json_error("failed to save proxy records", 500)
     except Exception as exc:
@@ -3511,8 +3448,7 @@ def clear_proxy_records():
         if confirm != "yes":
             return json_error("confirmation required", 400)
 
-        data = {"records": [], "version": 1}
-        if _save_proxy_records(data):
+        if proxy_record_store.clear_records():
             emit_log("proxy records cleared")
             return jsonify({"success": True})
         return json_error("failed to clear proxy records", 500)
@@ -3524,32 +3460,37 @@ def clear_proxy_records():
 def get_proxy_records_stats():
     """获取代理记录统计信息"""
     try:
-        data = _load_proxy_records()
-        records = data.get("records", [])
-
-        subscriptions = Counter(r.get("subscription", "未知") for r in records)
-        providers = Counter(r.get("provider", "未知") for r in records)
-        types = Counter(r.get("type", "unknown") for r in records)
-
-        daily_counts = Counter()
-        for r in records:
-            ts = r.get("timestamp", 0)
-            if ts:
-                day = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                daily_counts[day] += 1
-
-        return jsonify({
-            "success": True,
-            "data": {
-                "total": len(records),
-                "subscriptions": dict(subscriptions),
-                "providers": dict(providers),
-                "types": dict(types),
-                "daily_counts": dict(daily_counts),
-            }
-        })
+        return jsonify({"success": True, "data": proxy_record_store.get_stats()})
     except Exception as exc:
         return json_error(f"failed to get proxy records stats: {exc}", 500)
+
+
+@app.route("/api/proxy-records/capture", methods=["POST"])
+@require_write_auth
+def capture_proxy_records():
+    """手动采样一次连接记录"""
+    if not CONNECTION_RECORD_ENABLED or connection_recorder is None:
+        return json_error("connection recorder disabled", 400)
+    try:
+        captured = int(connection_recorder.capture_once())
+        return jsonify({"success": True, "captured": captured})
+    except Exception as exc:
+        return json_error(f"capture failed: {exc}", 500)
+
+
+@app.route("/api/proxy-records/recorder", methods=["GET"])
+def get_proxy_recorder_status():
+    data = {
+        "enabled": bool(CONNECTION_RECORD_ENABLED),
+        "running": False,
+        "poll_interval": CONNECTION_RECORD_INTERVAL,
+        "active_connections": 0,
+    }
+    if connection_recorder is not None:
+        status = connection_recorder.status()
+        if isinstance(status, dict):
+            data.update(status)
+    return jsonify({"success": True, "data": data})
 
 
 # === WEB ENTRY ===
@@ -3586,13 +3527,31 @@ runtime_initialized = False
 
 
 def start_runtime_services() -> None:
-    global runtime_initialized
+    global runtime_initialized, connection_recorder
     with runtime_init_lock:
         if runtime_initialized:
             return
         bootstrap_files()
         threading.Thread(target=scheduler_loop, daemon=True).start()
         threading.Thread(target=provider_auto_recovery_loop, daemon=True).start()
+        if CONNECTION_RECORD_ENABLED:
+            connection_recorder = ClashConnectionRecorder(
+                clash_api=CLASH_API,
+                headers_func=clash_headers,
+                store=proxy_record_store,
+                emit_log=emit_log,
+                poll_interval=CONNECTION_RECORD_INTERVAL,
+                request_timeout=5,
+            )
+            connection_recorder.start()
+            emit_log(
+                (
+                    "connection recorder enabled, "
+                    f"interval={CONNECTION_RECORD_INTERVAL}s, max_records={MAX_PROXY_RECORDS}"
+                )
+            )
+        else:
+            emit_log("connection recorder disabled")
         emit_log(
             (
                 "provider auto-refresh "

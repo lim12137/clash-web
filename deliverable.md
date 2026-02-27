@@ -149,3 +149,41 @@
     - `GET /api/status`
     - `GET /`
   - 容器内 API 进程确认为 gunicorn：`python3 -m gunicorn api_server:app ...`。
+
+## 增量交付（2026-02-27 连接记录模块拆分与进度落盘）
+
+16. 连接记录能力模块化（按要求不集中在单脚本）
+- 新增文件: `scripts/connection_recorder.py`
+- 交付内容:
+  - `ProxyRecordStore`：记录持久化、筛选查询、统计汇总。
+  - `ClashConnectionRecorder`：轮询 `/connections`，记录“软件/网址 -> 节点”映射并合并去重。
+  - 线程安全控制：记录存储锁 + 采样锁，避免并发写入与手动采样冲突。
+
+17. API 层改为薄路由调用
+- 文件: `scripts/api_server.py`
+- 变更:
+  - 移除内嵌记录实现，改为调用 `connection_recorder` 模块。
+  - 启动阶段接入 recorder 后台线程。
+  - 新增环境变量:
+    - `CONNECTION_RECORD_ENABLED`
+    - `CONNECTION_RECORD_INTERVAL`
+    - `MAX_PROXY_RECORDS`
+  - 新增接口:
+    - `POST /api/proxy-records/capture`
+    - `GET /api/proxy-records/recorder`
+
+18. 前端代理记录页增强
+- 文件: `web/index.html`, `web/app.js`
+- 变更:
+  - 类型筛选增加 `connection`。
+  - 表格新增 `软件`、`网址` 列。
+  - `connection` 类型显示上/下行流量；其他类型保持延迟显示。
+
+19. 本轮验证
+- `D:\py311\python.exe -m py_compile scripts/api_server.py scripts/merge.py scripts/connection_recorder.py` 通过。
+- `node --check web/app.js` 通过。
+
+20. 进度文件已更新
+- `task_plan.md`：新增“连接记录模块拆分”执行记录与状态。
+- `notes.md`：新增拆分策略、字段映射、去重策略、API/前端变更笔记。
+- `deliverable.md`：新增本轮增量交付说明。
