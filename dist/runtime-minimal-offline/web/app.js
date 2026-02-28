@@ -83,6 +83,11 @@ function setActiveSection(section) {
   document.querySelectorAll(".content-grid .card[data-page]").forEach((card) => {
     card.classList.toggle("is-hidden", card.dataset.page !== section);
   });
+
+  // 切换到连接页面时，重新渲染节点网格以显示已有的延迟数据
+  if (section === "connections" && proxyGroups.length > 0) {
+    renderNodesGrid();
+  }
 }
 
 function bindSidebarNav() {
