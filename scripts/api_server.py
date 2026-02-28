@@ -2154,5 +2154,5 @@ if __name__ == "__main__":
     except ValueError:
         port = 19092
     emit_log(f"management api starting on {host}:{port}")
-    # Keep local script mode single-threaded to avoid routing anomalies in Werkzeug threaded mode.
-    app.run(host=host, port=port, debug=False, threaded=False)
+    # /api/logs/stream uses long-lived SSE responses; single-thread mode will block other requests.
+    app.run(host=host, port=port, debug=False, threaded=True)
