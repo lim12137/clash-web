@@ -50,6 +50,14 @@ def _parse_str_set(env_var: str, default: str, separator: str = ",") -> set[str]
     return {item.strip() for item in raw.split(separator) if item.strip()}
 
 
+def _default_api_host() -> str:
+    """Use loopback on Windows local runs, wildcard elsewhere, unless explicitly configured."""
+    configured = os.environ.get("API_HOST", "").strip()
+    if configured:
+        return configured
+    return "127.0.0.1" if os.name == "nt" else "0.0.0.0"
+
+
 @dataclass(frozen=True)
 class PathConfig:
     """All path configurations."""
@@ -198,7 +206,7 @@ class RuntimeConfig:
 class ServerConfig:
     """API server configuration."""
 
-    host: str = field(default_factory=lambda: os.environ.get("API_HOST", "0.0.0.0"))
+    host: str = field(default_factory=_default_api_host)
     port: int = field(default_factory=lambda: _parse_int("API_PORT", 19092))
     public_host: str = field(default_factory=lambda: os.environ.get("PUBLIC_HOST", "").strip())
     web_port: int | None = field(default=None)

@@ -17,7 +17,7 @@ if /I not "%CLASH_API%"=="http://127.0.0.1:%TEST_CONTROLLER_PORT%" (
   echo [warn] Force to project test kernel: http://127.0.0.1:%TEST_CONTROLLER_PORT%
   set "CLASH_API=http://127.0.0.1:%TEST_CONTROLLER_PORT%"
 )
-if "%API_HOST%"=="" set "API_HOST=0.0.0.0"
+if "%API_HOST%"=="" set "API_HOST=127.0.0.1"
 if "%API_PORT%"=="" set "API_PORT=19092"
 if "%SKIP_TEST_KERNEL%"=="" set "SKIP_TEST_KERNEL=0"
 
