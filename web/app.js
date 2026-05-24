@@ -67,6 +67,16 @@ const SECTION_TITLES = {
   settings: "设置",
 };
 
+const SECTION_SUBTITLES = {
+  dashboard: "实时观察代理运行状态与关键控制项。",
+  proxy: "管理订阅源、策略组和节点组织方式。",
+  config: "集中编辑覆写配置与运行模板。",
+  logs: "查看系统日志、运行反馈与排障线索。",
+  connections: "切换节点、检查延迟并观察连接分布。",
+  "proxy-records": "汇总代理访问记录与行为追踪结果。",
+  settings: "调整运行参数、内核能力与维护工具。",
+};
+
 function getSectionFromHash() {
   const section = String(window.location.hash || "").replace(/^#/, "").trim();
   return SECTION_TITLES[section] ? section : "";
@@ -85,12 +95,18 @@ function setActiveSection(section) {
   syncSectionHash(section);
 
   document.querySelectorAll(".nav-item[data-section]").forEach((item) => {
-    item.classList.toggle("active", item.dataset.section === section);
+    const isActive = item.dataset.section === section;
+    item.classList.toggle("active", isActive);
+    item.setAttribute("aria-current", isActive ? "page" : "false");
   });
 
   const headerTitle = document.querySelector(".header h1");
   if (headerTitle) {
     headerTitle.textContent = SECTION_TITLES[section];
+  }
+  const headerSubtitle = document.getElementById("header-subtitle");
+  if (headerSubtitle) {
+    headerSubtitle.textContent = SECTION_SUBTITLES[section] || "";
   }
 
   document.querySelectorAll(".content-grid .card[data-page]").forEach((card) => {
@@ -106,9 +122,16 @@ function setActiveSection(section) {
 function bindSidebarNav() {
   const navItems = Array.from(document.querySelectorAll(".nav-item[data-section]"));
   navItems.forEach((item) => {
-    item.onclick = () => {
+    item.addEventListener("click", () => {
       setActiveSection(item.dataset.section || "dashboard");
-    };
+    });
+  });
+
+  window.addEventListener("hashchange", () => {
+    const section = getSectionFromHash();
+    if (section && section !== activeSection) {
+      setActiveSection(section);
+    }
   });
 
   const defaultSection = navItems.find((item) => item.classList.contains("active"))?.dataset.section;
@@ -1030,24 +1053,37 @@ function drawWaveChart() {
   
   const width = canvas.width / dpr;
   const height = canvas.height / dpr;
-  
+
+  // 每帧先重置变换矩阵，避免上一帧的 scale/translate 残留造成“斜着漂移”的鬼影
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-  ctx.scale(dpr, dpr);
-  
+
   // 获取数据
   const upData = dashboardState.speedHistory.up;
   const downData = dashboardState.speedHistory.down;
   
   if (upData.length < 2 && downData.length < 2) return;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  const topPadding = 8;
+  const bottomPadding = 10;
+  const chartHeight = Math.max(1, height - topPadding - bottomPadding);
   
   // 计算最大值
   const maxVal = Math.max(
     ...upData, ...downData, 
     1024 * 100 // 最小刻度 100KB/s
   ) * 1.2;
-  
-  const stepX = width / (dashboardState.maxSpeedPoints - 1);
+  const pointCount = Math.max(upData.length, downData.length, 2);
+  const stepX = pointCount > 1 ? width / (pointCount - 1) : width;
+
+  function speedToY(speed) {
+    const value = Number.isFinite(speed) ? Math.max(0, speed) : 0;
+    const ratio = maxVal > 0 ? Math.min(1, value / maxVal) : 0;
+    return topPadding + chartHeight - ratio * chartHeight;
+  }
   
   // 绘制下载速度（紫色）
   if (downData.length > 1) {
@@ -1059,15 +1095,15 @@ function drawWaveChart() {
     
     for (let i = 0; i < downData.length; i++) {
       const x = width - (downData.length - 1 - i) * stepX;
-      const y = height - (downData[i] / maxVal) * height;
+      const y = speedToY(downData[i]);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
     
     // 填充渐变
-    ctx.lineTo(width, height);
-    ctx.lineTo(width - (downData.length - 1) * stepX, height);
+    ctx.lineTo(width, topPadding + chartHeight);
+    ctx.lineTo(width - (downData.length - 1) * stepX, topPadding + chartHeight);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, 0, 0, height);
     grad.addColorStop(0, 'rgba(139, 92, 246, 0.3)');
@@ -1086,12 +1122,14 @@ function drawWaveChart() {
     
     for (let i = 0; i < upData.length; i++) {
       const x = width - (upData.length - 1 - i) * stepX;
-      const y = height - (upData[i] / maxVal) * height;
+      const y = speedToY(upData[i]);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
+
+  ctx.restore();
 }
 
 // 更新速度显示
@@ -1134,15 +1172,19 @@ async function fetchTrafficData() {
       speedUpRaw >= 0 &&
       Number.isFinite(speedDownRaw) &&
       speedDownRaw >= 0;
+    const hasPositiveRealtimeSpeed = hasRealtimeSpeed && (speedUpRaw > 0 || speedDownRaw > 0);
 
     let upSpeed = 0;
     let downSpeed = 0;
-    if (hasRealtimeSpeed) {
+    if (hasPositiveRealtimeSpeed) {
       upSpeed = speedUpRaw;
       downSpeed = speedDownRaw;
     } else if (hasPrevTotals) {
       upSpeed = Math.max(0, totalUp - prevUp);
       downSpeed = Math.max(0, totalDown - prevDown);
+    } else if (hasRealtimeSpeed) {
+      upSpeed = speedUpRaw;
+      downSpeed = speedDownRaw;
     }
 
     if (hasRealtimeSpeed || hasPrevTotals) {

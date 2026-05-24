@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Clash 代理管理面板 - 轻松管理您的网络代理配置">
-  <meta name="theme-color" content="#0a0a0f">
+  <meta name="theme-color" content="#06101b">
   <title>Clash 管理面板</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,40 +19,40 @@
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
       </div>
-      <nav class="nav-items" role="menubar">
+      <nav class="nav-items" aria-label="页面导航">
         <!-- 1. 仪表盘 -->
-        <div class="nav-item active" data-section="dashboard" title="仪表盘" role="menuitem" tabindex="0" aria-current="page">
+        <button type="button" class="nav-item active" data-section="dashboard" title="仪表盘" aria-label="仪表盘" aria-current="page">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"/>
             <rect x="14" y="3" width="7" height="7"/>
             <rect x="14" y="14" width="7" height="7"/>
             <rect x="3" y="14" width="7" height="7"/>
           </svg>
-        </div>
+        </button>
         <!-- 2. 连接 -->
-        <div class="nav-item" data-section="connections" title="连接" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="connections" title="连接" aria-label="连接">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-        </div>
+        </button>
         <!-- 3. 订阅配置 -->
-        <div class="nav-item" data-section="proxy" title="订阅配置" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="proxy" title="订阅配置" aria-label="订阅配置">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="2" y="2" width="20" height="8" rx="2"/>
             <rect x="2" y="14" width="20" height="8" rx="2"/>
             <path d="M6 6h.01M6 18h.01"/>
           </svg>
-        </div>
+        </button>
         <!-- 4. 覆写 -->
-        <div class="nav-item" data-section="config" title="覆写" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="config" title="覆写" aria-label="覆写">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
-        </div>
+        </button>
         <!-- 5. 日志 (记录类) -->
-        <div class="nav-item" data-section="logs" title="日志" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="logs" title="日志" aria-label="日志">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -60,36 +60,39 @@
             <line x1="16" y1="17" x2="8" y2="17"/>
             <line x1="10" y1="9" x2="8" y2="9"/>
           </svg>
-        </div>
+        </button>
         <!-- 6. 代理记录 (记录类) -->
-        <div class="nav-item" data-section="proxy-records" title="代理记录" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="proxy-records" title="代理记录" aria-label="代理记录">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-        </div>
+        </button>
         <!-- 7. 设置 (最下方) -->
-        <div class="nav-item" data-section="settings" title="设置" role="menuitem" tabindex="0">
+        <button type="button" class="nav-item" data-section="settings" title="设置" aria-label="设置">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m20.9 9.9h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
           </svg>
-        </div>
+        </button>
       </nav>
-      <div class="nav-item" title="更多" role="menuitem" tabindex="0">
+      <button type="button" class="nav-item nav-item-static" title="更多" aria-label="更多">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="3" y1="12" x2="21" y2="12"/>
           <line x1="3" y1="6" x2="21" y2="6"/>
           <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
-      </div>
+      </button>
     </aside>
 
     <!-- Main Content -->
     <main class="main-content">
       <!-- Header -->
       <header class="header">
-        <h1>仪表盘</h1>
+        <div class="header-copy">
+          <h1>仪表盘</h1>
+          <p id="header-subtitle" class="header-subtitle">实时观察代理运行状态与关键控制项。</p>
+        </div>
         <div class="header-actions">
           <span id="clash-status" class="badge">检查中</span>
           <span id="clash-version" class="muted">-</span>
@@ -292,7 +295,7 @@
           </section>
 
           <!-- Quick Actions Card -->
-          <section class="card" data-page="dashboard">
+          <section class="card action-card" data-page="dashboard">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -310,7 +313,7 @@
           </section>
 
           <!-- Admin Token Card -->
-          <section class="card" data-page="settings">
+          <section class="card settings-panel settings-panel-auth" data-page="settings">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -328,7 +331,7 @@
           </section>
 
           <!-- Runtime Connection Info -->
-          <section class="card" data-page="settings">
+          <section class="card settings-panel settings-panel-runtime" data-page="settings">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -361,7 +364,7 @@
           </section>
 
           <!-- Kernel Update Card -->
-          <section class="card wide" data-page="settings">
+          <section class="card wide settings-panel settings-panel-kernel" data-page="settings">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -427,7 +430,7 @@
           </section>
 
           <!-- GEO Update Card -->
-          <section class="card wide" data-page="settings">
+          <section class="card wide settings-panel settings-panel-geo" data-page="settings">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -484,7 +487,7 @@
           </section>
 
           <!-- Schedule Card -->
-          <section class="card" data-page="dashboard">
+          <section class="card schedule-card" data-page="dashboard">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -509,7 +512,7 @@
           </section>
 
           <!-- Schedule History Card -->
-          <section class="card" data-page="logs">
+          <section class="card console-card" data-page="logs">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -551,7 +554,7 @@
           </section>
 
           <!-- Provider Status Card -->
-          <section class="card wide" data-page="proxy">
+          <section class="card wide table-card" data-page="proxy">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -700,7 +703,7 @@
           </section>
 
           <!-- Proxy Groups Card -->
-          <section class="card wide" data-page="connections">
+          <section class="card wide node-console-card" data-page="connections">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -745,7 +748,7 @@
           </section>
 
           <!-- Config Editor Card -->
-          <section class="card wide" data-page="config">
+          <section class="card wide console-card editor-card" data-page="config">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -769,7 +772,7 @@
           </section>
 
           <!-- Logs Card -->
-          <section class="card" data-page="logs">
+          <section class="card console-card log-stream-card" data-page="logs">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -787,7 +790,7 @@
           </section>
 
           <!-- Proxy Records Card -->
-          <section class="card wide" data-page="proxy-records">
+          <section class="card wide table-card proxy-records-card" data-page="proxy-records">
             <div class="card-header">
               <h2 class="card-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
