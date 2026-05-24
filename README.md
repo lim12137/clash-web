@@ -6,7 +6,7 @@
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Vue.js](https://img.shields.io/badge/Vue.js-3.0-4FC08D?style=flat-square&logo=vue.js&logoColor=white)](https://vuejs.org)
+[![Frontend](https://img.shields.io/badge/Frontend-HTML%2FCSS%2FJS-38BDF8?style=flat-square)](#-核心特性)
 [![License](https://img.shields.io/badge/License-MIT-10B981?style=flat-square)](LICENSE)
 
 <p align="center">
@@ -38,7 +38,7 @@
 
 > 💡 **"三段式"方案映射**
 > - 🧠 **内核**: `mihomo` — 代理能力与规则执行
-> - 🖥️ **前端**: `web/` + `nginx` + `api_server.py` — 管理交互与运维接口
+> - 🖥️ **前端**: `web/` + `nginx` + `api_server.py` / `scripts/api/*` — 管理交互与运维接口
 > - 📦 **订阅集合**: `subscriptions.json` + `subscription_sets.json` — 输入组织与策略编排
 
 ---
@@ -74,7 +74,7 @@ graph TB
 
     subgraph "🐳 Docker 容器"
         Nginx[nginx :80<br/>静态资源+API反代]
-        API[api_server.py :19092<br/>Flask 管理接口]
+        API[api_server.py + scripts/api/* :19092<br/>Flask 管理接口]
         Mihomo[mihomo 核心<br/>:9090 控制 / :7890 代理]
     end
 
@@ -311,20 +311,21 @@ nexent/
 ├── 🐳 Dockerfile                  # 镜像构建定义
 ├── 🐳 entrypoint.sh               # 初始化与启动脚本
 ├── 🌐 nginx.conf                  # 前端静态资源与API反代
-├── 🖥️ web/                        # 管理前端（Vue.js风格）
+├── 🖥️ web/                        # 管理前端（原生 HTML / CSS / JS）
 │   ├── index.html
 │   ├── app.js
 │   └── style.css
 ├── 🐍 scripts/                    # 后端脚本
-│   ├── api_server.py              # Flask 管理API
+│   ├── api_server.py              # 兼容入口与主路由
+│   ├── api/                       # 拆分后的 Flask 服务模块
 │   ├── merge.py                   # 订阅合并核心
 │   ├── subscriptions.json         # 订阅源列表
 │   ├── subscription_sets.json     # 订阅集合
-│   ├── schedule.json              # 定时任务配置
 │   ├── template.yaml              # 基础模板
 │   ├── site_policy.yaml           # 站点分流策略
 │   ├── override.yaml              # YAML覆写
 │   └── override.js                # JS覆写脚本
+│   （`schedule.json`、`schedule_history.json` 等运行文件会在使用过程中生成）
 └── 📁 config/                     # 运行目录（持久化卷）
     ├── config.yaml                # 运行时配置
     ├── backups/                   # 自动备份

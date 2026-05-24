@@ -1,0 +1,93 @@
+<svg width="720" height="1540" viewBox="0 0 720 1540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="60" y1="40" x2="660" y2="1500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111E"/>
+      <stop offset="0.55" stop-color="#081424"/>
+      <stop offset="1" stop-color="#050B13"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="80" y1="120" x2="640" y2="1420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#13263B" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#0B1725" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4CC9F0"/>
+      <stop offset="0.56" stop-color="#8BD450"/>
+      <stop offset="1" stop-color="#FFB454"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="720" height="1540" fill="url(#bg)"/>
+  <circle cx="585" cy="110" r="170" fill="#4CC9F0" fill-opacity="0.08"/>
+  <circle cx="140" cy="1360" r="180" fill="#8BD450" fill-opacity="0.05"/>
+
+  <rect x="24" y="24" width="672" height="1492" rx="40" fill="#08111C" stroke="#17314A"/>
+  <rect x="52" y="52" width="616" height="76" rx="24" fill="#0B1725" stroke="#16314B"/>
+  <text x="84" y="96" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">Clash 管理面板</text>
+  <rect x="536" y="72" width="100" height="32" rx="16" fill="#163522"/>
+  <circle cx="558" cy="88" r="5" fill="#83F28F"/>
+  <text x="574" y="93" fill="#D7F7DA" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">运行中</text>
+
+  <rect x="52" y="144" width="616" height="64" rx="22" fill="#0B1725" stroke="#16314B"/>
+  <g fill="#D7ECF8" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">
+    <text x="84" y="183">仪表盘</text><text x="188" y="183">连接</text><text x="282" y="183">订阅</text><text x="372" y="183">配置</text>
+  </g>
+  <rect x="258" y="156" width="72" height="40" rx="14" fill="#16324A" stroke="#4CC9F0"/>
+
+  <rect x="52" y="228" width="616" height="204" rx="28" fill="url(#panel)" stroke="#17314A"/>
+  <text x="84" y="270" fill="#58D6FF" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="2">MOBILE WORKSPACE</text>
+  <text x="84" y="310" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800">手机端优先保证点得到、看得清、滚得动</text>
+  <text x="84" y="346" fill="#8CAFC4" font-family="Inter, Arial, sans-serif" font-size="15">把复杂操作拆成纵向卡片，减少误触。</text>
+  <rect x="84" y="374" width="160" height="40" rx="14" fill="#102131" stroke="#1D3D59"/>
+  <rect x="260" y="374" width="160" height="40" rx="14" fill="#102131" stroke="#1D3D59"/>
+  <rect x="436" y="374" width="160" height="40" rx="14" fill="#102131" stroke="#1D3D59"/>
+  <g fill="#EAF8FF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="800">
+    <text x="116" y="399">单条订阅</text><text x="293" y="399">集合编排</text><text x="473" y="399">Provider</text>
+  </g>
+
+  <rect x="52" y="454" width="616" height="286" rx="28" fill="url(#panel)" stroke="#17314A"/>
+  <text x="84" y="496" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">订阅管理</text>
+  <text x="84" y="524" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">单列输入，适合手机快速编辑</text>
+  <g>
+    <rect x="84" y="548" width="552" height="44" rx="14" fill="#112436" stroke="#1C3C59"/>
+    <rect x="84" y="606" width="552" height="44" rx="14" fill="#112436" stroke="#1C3C59"/>
+    <rect x="84" y="664" width="266" height="44" rx="14" fill="#112436" stroke="#1C3C59"/>
+    <rect x="370" y="664" width="266" height="44" rx="14" fill="#112436" stroke="#1C3C59"/>
+  </g>
+  <circle cx="96" cy="742" r="7" fill="#83F28F"/>
+  <text x="114" y="747" fill="#E4F7E8" font-family="Inter, Arial, sans-serif" font-size="14">启用这个订阅</text>
+  <rect x="84" y="764" width="170" height="46" rx="16" fill="url(#accent)"/>
+  <rect x="268" y="764" width="132" height="46" rx="16" fill="#13263B" stroke="#244A69"/>
+  <text x="136" y="793" fill="#06111A" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">保存订阅</text>
+  <text x="308" y="793" fill="#DCECF8" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">清空</text>
+
+  <rect x="52" y="758" width="616" height="236" rx="28" fill="url(#panel)" stroke="#17314A"/>
+  <text x="84" y="800" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">集合编排</text>
+  <rect x="84" y="826" width="552" height="64" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <rect x="84" y="904" width="552" height="64" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <g fill="#EAF8FF" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">
+    <text x="110" y="864">付费集合 · 表格横向滚动</text>
+    <text x="110" y="942">免费集合 · 表格横向滚动</text>
+  </g>
+
+  <rect x="52" y="1016" width="616" height="176" rx="28" fill="url(#panel)" stroke="#17314A"/>
+  <text x="84" y="1058" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">连接页节点切换</text>
+  <rect x="84" y="1082" width="552" height="42" rx="16" fill="#112436" stroke="#1C3C59"/>
+  <text x="110" y="1108" fill="#EAF8FF" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">[PROXY]  [US-AUTO]  [Google]  [Telegram]</text>
+  <rect x="84" y="1140" width="164" height="66" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <rect x="262" y="1140" width="164" height="66" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <rect x="440" y="1140" width="196" height="66" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <g fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">
+    <text x="108" y="1170">当前分组</text><text x="284" y="1170">可选节点</text><text x="466" y="1170">当前选择</text>
+    <text x="108" y="1192">PROXY</text><text x="284" y="1192">38</text><text x="466" y="1192">HK-01</text>
+  </g>
+
+  <rect x="52" y="1212" width="616" height="250" rx="28" fill="url(#panel)" stroke="#17314A"/>
+  <rect x="84" y="1250" width="552" height="72" rx="20" fill="#112436" stroke="#1C3C59"/>
+  <rect x="84" y="1334" width="552" height="72" rx="20" fill="#112436" stroke="#1C3C59"/>
+  <g fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">
+    <text x="110" y="1280">🇭🇰 HK-01</text><text x="110" y="1364">🇯🇵 JP-03</text>
+  </g>
+  <g fill="#8FB0C6" font-family="Inter, Arial, sans-serif" font-size="14">
+    <text x="110" y="1306">92ms · provider-a · protocol</text><text x="110" y="1390">138ms · provider-b · protocol</text>
+  </g>
+</svg>

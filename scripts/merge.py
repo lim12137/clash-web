@@ -593,6 +593,7 @@ process.stdout.write(JSON.stringify(output));
             input=json.dumps(payload, ensure_ascii=False),
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=cfg.runtime.js_override_timeout,
         )
     except FileNotFoundError as exc:

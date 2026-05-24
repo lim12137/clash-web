@@ -67,9 +67,22 @@ const SECTION_TITLES = {
   settings: "设置",
 };
 
+function getSectionFromHash() {
+  const section = String(window.location.hash || "").replace(/^#/, "").trim();
+  return SECTION_TITLES[section] ? section : "";
+}
+
+function syncSectionHash(section) {
+  if (!SECTION_TITLES[section]) return;
+  const nextHash = `#${section}`;
+  if (window.location.hash === nextHash) return;
+  history.replaceState(null, "", nextHash);
+}
+
 function setActiveSection(section) {
   if (!SECTION_TITLES[section]) return;
   activeSection = section;
+  syncSectionHash(section);
 
   document.querySelectorAll(".nav-item[data-section]").forEach((item) => {
     item.classList.toggle("active", item.dataset.section === section);
@@ -99,7 +112,7 @@ function bindSidebarNav() {
   });
 
   const defaultSection = navItems.find((item) => item.classList.contains("active"))?.dataset.section;
-  setActiveSection(defaultSection || "dashboard");
+  setActiveSection(getSectionFromHash() || defaultSection || "dashboard");
 }
 
 function normalizeProviderName(raw, fallback) {

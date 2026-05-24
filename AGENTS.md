@@ -46,7 +46,7 @@
 - Validate edited config files before reload to avoid breaking runtime.
 - Keep backup artifacts (`.bak.*`, `config/backups/`) intact for rollback and troubleshooting.
 - Scope boundary: do not modify any FlClash/Ficlash installation, runtime config, or process state.
-- Only edit files inside this repository (`M:\Agent\nexent`); external paths (for example `C:\Users\...\com.follow\clash\`) are out of scope.
+- Only edit files inside this repository (`M:\AI\1work\clash-web`); external paths (for example `C:\Users\...\com.follow\clash\`) are out of scope.
 
 ## Plan File Maintenance
 - When working with plan files (for example `task_plan.md`), check the line count before appending large updates.

@@ -1,0 +1,120 @@
+<svg width="1600" height="1100" viewBox="0 0 1600 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="40" x2="1500" y2="1020" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111E"/>
+      <stop offset="0.55" stop-color="#081424"/>
+      <stop offset="1" stop-color="#050B13"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="220" y1="120" x2="1420" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#13263B" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#0B1725" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4CC9F0"/>
+      <stop offset="0.56" stop-color="#8BD450"/>
+      <stop offset="1" stop-color="#FFB454"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#02060B" flood-opacity="0.46"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1100" fill="url(#bg)"/>
+  <circle cx="1390" cy="130" r="240" fill="#4CC9F0" fill-opacity="0.08"/>
+  <circle cx="250" cy="130" r="180" fill="#FFB454" fill-opacity="0.05"/>
+  <circle cx="1260" cy="900" r="240" fill="#8BD450" fill-opacity="0.05"/>
+
+  <rect x="28" y="28" width="1544" height="1044" rx="34" fill="#08111C" stroke="#17314A"/>
+
+  <rect x="52" y="52" width="96" height="996" rx="28" fill="#0B1725" stroke="#16314B"/>
+  <rect x="74" y="76" width="52" height="52" rx="16" fill="url(#accent)"/>
+  <path d="M91 92L107 117H97L103 141L120 108H107L112 92H91Z" fill="white" fill-opacity="0.95"/>
+  <g fill="#9FB9CC" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle">
+    <text x="100" y="180">仪表盘</text><text x="100" y="270">连接</text><text x="100" y="360">订阅</text>
+    <text x="100" y="450">覆写</text><text x="100" y="540">日志</text><text x="100" y="630">记录</text><text x="100" y="720">设置</text>
+  </g>
+  <rect x="62" y="312" width="76" height="58" rx="18" fill="#11314A" stroke="#4CC9F0"/>
+  <rect x="68" y="318" width="4" height="46" rx="2" fill="url(#accent)"/>
+
+  <rect x="170" y="52" width="1378" height="86" rx="26" fill="#0B1725" stroke="#16314B"/>
+  <text x="208" y="103" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">Clash 管理面板</text>
+  <text x="208" y="127" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">桌面端高仿真设计稿 · 订阅工作区 / 节点切换区 / Provider 状态</text>
+  <rect x="1226" y="76" width="116" height="38" rx="19" fill="#163522"/>
+  <circle cx="1252" cy="95" r="6" fill="#83F28F"/>
+  <text x="1270" y="100" fill="#D7F7DA" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">运行中</text>
+  <rect x="1354" y="76" width="156" height="38" rx="19" fill="#13263B" stroke="#244A69"/>
+  <text x="1382" y="100" fill="#D9EDF9" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Mihomo 1.19.2</text>
+
+  <rect x="170" y="164" width="1378" height="872" rx="30" fill="url(#panel)" stroke="#17314A" filter="url(#shadow)"/>
+
+  <text x="206" y="214" fill="#58D6FF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">SUBSCRIPTION WORKSPACE</text>
+  <text x="206" y="252" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="800">统一管理订阅来源、集合编排与 Provider 状态</text>
+  <text x="206" y="286" fill="#8DAFC4" font-family="Inter, Arial, sans-serif" font-size="16">青蓝主色 + 深海背景 + 更清晰的卡片分层，让桌面端更像专业控制台。</text>
+
+  <rect x="205" y="322" width="360" height="126" rx="24" fill="#102131" stroke="#1D3D59"/>
+  <text x="235" y="358" fill="#A5C4D8" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">单条订阅</text>
+  <text x="235" y="394" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">快速调试</text>
+  <text x="235" y="422" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">先验证再放入集合</text>
+
+  <rect x="583" y="322" width="360" height="126" rx="24" fill="#102131" stroke="#1D3D59"/>
+  <text x="613" y="358" fill="#A5C4D8" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">集合编排</text>
+  <text x="613" y="394" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">付费 / 免费</text>
+  <text x="613" y="422" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">批量导入与优先级</text>
+
+  <rect x="961" y="322" width="360" height="126" rx="24" fill="#102131" stroke="#1D3D59"/>
+  <text x="991" y="358" fill="#A5C4D8" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">状态检查</text>
+  <text x="991" y="394" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">Provider 汇总</text>
+  <text x="991" y="422" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">在线情况一眼看全</text>
+
+  <rect x="205" y="474" width="1305" height="204" rx="24" fill="#0E1D2C" stroke="#1A3853"/>
+  <text x="235" y="510" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">Provider 状态</text>
+  <text x="235" y="536" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">付费 12 条 | 免费 9 条 | Provider 17 个 | 总节点 624</text>
+  <rect x="235" y="556" width="1245" height="1" fill="#1E3B58"/>
+  <g fill="#8DACC1" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">
+    <text x="245" y="586">Provider</text><text x="438" y="586">来源</text><text x="608" y="586">来源项</text><text x="852" y="586">节点数</text><text x="970" y="586">在线数</text><text x="1098" y="586">更新时间</text><text x="1294" y="586">订阅信息</text>
+  </g>
+  <g fill="#E7F6FF" font-family="Inter, Arial, sans-serif" font-size="14">
+    <text x="245" y="621">paid-hk-01</text><text x="438" y="621">付费 #1</text><text x="608" y="621">hk.example.com</text><text x="852" y="621">64</text><text x="970" y="621" fill="#89F29A">61</text><text x="1098" y="621">2026-05-24 20:32</text><text x="1294" y="621">83GB / 11月到期</text>
+    <text x="245" y="645">free-jp-02</text><text x="438" y="645">免费 #2</text><text x="608" y="645">jp.example.com</text><text x="852" y="645">27</text><text x="970" y="645" fill="#FFCA63">18</text><text x="1098" y="645">2026-05-24 20:31</text><text x="1294" y="645">-</text>
+  </g>
+
+  <rect x="205" y="704" width="650" height="298" rx="24" fill="#0E1D2C" stroke="#1A3853"/>
+  <text x="235" y="742" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">订阅管理</text>
+  <text x="235" y="768" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">单条编辑 / 正则筛选 / 启停控制</text>
+  <g fill="#89A9C1" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">
+    <text x="235" y="808">名称</text><text x="535" y="808">前缀</text><text x="235" y="868">订阅地址</text><text x="235" y="928">包含 / 排除正则</text>
+  </g>
+  <rect x="235" y="818" width="270" height="40" rx="14" fill="#112436" stroke="#1C3C59"/>
+  <rect x="535" y="818" width="118" height="40" rx="14" fill="#112436" stroke="#1C3C59"/>
+  <rect x="235" y="878" width="590" height="40" rx="14" fill="#112436" stroke="#1C3C59"/>
+  <rect x="235" y="938" width="590" height="40" rx="14" fill="#112436" stroke="#1C3C59"/>
+  <circle cx="251" cy="998" r="7" fill="#83F28F"/>
+  <text x="268" y="1003" fill="#DDF9E2" font-family="Inter, Arial, sans-serif" font-size="14">启用这个订阅</text>
+  <rect x="625" y="990" width="98" height="42" rx="16" fill="url(#accent)"/>
+  <text x="652" y="1016" fill="#06111A" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">保存</text>
+  <rect x="733" y="990" width="92" height="42" rx="16" fill="#13263B" stroke="#244A69"/>
+  <text x="760" y="1016" fill="#DCECF8" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">清空</text>
+
+  <rect x="879" y="704" width="631" height="298" rx="24" fill="#0E1D2C" stroke="#1A3853"/>
+  <text x="909" y="742" fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">节点切换</text>
+  <text x="909" y="768" fill="#7FA1B8" font-family="Inter, Arial, sans-serif" font-size="14">左侧分组导航 + 右侧节点卡片，更适合桌面高密度操作。</text>
+  <rect x="909" y="796" width="164" height="174" rx="20" fill="#112436" stroke="#1C3C59"/>
+  <rect x="925" y="814" width="132" height="30" rx="10" fill="#16324A" stroke="#4CC9F0"/>
+  <rect x="925" y="852" width="132" height="30" rx="10" fill="#13263B"/>
+  <rect x="925" y="890" width="132" height="30" rx="10" fill="#13263B"/>
+  <rect x="1089" y="796" width="398" height="56" rx="18" fill="#112436" stroke="#1C3C59"/>
+  <rect x="1089" y="864" width="398" height="48" rx="18" fill="#143047" stroke="#29516E"/>
+  <g>
+    <rect x="1089" y="928" width="120" height="90" rx="18" fill="#112436" stroke="#1C3C59"/>
+    <rect x="1224" y="928" width="120" height="90" rx="18" fill="#112436" stroke="#1C3C59"/>
+    <rect x="1359" y="928" width="120" height="90" rx="18" fill="#112436" stroke="#1C3C59"/>
+  </g>
+  <g fill="#F4FAFF" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">
+    <text x="946" y="834">PROXY</text><text x="946" y="872">US-AUTO</text><text x="946" y="910">Google</text>
+    <text x="1105" y="832">当前分组  PROXY</text><text x="1105" y="892">38 个节点 · 当前 HK-01 · 平均 121ms</text>
+    <text x="1105" y="962">🇭🇰 HK-01</text><text x="1240" y="962">🇯🇵 JP-03</text><text x="1375" y="962">🇺🇸 US-09</text>
+  </g>
+  <g fill="#8FB0C6" font-family="Inter, Arial, sans-serif" font-size="12">
+    <text x="1105" y="984">92ms · provider-a</text><text x="1240" y="984">138ms · provider-b</text><text x="1375" y="984">201ms · provider-a</text>
+  </g>
+</svg>
