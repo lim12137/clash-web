@@ -945,11 +945,23 @@ def clash_status():
     try:
         resp = requests.get(cfg.auth.clash_api, headers=clash_headers(), timeout=3)
         info = resp.json()
+        version = str(info.get("version") or "").strip()
+        if not version:
+            try:
+                version_resp = requests.get(
+                    f"{cfg.auth.clash_api}/version",
+                    headers=clash_headers(),
+                    timeout=3,
+                )
+                version_payload = version_resp.json() if version_resp.ok else {}
+                version = str(version_payload.get("version") or "").strip()
+            except Exception:
+                version = ""
         return jsonify(
             {
                 "success": True,
                 "running": True,
-                "version": info.get("version", "unknown"),
+                "version": version or "unknown",
                 "mode": info.get("mode", "unknown"),
             }
         )
