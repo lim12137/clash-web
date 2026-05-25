@@ -20,6 +20,7 @@ services:
       PYTHON_BIN: /usr/bin/python3
       MIHOMO_CORE_DIR: /opt/mihomo-core
       MIHOMO_BIN: /opt/mihomo-core/mihomo
+      SYNC_RUNTIME_FROM_SEED: ${SYNC_RUNTIME_FROM_SEED:-1}
       CORE_UPDATE_ALLOWED_REPOS: ${CORE_UPDATE_ALLOWED_REPOS:-MetaCubeX/mihomo}
       CORE_UPDATE_REQUIRE_CHECKSUM: ${CORE_UPDATE_REQUIRE_CHECKSUM:-1}
     cap_add:

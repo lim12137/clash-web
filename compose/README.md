@@ -36,6 +36,8 @@
 - `scripts_data`：持久化管理脚本与页面在线编辑内容
 - `core_data`：持久化 mihomo 内核文件（`/opt/mihomo-core/mihomo`）
 
+默认开启 `SYNC_RUNTIME_FROM_SEED=1`，容器每次启动都会将镜像内置的 `/scripts` 同步到 `scripts_data` 卷，避免旧卷残留旧版前后端逻辑。
+前端静态文件内置在镜像 `/web` 中，部署机不需要再手工复制 `web/app.js`、`web/index.html`、`web/style.css`。
 首次启动时，Docker 会将镜像内置的 `/scripts` 初始化到 `scripts_data` 卷中。
 镜像内置 `geoip.metadb`，容器启动时会自动写入运行目录（缺失时补齐），避免运行期访问 GitHub 下载失败。
 默认开启 `CLASH_DISABLE_GEOIP=1`，作为额外兜底。
