@@ -2737,6 +2737,8 @@ body::after {
   overflow: hidden;
   border-color: rgba(173, 224, 255, 0.1);
   box-shadow: 0 14px 34px rgba(0, 7, 18, 0.24);
+  display: flex;
+  flex-direction: column;
 }
 
 .card::before {
@@ -2772,6 +2774,7 @@ body::after {
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
     linear-gradient(135deg, rgba(76, 201, 240, 0.04), transparent 38%),
     var(--bg-card);
+  height: 100%;
 }
 
 .card[data-page="dashboard"] .row.wrap {
@@ -2797,6 +2800,12 @@ body::after {
   margin-bottom: 18px;
 }
 
+.action-card,
+.schedule-card,
+.settings-panel {
+  height: 100%;
+}
+
 .action-card .row.wrap {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2811,6 +2820,11 @@ body::after {
 .schedule-card .row.wrap {
   align-items: center;
   gap: 14px;
+}
+
+.action-card .row.wrap,
+.schedule-card .row.wrap {
+  align-content: start;
 }
 
 .schedule-card #schedule-info {
@@ -2966,6 +2980,10 @@ tbody tr td:first-child {
     var(--bg-card);
   padding: 20px;
   box-shadow: 0 14px 28px rgba(0, 8, 20, 0.18);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .dash-card::after {
@@ -3008,6 +3026,9 @@ tbody tr td:first-child {
 }
 
 .dash-card-content {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 12px;
 }
 
@@ -3103,6 +3124,8 @@ tbody tr td:first-child {
 }
 
 .traffic-stats {
+  align-items: center;
+  justify-content: center;
   gap: 18px;
 }
 
@@ -3389,6 +3412,11 @@ tbody tr:nth-child(even) td {
     grid-column: span 6;
   }
 
+  .content-grid > .card[data-page="dashboard"]:not(.dashboard-card),
+  .content-grid > .card[data-page="settings"]:not(.wide) {
+    align-self: stretch;
+  }
+
   .content-grid > .card[data-page="settings"]:not(.wide):nth-of-type(2n),
   .content-grid > .card[data-page="logs"]:not(.wide):nth-of-type(2n) {
     justify-self: stretch;
@@ -3403,15 +3431,18 @@ tbody tr:nth-child(even) td {
 
   .dashboard-grid > .dash-card {
     grid-column: span 3;
+    align-self: stretch;
   }
 
   .dashboard-grid > .dash-card-large {
     grid-column: span 6;
     grid-row: span 2;
+    align-self: stretch;
   }
 
   .dashboard-grid > .uptime-card {
     grid-column: span 6;
+    align-self: stretch;
   }
 
   .dashboard-grid > .dash-card:nth-child(2),
