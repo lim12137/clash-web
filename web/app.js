@@ -493,6 +493,51 @@ function getSwitchTargetForNode(group, nodeName, groups = proxyGroups) {
   return target;
 }
 
+function getGroupOptionCount(group) {
+  const all = Array.isArray(group?.all) ? group.all : [];
+  return all
+    .map((item) => String(item || "").trim())
+    .filter((name) => name && !isSystemNodeName(name)).length;
+}
+
+function shouldShowGroupAsLeafOptions(group, groups = proxyGroups) {
+  const realCount = countRealNodeOptions(group, groups);
+  if (realCount > 0) return false;
+
+  const all = Array.isArray(group?.all) ? group.all : [];
+  if (!all.length) return false;
+
+  const groupLookup = buildGroupLookup(groups);
+  return all.some((item) => {
+    const name = String(item || "").trim();
+    if (!name || isSystemNodeName(name)) return false;
+    return !groupLookup.has(name);
+  });
+}
+
+function getRenderableNodesForGroup(group, groups = proxyGroups) {
+  const displayNodes = getDisplayNodesForGroup(group, groups);
+  if (displayNodes.length) {
+    return displayNodes.map((nodeName) => ({
+      name: nodeName,
+      target: getSwitchTargetForNode(group, nodeName, groups),
+    }));
+  }
+
+  if (!shouldShowGroupAsLeafOptions(group, groups)) {
+    return [];
+  }
+
+  const all = Array.isArray(group?.all) ? group.all : [];
+  return all
+    .map((item) => String(item || "").trim())
+    .filter((name) => name && !isSystemNodeName(name))
+    .map((nodeName) => ({
+      name: nodeName,
+      target: getSwitchTargetForNode(group, nodeName, groups),
+    }));
+}
+
 function countRealNodeOptions(group, groups = proxyGroups) {
   return getDisplayNodesForGroup(group, groups).length;
 }
@@ -583,12 +628,17 @@ function pickBestGroupIndex(groups) {
     const name = String(group?.name || "").toLowerCase();
     const type = String(group?.type || "").toLowerCase();
     const realCount = countRealNodeOptions(group, groups);
+    const optionCount = getGroupOptionCount(group);
 
-    let score = realCount;
-    if (name === "proxy") score += 200;
-    if (name === "us-auto") score += 180;
-    if (name.includes("google")) score += 120;
-    if (name === "free-auto") score -= 60;
+    let score = realCount * 20;
+    if (realCount === 0) {
+      score -= 200;
+      score += Math.min(optionCount, 20);
+    }
+    if (name === "proxy") score += realCount > 0 ? 80 : -120;
+    if (name === "us-auto") score += realCount > 0 ? 120 : -80;
+    if (name.includes("google")) score += realCount > 0 ? 40 : -60;
+    if (name === "free-auto") score -= realCount > 0 ? 10 : 80;
     if (name === "global" || name === "default") score -= 40;
     if (type.includes("selector")) score += 8;
     if (type.includes("urltest")) score += 5;
@@ -2659,11 +2709,12 @@ function renderNodesGrid() {
   toggleNodePriorityControls(group.name);
 
   grid.innerHTML = '';
-  currentNodes = getDisplayNodesForGroup(group, proxyGroups);
-  currentNodeEntries = currentNodes.map((nodeName) => ({
-    name: nodeName,
-    target: getSwitchTargetForNode(group, nodeName, proxyGroups),
-  }));
+  currentNodeEntries = getRenderableNodesForGroup(group, proxyGroups);
+  currentNodes = currentNodeEntries.map((entry) => entry.name);
+
+  if (!currentNodeEntries.length) {
+    grid.innerHTML = '<div class="muted">当前分组没有可直接切换的节点，请切换到包含真实节点的分组。</div>';
+  }
 
   currentNodeEntries.forEach((entry) => {
     const card = createNodeCard(entry, group);
