@@ -24,6 +24,7 @@ let nodeProviderMap = new Map(); // 节点 -> provider 名称
 let currentNodes = []; // 当前显示的节点列表
 let currentNodeEntries = []; // 当前显示节点及其切换目标
 let isLatencyTesting = false; // 防止重复触发批量延迟测试
+let nodeSwitchInFlight = false; // 防止重复触发节点切换
 const LATENCY_TEST_CONCURRENCY = 20; // 节点延迟测试并发数
 const SYSTEM_NODE_NAMES = new Set(["DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"]);
 const BUILTIN_PROVIDER_NAMES = new Set(["free-auto", "us-auto", "proxy", "google", "default"]);
@@ -2769,7 +2770,12 @@ function createNodeCard(nodeEntry, group) {
   `;
 
   card.onclick = async () => {
-    if (isSelected) return;
+    if (isSelected || nodeSwitchInFlight) return;
+
+    const previousNow = String(group.now || "").trim();
+    nodeSwitchInFlight = true;
+    group.now = switchTarget;
+    renderNodesGrid();
 
     try {
       await api(`/clash/groups/${encodeURIComponent(group.name)}/select`, {
@@ -2786,15 +2792,19 @@ function createNodeCard(nodeEntry, group) {
       });
 
       // 更新本地状态并重新渲染
-      group.now = nodeName;
+      group.now = switchTarget;
       renderNodesGrid();
     } catch (err) {
+      group.now = previousNow;
+      renderNodesGrid();
       showToast(`切换失败: ${err.message}`);
       // 记录失败的切换
       recordProxySwitch(group.name, nodeName, {
         success: false,
         note: err.message,
       });
+    } finally {
+      nodeSwitchInFlight = false;
     }
   };
 
