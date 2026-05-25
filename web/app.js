@@ -22,6 +22,7 @@ let autoSelectGroupDone = false;
 let nodeLatencies = new Map(); // 节点延迟缓存
 let nodeProviderMap = new Map(); // 节点 -> provider 名称
 let currentNodes = []; // 当前显示的节点列表
+let currentNodeEntries = []; // 当前显示节点及其切换目标
 let isLatencyTesting = false; // 防止重复触发批量延迟测试
 const LATENCY_TEST_CONCURRENCY = 20; // 节点延迟测试并发数
 const SYSTEM_NODE_NAMES = new Set(["DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"]);
@@ -414,6 +415,11 @@ function expandUsAutoNodes(group, groups = proxyGroups) {
 
 function getDisplayNodesForGroup(group, groups = proxyGroups) {
   if (!group) return [];
+  if (Array.isArray(group.nodes) && group.nodes.length) {
+    return group.nodes
+      .map((item) => String(item || "").trim())
+      .filter((name) => name && !isSystemNodeName(name));
+  }
   if (isUsAutoFallbackGroup(group)) {
     const expanded = expandUsAutoNodes(group, groups);
     if (expanded.length) return expanded;
@@ -460,6 +466,31 @@ function getUsAutoSelectedNode(group, groups = proxyGroups) {
   const childNodes = getDisplayNodesForGroup(childGroup, groups);
   if (childNodes.length === 1) return childNodes[0];
   return "";
+}
+
+function getSelectedDisplayNode(group, groups = proxyGroups) {
+  if (!group) return "";
+  const explicitSelected = getUsAutoSelectedNode(group, groups);
+  if (explicitSelected) return explicitSelected;
+
+  const current = String(group.now || "").trim();
+  if (!current) return "";
+  if (!isSystemNodeName(current) && !buildGroupLookup(groups).has(current)) {
+    return current;
+  }
+
+  const displayNodes = getDisplayNodesForGroup(group, groups);
+  if (displayNodes.length === 1) return displayNodes[0];
+  return "";
+}
+
+function getSwitchTargetForNode(group, nodeName, groups = proxyGroups) {
+  if (!group) return "";
+  const target = String(nodeName || "").trim();
+  if (!target) return "";
+  const childGroup = resolveUsAutoChildGroupForNode(group, target, groups);
+  if (childGroup) return childGroup;
+  return target;
 }
 
 function countRealNodeOptions(group, groups = proxyGroups) {
@@ -2628,16 +2659,21 @@ function renderNodesGrid() {
   toggleNodePriorityControls(group.name);
 
   grid.innerHTML = '';
-  currentNodes = group.all || [];
+  currentNodes = getDisplayNodesForGroup(group, proxyGroups);
+  currentNodeEntries = currentNodes.map((nodeName) => ({
+    name: nodeName,
+    target: getSwitchTargetForNode(group, nodeName, proxyGroups),
+  }));
 
-  currentNodes.forEach((nodeName) => {
-    const card = createNodeCard(nodeName, group);
+  currentNodeEntries.forEach((entry) => {
+    const card = createNodeCard(entry, group);
     grid.appendChild(card);
   });
 
   // 更新信息栏
   if (infoText) {
-    let text = `${group.name} · ${currentNodes.length} 个节点 · 当前选择: ${group.now || '-'}`;
+    const selectedDisplayNode = getSelectedDisplayNode(group, proxyGroups) || String(group.now || '-');
+    let text = `${group.name} · ${currentNodes.length} 个节点 · 当前选择: ${selectedDisplayNode}`;
     if (
       String(group.name || "").toLowerCase() === "free-auto" &&
       currentNodes.length === 1 &&
@@ -2650,9 +2686,12 @@ function renderNodesGrid() {
 }
 
 // 创建节点卡片
-function createNodeCard(nodeName, group) {
+function createNodeCard(nodeEntry, group) {
+  const nodeName = String(nodeEntry?.name || "").trim();
+  const switchTarget = String(nodeEntry?.target || nodeName).trim();
   const card = document.createElement('div');
-  const isSelected = nodeName === group.now;
+  const selectedDisplayNode = getSelectedDisplayNode(group, proxyGroups);
+  const isSelected = nodeName === selectedDisplayNode;
 
   card.className = `node-card ${isSelected ? 'selected' : ''}`;
 
@@ -2684,7 +2723,7 @@ function createNodeCard(nodeName, group) {
     try {
       await api(`/clash/groups/${encodeURIComponent(group.name)}/select`, {
         method: 'POST',
-        body: { name: nodeName },
+        body: { name: switchTarget },
       });
       showToast(`已切换到: ${nodeName}`);
 
@@ -2737,7 +2776,7 @@ async function testAllNodeLatencies() {
     testBtn.textContent = "测试中...";
   }
 
-  const nodes = group.all || [];
+  const nodes = getDisplayNodesForGroup(group, proxyGroups);
   const infoText = document.getElementById('node-info-text');
 
   try {
@@ -2807,16 +2846,17 @@ function groupCard(group) {
 
 async function loadGroups() {
   try {
-    const [groupsRes, proxyMetaRes] = await Promise.all([
-      api('/clash/groups'),
-      api('/clash/proxy-meta').catch(() => ({ data: {} })),
-    ]);
+    const groupsMetaRes = await api('/clash/groups/meta');
+    const groupsMetaData =
+      groupsMetaRes && groupsMetaRes.data && typeof groupsMetaRes.data === "object"
+        ? groupsMetaRes.data
+        : {};
     const proxyMetaRows =
-      proxyMetaRes && proxyMetaRes.data && typeof proxyMetaRes.data === "object"
-        ? proxyMetaRes.data
+      groupsMetaData.node_provider_map && typeof groupsMetaData.node_provider_map === "object"
+        ? groupsMetaData.node_provider_map
         : {};
     nodeProviderMap = new Map(Object.entries(proxyMetaRows));
-    const incomingGroups = Array.isArray(groupsRes.data) ? groupsRes.data : [];
+    const incomingGroups = Array.isArray(groupsMetaData.groups) ? groupsMetaData.groups : [];
     proxyGroups = [...incomingGroups].sort(compareProxyGroups);
     refreshNodePrioritySelects();
 

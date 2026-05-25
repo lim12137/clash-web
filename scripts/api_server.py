@@ -329,6 +329,18 @@ def fetch_provider_rows(timeout: int = 8) -> list[dict]:
     return provider_service.fetch_provider_rows(timeout=timeout)
 
 
+def fetch_provider_payload(timeout: int = 8) -> dict:
+    resp = requests.get(
+        f"{cfg.auth.clash_api}/providers/proxies",
+        headers=clash_headers(),
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"clash api error: {resp.status_code}")
+    payload = resp.json() if resp.content else {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def refresh_provider_subscription(provider_name: str) -> tuple[bool, str]:
     return provider_service.refresh_provider_subscription(provider_name)
 
@@ -1571,6 +1583,171 @@ def clash_proxy_providers():
         return jsonify({"success": True, "data": rows})
     except Exception as exc:
         return json_error(f"failed to load providers: {exc}", 500)
+
+
+@app.route("/api/clash/groups/meta", methods=["GET"])
+def clash_groups_meta():
+    try:
+        proxy_resp = requests.get(f"{cfg.auth.clash_api}/proxies", headers=clash_headers(), timeout=6)
+        if proxy_resp.status_code != 200:
+            return json_error(f"clash api error: {proxy_resp.status_code}", 502)
+
+        proxy_payload = proxy_resp.json() if proxy_resp.content else {}
+        proxies = proxy_payload.get("proxies", {}) if isinstance(proxy_payload, dict) else {}
+        if not isinstance(proxies, dict):
+            proxies = {}
+
+        provider_payload = fetch_provider_payload(timeout=8)
+        provider_rows = provider_payload.get("providers", {}) if isinstance(provider_payload, dict) else {}
+        if not isinstance(provider_rows, dict):
+            provider_rows = {}
+
+        provider_nodes: dict[str, list[str]] = {}
+        provider_node_map: dict[str, str] = {}
+        for provider_name, item in provider_rows.items():
+            if not isinstance(item, dict):
+                continue
+            raw_list = item.get("proxies", [])
+            nodes: list[str] = []
+            if isinstance(raw_list, list):
+                for raw_proxy in raw_list:
+                    if not isinstance(raw_proxy, dict):
+                        continue
+                    node_name = str(raw_proxy.get("name", "")).strip()
+                    if not node_name:
+                        continue
+                    nodes.append(node_name)
+                    provider_node_map[node_name] = str(provider_name)
+            provider_nodes[str(provider_name)] = nodes
+
+        runtime_config = load_yaml(cfg.paths.config_file, {})
+        config_groups_raw = runtime_config.get("proxy-groups", []) if isinstance(runtime_config, dict) else []
+        config_group_defs: dict[str, dict] = {}
+        if isinstance(config_groups_raw, list):
+            for raw_group in config_groups_raw:
+                if not isinstance(raw_group, dict):
+                    continue
+                config_group_name = str(raw_group.get("name", "")).strip()
+                if not config_group_name:
+                    continue
+                config_group_defs[config_group_name] = raw_group
+
+        group_names = set(config_group_defs.keys()) or {
+            str(proxy_name)
+            for proxy_name, item in proxies.items()
+            if isinstance(item, dict) and isinstance(item.get("all"), list)
+        }
+
+        def filter_nodes(raw_nodes: list[str], pattern: str) -> list[str]:
+            if not pattern:
+                return raw_nodes
+            try:
+                regex = re.compile(pattern)
+            except re.error:
+                return raw_nodes
+            return [node_name for node_name in raw_nodes if regex.search(node_name)]
+
+        def resolve_group_nodes(group_name: str, visited: set[str] | None = None) -> list[str]:
+            if visited is None:
+                visited = set()
+            if group_name in visited:
+                return []
+            visited.add(group_name)
+
+            group_def = config_group_defs.get(group_name, {})
+            if not isinstance(group_def, dict):
+                group_def = {}
+
+            resolved: list[str] = []
+            seen: set[str] = set()
+
+            use_providers = group_def.get("use")
+            filter_pattern = str(group_def.get("filter", "")).strip()
+            if isinstance(use_providers, list):
+                provider_names = [str(entry or "").strip() for entry in use_providers if str(entry or "").strip()]
+                provider_source_nodes: list[str] = []
+                for provider_name in provider_names:
+                    provider_source_nodes.extend(provider_nodes.get(provider_name, []))
+                for node_name in filter_nodes(provider_source_nodes, filter_pattern):
+                    if node_name in seen:
+                        continue
+                    seen.add(node_name)
+                    resolved.append(node_name)
+                return resolved
+
+            proxy_entries = group_def.get("proxies")
+            if isinstance(proxy_entries, list):
+                for raw_entry in proxy_entries:
+                    entry = str(raw_entry or "").strip()
+                    if not entry or entry.upper() in cfg.constants.system_proxy_names:
+                        continue
+                    if entry in config_group_defs:
+                        for node_name in resolve_group_nodes(entry, visited.copy()):
+                            if node_name in seen:
+                                continue
+                            seen.add(node_name)
+                            resolved.append(node_name)
+                        continue
+                    if entry in seen:
+                        continue
+                    seen.add(entry)
+                    resolved.append(entry)
+                return resolved
+
+            return resolved
+
+        groups_meta = []
+        for group_name, item in proxies.items():
+            if not isinstance(item, dict):
+                continue
+            options = item.get("all")
+            if not isinstance(options, list):
+                continue
+
+            selector_options = [str(entry or "").strip() for entry in options if str(entry or "").strip()]
+            group_def = config_group_defs.get(str(group_name), {})
+            provider_names = []
+            if isinstance(group_def, dict):
+                configured_use = group_def.get("use")
+                if isinstance(configured_use, list):
+                    provider_names = [str(entry or "").strip() for entry in configured_use if str(entry or "").strip()]
+
+            real_nodes = resolve_group_nodes(str(group_name))
+            if not real_nodes:
+                seen_nodes: set[str] = set()
+                for entry in selector_options:
+                    if entry in group_names:
+                        continue
+                    if entry.upper() in cfg.constants.system_proxy_names:
+                        continue
+                    if entry in seen_nodes:
+                        continue
+                    seen_nodes.add(entry)
+                    real_nodes.append(entry)
+
+            groups_meta.append(
+                {
+                    "name": str(group_name),
+                    "type": str(item.get("type", "selector")),
+                    "now": item.get("now"),
+                    "all": selector_options,
+                    "providers": provider_names,
+                    "nodes": real_nodes,
+                }
+            )
+
+        groups_meta.sort(key=lambda x: x["name"])
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "groups": groups_meta,
+                    "node_provider_map": provider_node_map,
+                },
+            }
+        )
+    except Exception as exc:
+        return json_error(f"failed to load groups meta: {exc}", 500)
 
 
 @app.route("/api/clash/proxies/delay", methods=["GET", "POST"])
