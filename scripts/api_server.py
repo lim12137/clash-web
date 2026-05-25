@@ -1821,7 +1821,7 @@ def clash_group_select(group_name):
             f"{cfg.auth.clash_api}/proxies/{encoded}",
             headers=clash_headers(),
             json={"name": target},
-            timeout=5,
+            timeout=2.5,
         )
         if resp.status_code not in (200, 204):
             return json_error(f"clash api error: {resp.status_code}", 502)
