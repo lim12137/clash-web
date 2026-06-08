@@ -973,8 +973,8 @@ def clash_status():
             {
                 "success": True,
                 "running": True,
-                "version": version or "unknown",
-                "mode": info.get("mode", "unknown"),
+                "version": version,
+                "mode": str(info.get("mode") or "").strip(),
             }
         )
     except Exception:

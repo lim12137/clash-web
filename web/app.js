@@ -1077,7 +1077,10 @@ async function refreshStatus() {
     if (status.running) {
       badge.textContent = "运行中";
       badge.className = "badge ok";
-      version.textContent = `v${status.version || "unknown"} / ${status.mode || "unknown"}`;
+      const versionText = formatStatusPart(status.version, "v");
+      const modeText = formatStatusPart(status.mode);
+      const parts = [versionText, modeText].filter(Boolean);
+      version.textContent = parts.length ? parts.join(" / ") : "";
     } else {
       badge.textContent = "离线";
       badge.className = "badge bad";
@@ -1088,6 +1091,12 @@ async function refreshStatus() {
     badge.textContent = "错误";
     badge.className = "badge bad";
   }
+}
+
+function formatStatusPart(value, prefix = "") {
+  const text = String(value || "").trim();
+  if (!text || text.toLowerCase() === "unknown") return "";
+  return `${prefix}${text}`;
 }
 
 // ==================== 仪表盘功能 ====================
