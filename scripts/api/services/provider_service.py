@@ -17,6 +17,7 @@ class ProviderService:
         clash_api: str,
         clash_headers: Callable[[], dict],
         provider_recovery_file: Path,
+        subscription_userinfo_file: Path | None = None,
         provider_auto_refresh_enabled: bool,
         provider_recovery_check_interval: int,
         provider_zero_alive_minutes: int,
@@ -29,6 +30,7 @@ class ProviderService:
         self.clash_api = clash_api
         self.clash_headers = clash_headers
         self.provider_recovery_file = provider_recovery_file
+        self.subscription_userinfo_file = subscription_userinfo_file
         self.provider_auto_refresh_enabled = provider_auto_refresh_enabled
         self.provider_recovery_check_interval = provider_recovery_check_interval
         self.provider_zero_alive_minutes = provider_zero_alive_minutes
@@ -86,6 +88,18 @@ class ProviderService:
         payload = self.sanitize_provider_recovery_state(data)
         self.save_json(self.provider_recovery_file, payload)
 
+    def _cached_subscription_userinfo(self, provider_name: str) -> dict:
+        if not self.subscription_userinfo_file:
+            return {}
+        try:
+            raw = self.load_json(self.subscription_userinfo_file, {})
+        except Exception:
+            return {}
+        if not isinstance(raw, dict):
+            return {}
+        info = raw.get(str(provider_name))
+        return info if isinstance(info, dict) else {}
+
     def build_provider_rows(self, payload) -> list[dict]:
         raw_providers = payload.get("providers", {}) if isinstance(payload, dict) else {}
         if not isinstance(raw_providers, dict):
@@ -108,8 +122,10 @@ class ProviderService:
                 )
 
             subscription_info = item.get("subscriptionInfo")
-            if not isinstance(subscription_info, dict):
-                subscription_info = {}
+            if not isinstance(subscription_info, dict) or not subscription_info:
+                # inline provider 由 Python 合并期抓取，mihomo 不解析
+                # subscription-userinfo 头；从 merge.py 写入的缓存补全流量/到期。
+                subscription_info = self._cached_subscription_userinfo(provider_name)
 
             rows.append(
                 {
@@ -166,7 +182,6 @@ class ProviderService:
         return False, message
 
     def provider_auto_recovery_loop(self) -> None:
-        threshold_seconds = self.provider_zero_alive_minutes * 60
         while True:
             time.sleep(self.provider_recovery_check_interval)
             if not self.provider_auto_refresh_enabled:
@@ -229,7 +244,17 @@ class ProviderService:
                     vehicle_type = str(row.get("vehicle_type", "")).strip().lower()
                     supports_refresh = vehicle_type == "http"
 
-                    if proxy_count <= 0 or alive_count > 0 or not supports_refresh:
+                    # 判定"濒死"：存活节点 <=1 且 存活比例 <50%。
+                    # proxy_count=0（源解析为 0 节点）视为比例 0% < 50% → 同样触发，
+                    # 避免分母为 0 时漏掉。
+                    alive_ratio = (alive_count / proxy_count) if proxy_count > 0 else 0.0
+                    degraded = (
+                        supports_refresh
+                        and alive_count <= 1
+                        and alive_ratio < 0.5
+                    )
+
+                    if not degraded:
                         if zero_since_dt is not None:
                             state_changed = True
                         zero_since_dt = None
@@ -240,7 +265,12 @@ class ProviderService:
                             0,
                             int((now - zero_since_dt).total_seconds()),
                         )
-                        if elapsed_seconds >= threshold_seconds:
+                        # 退避递增：第 1 次等 30min，第 2 次 60min，第 3 次 120min
+                        # （threshold = zero_alive_minutes * 2^daily_updates）
+                        backoff_seconds = (
+                            self.provider_zero_alive_minutes * (2 ** daily_updates) * 60
+                        )
+                        if elapsed_seconds >= backoff_seconds:
                             if daily_updates < self.provider_auto_refresh_max_per_day:
                                 daily_updates += 1
                                 pending_refresh.append(

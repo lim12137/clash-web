@@ -9,8 +9,10 @@ import argparse
 import copy
 import json
 import os
+import base64
 import re
 import shutil
+import urllib.parse
 import subprocess
 import sys
 from datetime import datetime
@@ -227,16 +229,349 @@ def ensure_unique_proxy_names(proxies: list[dict[str, Any]]) -> list[dict[str, A
     return proxies
 
 
+# ---------------------------------------------------------------------------
+# Share-link (订阅集合 / .txt) 解码：ss / trojan / vmess / vless / hysteria2 /
+# hysteria / snell。目标：只抽取节点信息（proxies），组/规则一律丢弃。
+# ---------------------------------------------------------------------------
+def _b64decode_pad(s: str) -> bytes:
+    s = (s or "").strip()
+    s = s.replace("-", "+").replace("_", "/")
+    s += "=" * (-len(s) % 4)
+    return base64.b64decode(s)
+
+
+def _split_hostport(s: str) -> tuple[str, int]:
+    s = (s or "").strip()
+    if ":" in s:
+        host, port = s.rsplit(":", 1)
+        host = host.strip("[]")  # 兼容 IPv6
+        try:
+            return host, int(port)
+        except ValueError:
+            return host, 0
+    return s, 0
+
+
+def decode_share_link(link: str) -> dict[str, Any] | None:
+    link = (link or "").strip()
+    if not link:
+        return None
+
+    # 名称：#fragment
+    name = None
+    if "#" in link:
+        link, frag = link.split("#", 1)
+        name = urllib.parse.unquote(frag).strip()
+
+    # 查询参数：?a=b&c=d
+    if "?" in link:
+        base, query = link.split("?", 1)
+    else:
+        base, query = link, ""
+    params = urllib.parse.parse_qs(query)
+
+    def qp(key: str, default=None):
+        v = params.get(key)
+        return v[0] if v else default
+
+    if "://" not in base:
+        return None
+    scheme, rest = base.split("://", 1)
+    scheme = scheme.lower()
+
+    # ---- ss:// ----
+    if scheme == "ss":
+        if "@" in rest:
+            userinfo, hostport = rest.rsplit("@", 1)
+        else:
+            try:
+                decoded = _b64decode_pad(rest).decode("utf-8", "ignore")
+                userinfo, hostport = decoded.rsplit("@", 1)
+            except Exception:
+                return None
+        if ":" in userinfo:
+            method, password = userinfo.split(":", 1)
+        else:
+            try:
+                ud = _b64decode_pad(userinfo).decode("utf-8", "ignore")
+                method, password = ud.split(":", 1)
+            except Exception:
+                return None
+        server, port = _split_hostport(hostport)
+        proxy: dict[str, Any] = {
+            "type": "ss",
+            "server": server,
+            "port": int(port),
+            "cipher": method,
+            "password": password,
+        }
+        if name:
+            proxy["name"] = name
+        return proxy
+
+    # ---- trojan:// ----
+    if scheme == "trojan":
+        password, hostport = rest.rsplit("@", 1) if "@" in rest else ("", rest)
+        server, port = _split_hostport(hostport)
+        proxy = {
+            "type": "trojan",
+            "server": server,
+            "port": int(port),
+            "password": urllib.parse.unquote(password),
+        }
+        sni = qp("sni") or qp("peer")
+        if sni:
+            proxy["sni"] = sni
+        if qp("allowInsecure") == "1" or qp("allow_insecure") == "1":
+            proxy["skip-cert-verify"] = True
+        net = qp("type") or qp("network")
+        if net in ("ws", "grpc", "h2"):
+            proxy["network"] = net
+            if qp("path"):
+                proxy["ws-opts"] = {"path": qp("path")}
+            if qp("host"):
+                proxy.setdefault("ws-opts", {})["headers"] = {"Host": qp("host")}
+        if name:
+            proxy["name"] = name
+        return proxy
+
+    # ---- vmess:// ----
+    if scheme == "vmess":
+        try:
+            data = json.loads(_b64decode_pad(rest).decode("utf-8", "ignore"))
+        except Exception:
+            return None
+        server = data.get("add")
+        port = int(data.get("port", 0) or 0)
+        net = data.get("net", "tcp")
+        tls = data.get("tls", "")
+        proxy = {
+            "type": "vmess",
+            "server": server,
+            "port": port,
+            "uuid": data.get("id"),
+            "alterId": int(data.get("aid", 0) or 0),
+            "cipher": data.get("scy") or "auto",
+            "network": net,
+        }
+        if tls in ("tls", "reality"):
+            proxy["tls"] = True
+            sni = data.get("sni") or data.get("peer")
+            if sni:
+                proxy["servername"] = sni
+        if net == "ws":
+            proxy["ws-opts"] = {
+                "path": data.get("path", ""),
+                "headers": ({"Host": data.get("host")} if data.get("host") else {}),
+            }
+        elif net == "grpc":
+            proxy["grpc-opts"] = {"grpc-service-name": data.get("path", "")}
+        proxy["name"] = name or data.get("ps") or "vmess"
+        return proxy
+
+    # ---- vless:// ----
+    if scheme == "vless":
+        uuid, hostport = rest.rsplit("@", 1) if "@" in rest else (rest, "")
+        server, port = _split_hostport(hostport)
+        security = qp("security")
+        proxy = {
+            "type": "vless",
+            "server": server,
+            "port": int(port),
+            "uuid": uuid,
+            "network": qp("type", "tcp"),
+            "tls": security in ("tls", "reality"),
+        }
+        if security == "reality":
+            proxy["reality-opts"] = {
+                "public-key": qp("pbk"),
+                "short-id": qp("sid"),
+            }
+        sni = qp("sni")
+        if sni:
+            proxy["servername"] = sni
+        if qp("fp"):
+            proxy["client-fingerprint"] = qp("fp")
+        if qp("path"):
+            if proxy["network"] == "grpc":
+                proxy["grpc-opts"] = {"grpc-service-name": qp("path")}
+            else:
+                proxy["ws-opts"] = {
+                    "path": qp("path"),
+                    "headers": ({"Host": qp("host")} if qp("host") else {}),
+                }
+        if name:
+            proxy["name"] = name
+        return proxy
+
+    # ---- hysteria2:// / hysteria:// ----
+    if scheme in ("hysteria2", "hysteria"):
+        auth, hostport = rest.rsplit("@", 1) if "@" in rest else ("", rest)
+        server, port = _split_hostport(hostport)
+        proxy = {
+            "type": scheme,
+            "server": server,
+            "port": int(port),
+        }
+        if auth:
+            proxy["password"] = urllib.parse.unquote(auth)
+        sni = qp("sni")
+        if sni:
+            proxy["sni"] = sni
+        if qp("insecure") == "1" or qp("allowInsecure") == "1":
+            proxy["skip-cert-verify"] = True
+        obfs = qp("obfs")
+        if obfs:
+            proxy["obfs"] = obfs
+        if qp("obfs-password"):
+            proxy["obfs-password"] = qp("obfs-password")
+        if name:
+            proxy["name"] = name
+        return proxy
+
+    # ---- snell:// ----
+    if scheme == "snell":
+        server, port = _split_hostport(rest.split("?")[0])
+        proxy = {
+            "type": "snell",
+            "server": server,
+            "port": int(port),
+            "psk": qp("psk", ""),
+        }
+        if qp("version"):
+            proxy["version"] = int(qp("version"))
+        if name:
+            proxy["name"] = name
+        return proxy
+
+    return None
+
+
+def _looks_like_share_links(text: str) -> bool:
+    schemes = ("ss://", "trojan://", "vmess://", "vless://", "hysteria2://", "hysteria://", "snell://")
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if any(line.startswith(s) for s in schemes):
+            return True
+    return False
+
+
+def _sanitize_proxy_node(node: dict[str, Any]) -> dict[str, Any]:
+    """清洗单个节点：兼容 mihomo 字段命名。
+
+    - `fingerprint` → `client-fingerprint`：新版 mihomo 把 `fingerprint` 保留给
+      TLS 证书固定（certificate pinning），浏览器指纹必须用 `client-fingerprint`。
+      订阅源里常见旧写法 `fingerprint: chrome`，不改会导致整个 provider 解析失败。
+    """
+    if "fingerprint" in node and "client-fingerprint" not in node:
+        node["client-fingerprint"] = node.pop("fingerprint")
+    return node
+
+
 def parse_subscription_proxies(text: str) -> list[dict[str, Any]]:
-    parsed = yaml.safe_load(text)
-    if isinstance(parsed, dict):
-        proxies = parsed.get("proxies", [])
-        if isinstance(proxies, list):
-            return [p for p in proxies if isinstance(p, dict)]
-    raise ValueError("subscription payload must be clash yaml with 'proxies' list")
+    """从订阅内容中抽取节点（proxies）。支持三种形态：
+    1. 完整 Clash 配置 / 普通订阅：含 `proxies:` 列表（只取节点，丢弃组/规则）
+    2. .txt 分享链接：每行一个 ss:// trojan:// vmess:// vless:// hysteria2:// snell://
+    3. base64 编码的订阅（解码后递归解析）
+    """
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("empty subscription payload")
+
+    # 1) YAML（完整配置或普通订阅）
+    try:
+        parsed = yaml.safe_load(text)
+        if isinstance(parsed, dict):
+            proxies = parsed.get("proxies")
+            if isinstance(proxies, list):
+                return [
+                    _sanitize_proxy_node(p)
+                    for p in proxies
+                    if isinstance(p, dict)
+                ]
+    except yaml.YAMLError:
+        pass
+
+    # 2) .txt 分享链接
+    if _looks_like_share_links(text):
+        proxies: list[dict[str, Any]] = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            node = decode_share_link(line)
+            if node:
+                proxies.append(node)
+        if proxies:
+            return [_sanitize_proxy_node(p) for p in proxies]
+
+    # 3) base64 编码订阅（解码后递归）
+    stripped = re.sub(r"\s+", "", text)
+    if re.fullmatch(r"[A-Za-z0-9+/=]+", stripped) and len(stripped) > 16:
+        try:
+            decoded = _b64decode_pad(stripped).decode("utf-8", "ignore")
+            return parse_subscription_proxies(decoded)
+        except Exception:
+            pass
+
+    raise ValueError("subscription payload must be clash yaml / share-links / base64 with 'proxies'")
 
 
-def fetch_subscription(sub: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+
+def parse_subscription_userinfo(headers) -> dict[str, Any]:
+    """解析订阅服务器的 `subscription-userinfo` 响应头（流量/到期信息）。
+
+    格式：`subscription-userinfo: upload=123; download=456; total=7890; expire=1700000000`
+    mihomo 只在 http provider 运行时抓取时解析该头；我们转 inline 后由 Python
+    抓取，这里提前解析并保存，供 api_server 在 provider 列表里补全展示。
+    """
+    raw = ""
+    if headers is not None:
+        raw = str(headers.get("subscription-userinfo") or headers.get("Subscription-Userinfo") or "")
+    raw = (raw or "").strip()
+    if not raw:
+        return {}
+    info: dict[str, Any] = {}
+    for part in raw.split(";"):
+        part = part.strip()
+        if not part or "=" not in part:
+            continue
+        key, _, value = part.partition("=")
+        key_lower = key.strip().lower()
+        # 与 mihomo subscriptionInfo 字段名一致（Upload/Download/Total/Expire），
+        # 前端 formatSubscriptionInfo 直接读 info.Total 等
+        if key_lower not in ("upload", "download", "total", "expire"):
+            continue
+        try:
+            info[key_lower.capitalize()] = int(float(value.strip()))
+        except ValueError:
+            continue
+    return info
+
+
+def load_subscription_userinfo_cache() -> dict[str, Any]:
+    """读取 provider 的 subscription-userinfo 缓存（key=provider 名）。"""
+    try:
+        path = Path(str(cfg.script_paths.subscription_userinfo_file))
+    except Exception:
+        path = Path(os.environ.get("SCRIPTS_DIR", "/scripts")) / "subscription_userinfo.json"
+    return load_json(path, {})
+
+
+def save_subscription_userinfo_cache(data: dict[str, Any]) -> None:
+    try:
+        path = Path(str(cfg.script_paths.subscription_userinfo_file))
+    except Exception:
+        path = Path(os.environ.get("SCRIPTS_DIR", "/scripts")) / "subscription_userinfo.json"
+    try:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError as exc:
+        log(f"save subscription-userinfo cache failed -> {exc}")
+
+
+def fetch_subscription(sub: dict[str, Any]) -> tuple[list[dict[str, Any]], str, dict[str, Any]]:
     name = str(sub.get("name", "sub")).strip()
     url = str(sub.get("url", "")).strip()
     prefix = str(sub.get("prefix", "")).strip()
@@ -253,6 +588,7 @@ def fetch_subscription(sub: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     )
     response.raise_for_status()
 
+    userinfo = parse_subscription_userinfo(response.headers)
     fetched = parse_subscription_proxies(response.text)
     filtered: list[dict[str, Any]] = []
 
@@ -264,7 +600,7 @@ def fetch_subscription(sub: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
         current["name"] = current_name
         filtered.append(current)
 
-    return filtered, response.text
+    return filtered, response.text, userinfo
 
 
 def deduplicate_proxies(proxies: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -550,6 +886,126 @@ def maybe_disable_geoip_rules(config: dict[str, Any]) -> dict[str, Any]:
     return output
 
 
+def _http_provider_compatible(text: str) -> bool:
+    """判断订阅内容是否 mihomo http provider 能直接解析（保持 http 直连）。
+
+    实测结论（2026-08-09，v1.19.25/v1.19.29 双版本验证）：
+    - YAML 完整 Clash 配置（含 proxy-groups/rules）→ mihomo **能**直连解析出节点
+      （A/C 源实测 36/37 节点，subscriptionInfo 完整）
+    - base64 编码订阅 → 多数能直连（v2ray 订阅格式）
+    - 节点含 `fingerprint` 字段 → mihomo 报 TLS pinning 错误，整个 provider 失败
+      （list.meta.yml 实测 0 节点）→ 必须转 inline 清洗
+    - 明文 .txt 分享链接 → mihomo 解析失败 → 转 inline 由 Python 解码
+
+    兼容（保持 http 直连）：YAML（含完整配置）/ base64 订阅 / 无 fingerprint 节点
+    不兼容（转 inline）：节点含 fingerprint / 明文 .txt 分享链接
+    """
+    text = (text or "").strip()
+    if not text:
+        return False
+    # 明文 .txt 分享链接（含 :// 行，非 YAML 非 base64）
+    if _looks_like_share_links(text):
+        return False
+    # YAML：解析出 proxies 且任一节点含 fingerprint → mihomo TLS pinning 报错 → 转 inline
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError:
+        parsed = None
+    if isinstance(parsed, dict):
+        proxies = parsed.get("proxies")
+        if isinstance(proxies, list):
+            for p in proxies:
+                if isinstance(p, dict) and "fingerprint" in p:
+                    return False
+            if proxies:
+                return True
+        return False
+    # base64 编码订阅（纯 base64 字符集且较长）→ mihomo v2ray 订阅格式可解析
+    compact = re.sub(r"\s+", "", text)
+    if re.fullmatch(r"[A-Za-z0-9+/=]+", compact) and len(compact) > 32:
+        return True
+    return False
+
+
+def convert_http_providers_to_inline(config: dict[str, Any]) -> dict[str, Any]:
+    """合并后：把 override.js 生成的 `type: http` 节点 provider 抓取+解析成
+    `type: inline`，从而兼容"完整 Clash 配置"（如 list.meta.yml 含
+    proxy-groups/rules）与 `.txt` 分享链接这类 mihomo 运行时解析失败（0 节点）的源。
+
+    设计要点（保证自定义分组不受影响）：
+    - 必须在 apply_js_override 之后调用：override.js 负责建 provider + 自定义分组，
+      本函数只替换 provider 的"内容来源"，不碰分组。
+    - provider 名保持不变（如 Paid_1 / Free_2），所以分组里的 `use:` 引用照常生效。
+    - 保留 override.js 写进 provider 的 `override`（如 additional-suffix @PAID/@FREE）
+      与 `health-check` 字段，节点命名/测速行为与原 http provider 一致。
+    - 抓取或解析失败时不转换，保留原 http provider 让 mihomo 运行时兜底，
+      不影响其它正常订阅。
+    - 默认策略：标准订阅格式（YAML 仅含 proxies / base64 编码）保持 http 直连，
+      由 mihomo 运行时抓取（userinfo 头/节点自动更新天然可用）；
+      只有 mihomo http provider 解析不了的形态（完整 Clash 配置含 proxy-groups/rules、
+      明文 .txt 分享链接）才转 inline。
+    """
+    providers = config.get("proxy-providers")
+    if not isinstance(providers, dict):
+        return config
+
+    userinfo_cache = load_subscription_userinfo_cache()
+    changed_userinfo = False
+
+    for pname, pdict in list(providers.items()):
+        if not isinstance(pdict, dict):
+            continue
+        if pdict.get("type") != "http":
+            continue
+        if "behavior" in pdict:  # rule-provider（geo 规则集），跳过
+            continue
+        url = str(pdict.get("url", "")).strip()
+        if not url:
+            continue
+
+        try:
+            proxies, raw_text, userinfo = fetch_subscription({"name": pname, "url": url})
+        except Exception as exc:
+            log(f"provider[{pname}]: fetch/parse failed -> {exc}; 保留 http 让 mihomo 运行时解析")
+            continue
+        if not proxies:
+            log(f"provider[{pname}]: 0 nodes; 保留 http 让 mihomo 运行时解析")
+            continue
+
+        # 标准订阅格式 → 保持 http 直连（mihomo 运行时抓取，userinfo/节点自动更新）。
+        # 清理历史 inline 缓存，避免误展示过期信息。
+        if _http_provider_compatible(raw_text):
+            log(f"provider[{pname}]: 标准订阅格式，保持 http 直连")
+            if pname in userinfo_cache:
+                del userinfo_cache[pname]
+                changed_userinfo = True
+            continue
+
+        # 注意：mihomo 的 inline provider 用 `payload` 字段承载节点（不是 `proxies`），
+        # 用错字段会导致 provider 解析失败（"file doesn't have any proxy"）。
+        new_provider: dict[str, Any] = {"type": "inline", "payload": proxies}
+        if "health-check" in pdict:
+            new_provider["health-check"] = pdict["health-check"]
+        if "override" in pdict:
+            new_provider["override"] = pdict["override"]
+        providers[pname] = new_provider
+        log(f"provider[{pname}]: http->inline, {len(proxies)} nodes")
+
+        # 转 inline 后 mihomo 不再抓取该 URL，subscription-userinfo 头（流量/到期）
+        # 由 Python 抓取时解析缓存，供 api_server 展示。
+        if userinfo:
+            userinfo_cache[pname] = userinfo
+            changed_userinfo = True
+        elif pname in userinfo_cache:
+            del userinfo_cache[pname]
+            changed_userinfo = True
+
+    if changed_userinfo:
+        save_subscription_userinfo_cache(userinfo_cache)
+
+    return config
+
+
 def apply_js_override(config: dict[str, Any], script_text: str) -> dict[str, Any]:
     script = (script_text or "").strip()
     if not script:
@@ -638,7 +1094,7 @@ def merge_subscriptions() -> int:
         name = str(sub.get("name", "sub")).strip() or "sub"
         enabled_count += 1
         try:
-            proxies, raw_text = fetch_subscription(sub)
+            proxies, raw_text, _ = fetch_subscription(sub)
             merged_proxies.extend(proxies)
             save_yaml(cfg.paths.subs_dir / f"{name}.yaml", {"proxies": proxies})
             log(f"{name}: fetched={len(proxies)}")
@@ -658,6 +1114,9 @@ def merge_subscriptions() -> int:
     if override_script.strip():
         log("applying override.js")
         config = apply_js_override(config, override_script)
+    # override.js 已建好 proxy-providers(http) + 自定义分组；这里把 http provider
+    # 抓取解析成 inline，兼容完整配置/.txt（provider 名不变，分组 use: 照常生效）
+    config = convert_http_providers_to_inline(config)
     config = ensure_runtime_values(config)
     config = sanitize_proxy_groups(config)
     config = maybe_disable_geoip_rules(config)

@@ -2,25 +2,33 @@
   "set1": [
     {
       "name": "A",
-      "url": "https://example.com/subscription-a.yaml"
+      "url": "https://example.com/subscription-A.yaml"
     },
     {
       "name": "B",
-      "url": "https://example.com/subscription-b.yaml"
+      "url": "https://example.com/subscription-B.yaml"
+    },
+    {
+      "name": "C",
+      "url": "https://example.com/subscription-C.yaml"
+    },
+    {
+      "name": "D",
+      "url": "https://example.com/subscription-D.yaml"
     }
   ],
   "set2": [
     {
       "name": "a",
-      "url": "https://example.com/subscription-c.yaml"
+      "url": "https://example.com/subscription-a.yaml"
     },
     {
       "name": "b",
-      "url": "https://example.com/subscription-d.yaml"
+      "url": "https://example.com/subscription-b.yaml"
     }
   ],
   "us_auto": {
-    "priority1": "🇺🇸美国 1 @PAID",
-    "priority2": "美国BGP[X0.5] @PAID"
+    "priority1": "",
+    "priority2": ""
   }
 }

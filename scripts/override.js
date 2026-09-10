@@ -3,26 +3,34 @@
 const SUB_SET1 = [
   {
     "name": "A",
-    "url": "https://example.com/subscription-a.yaml"
+    "url": "https://example.com/subscription-A.yaml"
   },
   {
     "name": "B",
-    "url": "https://example.com/subscription-b.yaml"
+    "url": "https://example.com/subscription-B.yaml"
+  },
+  {
+    "name": "C",
+    "url": "https://example.com/subscription-C.yaml"
+  },
+  {
+    "name": "D",
+    "url": "https://example.com/subscription-D.yaml"
   }
 ];
 const SUB_SET2 = [
   {
     "name": "a",
-    "url": "https://example.com/subscription-c.yaml"
+    "url": "https://example.com/subscription-a.yaml"
   },
   {
     "name": "b",
-    "url": "https://example.com/subscription-d.yaml"
+    "url": "https://example.com/subscription-b.yaml"
   }
 ];
 const US_AUTO_PRIORITY = {
-  "priority1": "🇺🇸美国 1 @PAID",
-  "priority2": "美国BGP[X0.5] @PAID"
+  "priority1": "",
+  "priority2": ""
 };
 const US_AUTO_PRIORITY1 = String(US_AUTO_PRIORITY.priority1 || "").trim();
 const US_AUTO_PRIORITY2 = String(US_AUTO_PRIORITY.priority2 || "").trim();
@@ -48,6 +56,12 @@ const __US_AUTO_PRIORITY2 =
 // 付费集合中用于 Google/YouTube 的美国优选节点过滤器
 const US_FILTER =
   "(?i)(\\bUS\\b|\\bUSA\\b|United\\s*States|UnitedStates|America|美国|美國|美西|美东|洛杉矶|圣何塞|硅谷|西雅图|达拉斯|芝加哥|纽约|华盛顿|🇺🇸)";
+// 付费集合中"免费/试用/低倍率(<=0.2)"节点过滤器，用于 Low 手动组。
+// 兼容节点名的多种倍率写法：
+//   ×0.2 / X0.2 / x0.1 / 0倍率 / 0.0倍消耗 / [0倍消耗] / 0x
+// 大于 0.2 的不匹配（如 ×1、×1.3、×0.25、[1.0倍消耗]、[2.0倍消耗]）。
+const LOW_FILTER =
+  "(?i)(免费|试用|(?:倍率|倍消耗|倍|[×xX])\\s*[:=]?\\s*0(?:\\.(?:0\\d*|1\\d*|20*))?(?:[^0-9.]|$)|(?:^|[^0-9.])0(?:\\.(?:0\\d*|1\\d*|20*))?\\s*(?:倍率|倍消耗|倍|[×xX]))";
 const HEALTHCHECK_URL = "https://www.gstatic.com/generate_204";
 const AUTO_CHECK_INTERVAL = 180;
 const AUTO_TOLERANCE = 200;
@@ -185,8 +199,20 @@ const main = (config) => {
   if (addUsManualGroup(groups, "US2", PAID_PROVIDERS)) googleChain.push("US2");
   googleChain.push("US-Auto", "REJECT");
 
-  // 免费集合自动优选
-  upsertGroup(groups, {
+  // 低倍率/免费手动组：从付费 provider 中筛出"免费/试用/倍率<=0.2"的节点。
+  // 不限地区，非美国的 0 倍率节点同样会进入该组。
+  const hasLowGroup = PAID_PROVIDERS.length > 0;
+  if (hasLowGroup) {
+    upsertGroup(groups, {
+      name: "Low",
+      type: "select",
+      use: PAID_PROVIDERS,
+      filter: LOW_FILTER,
+    });
+  }
+
+  // 免费集合自动优选（Low 手动组作为候选成员并入）
+  const freeAutoGroup = {
     name: "Free-Auto",
     type: "url-test",
     use: FREE_PROVIDERS,
@@ -194,7 +220,11 @@ const main = (config) => {
     interval: AUTO_CHECK_INTERVAL,
     tolerance: AUTO_TOLERANCE,
     lazy: false,
-  });
+  };
+  if (hasLowGroup) {
+    freeAutoGroup.proxies = ["Low"];
+  }
+  upsertGroup(groups, freeAutoGroup);
 
   // Google 专属组：按 US1 -> US2 -> US-Auto 回退，不可用时阻断
   upsertGroup(groups, {
@@ -235,6 +265,15 @@ const main = (config) => {
     "DOMAIN-SUFFIX,googleadservices.com,Google",
     "DOMAIN-SUFFIX,gmail.com,Google",
     "DOMAIN-SUFFIX,googlesource.com,Google",
+    // OpenAI / Codex / Anthropic 与 Google 走同一专属代理链（US1 -> US2 -> US-Auto）
+    "DOMAIN-SUFFIX,openai.com,Google",
+    "DOMAIN-SUFFIX,chatgpt.com,Google",
+    "DOMAIN-SUFFIX,oaistatic.com,Google",
+    "DOMAIN-SUFFIX,oaiusercontent.com,Google",
+    "DOMAIN-SUFFIX,anthropic.com,Google",
+    "DOMAIN-SUFFIX,claude.ai,Google",
+    "DOMAIN-SUFFIX,claudeusercontent.com,Google",
+    "DOMAIN-SUFFIX,claude.com,Google",
     "RULE-SET,geosite-gfw,Proxy",
     "GEOIP,CN,DIRECT,no-resolve",
     "MATCH,Proxy",

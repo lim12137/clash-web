@@ -90,6 +90,8 @@ provider_service = ProviderService(
     clash_api=cfg.auth.clash_api,
     clash_headers=clash_headers,
     provider_recovery_file=cfg.script_paths.provider_recovery_file,
+    subscription_userinfo_file=getattr(cfg.script_paths, "subscription_userinfo_file", None)
+    or (Path(cfg.paths.scripts_dir) / "subscription_userinfo.json"),
     provider_auto_refresh_enabled=cfg.provider.enabled,
     provider_recovery_check_interval=cfg.provider.check_interval,
     provider_zero_alive_minutes=cfg.provider.zero_alive_minutes,
@@ -738,7 +740,19 @@ def put_subscription_sets():
         ),
         "INFO",
     )
-    return jsonify({"success": True, "data": data})
+    # 集合变了必须重新合并+重载，否则 inline provider 的节点不会刷新
+    # （http 直连的 provider 由 mihomo 运行时抓取，inline 的只有重跑 merge 才更新）
+    merge_launched = start_merge_job(do_reload=True, trigger="subscription-sets")
+    if not merge_launched:
+        emit_log("subscription-sets: merge skipped (already running)", "WARN")
+    return jsonify(
+        {
+            "success": True,
+            "data": data,
+            "merge_launched": merge_launched,
+            "message": "订阅集合已保存，正在重新合并节点" if merge_launched else "订阅集合已保存（合并任务已在运行）",
+        }
+    )
 
 
 @app.route("/api/schedule", methods=["GET"])
@@ -1585,6 +1599,64 @@ def clash_proxy_providers():
         return json_error(f"failed to load providers: {exc}", 500)
 
 
+@app.route("/api/providers/<name>/refresh", methods=["POST"])
+@require_write_auth
+def refresh_single_provider(name):
+    """刷新单个订阅 provider。
+
+    先走 mihomo 运行时轻量刷新（PUT /providers/proxies/<name>）；
+    若 provider 不支持或不存在（例如已被 merge 转成 inline），
+    回退到重跑 merge+reload，让新节点真正生效。
+    """
+    provider_name = str(name or "").strip()
+    if not provider_name:
+        return json_error("provider name is required", 400)
+
+    ok, message = refresh_provider_subscription(provider_name)
+    if ok:
+        emit_log(f"provider refreshed (runtime): {provider_name}", "SUCCESS")
+        return jsonify(
+            {
+                "success": True,
+                "mode": "provider",
+                "message": f"{provider_name} 已刷新（运行时 provider）",
+            }
+        )
+
+    # 回退：重跑 merge 重新抓取该订阅源并重载配置
+    merge_launched = start_merge_job(
+        do_reload=True, trigger=f"provider-refresh:{provider_name}"
+    )
+    if merge_launched:
+        emit_log(
+            f"provider refresh fallback to merge: {provider_name} (reason: {message})",
+            "WARN",
+        )
+        return jsonify(
+            {
+                "success": True,
+                "mode": "merge",
+                "merge_launched": True,
+                "provider_error": message,
+                "message": f"{provider_name} 不支持运行时刷新，已回退重跑合并（原因：{message}）",
+            }
+        )
+
+    emit_log(
+        f"provider refresh failed: {provider_name} (reason: {message}); merge already running",
+        "WARN",
+    )
+    return jsonify(
+        {
+            "success": True,
+            "mode": "merge",
+            "merge_launched": False,
+            "provider_error": message,
+            "message": f"{provider_name} 运行时刷新失败，且合并任务已在运行",
+        }
+    )
+
+
 @app.route("/api/clash/groups/meta", methods=["GET"])
 def clash_groups_meta():
     try:
@@ -1713,6 +1785,23 @@ def clash_groups_meta():
                     provider_names = [str(entry or "").strip() for entry in configured_use if str(entry or "").strip()]
 
             real_nodes = resolve_group_nodes(str(group_name))
+            # 若组的配置选项全是其他组名（子组引用，如 Proxy 含 Free-Auto/US-Auto），
+            # 不递归展开底层节点，直接以子组名作为可选项，保持"出口选择器"语义。
+            group_def_for_check = config_group_defs.get(str(group_name), {})
+            configured_proxies = group_def_for_check.get("proxies") if isinstance(group_def_for_check, dict) else None
+            if isinstance(configured_proxies, list) and configured_proxies:
+                non_system_options = [
+                    str(entry or "").strip()
+                    for entry in configured_proxies
+                    if str(entry or "").strip() and str(entry or "").strip().upper() not in cfg.constants.system_proxy_names
+                ]
+                if non_system_options and all(entry in config_group_defs for entry in non_system_options):
+                    # 保留 DIRECT / REJECT 等系统出口，它们同样是可选项
+                    real_nodes = [
+                        str(entry or "").strip()
+                        for entry in configured_proxies
+                        if str(entry or "").strip()
+                    ]
             if not real_nodes:
                 seen_nodes: set[str] = set()
                 for entry in selector_options:
@@ -1723,6 +1812,17 @@ def clash_groups_meta():
                     if entry in seen_nodes:
                         continue
                     seen_nodes.add(entry)
+                    real_nodes.append(entry)
+
+            if not real_nodes and selector_options:
+                # 兜底：GLOBAL 等内置组的选项全是代理组名 + 系统出口（DIRECT/REJECT），
+                # 上面的过滤会把它们清空导致前端显示空标签。此时直接沿用原始选项，
+                # 保证 DIRECT / REJECT 等出口在页面上可见可切换。
+                seen_fallback: set[str] = set()
+                for entry in selector_options:
+                    if not entry or entry in seen_fallback:
+                        continue
+                    seen_fallback.add(entry)
                     real_nodes.append(entry)
 
             groups_meta.append(
@@ -1748,6 +1848,54 @@ def clash_groups_meta():
         )
     except Exception as exc:
         return json_error(f"failed to load groups meta: {exc}", 500)
+
+
+_PROVIDER_NODE_INDEX: dict[str, str] = {}
+_PROVIDER_INDEX_TS: float = 0.0
+_PROVIDER_INDEX_TTL = 60.0
+_PROVIDER_INDEX_LOCK = threading.Lock()
+
+
+def _refresh_provider_node_index() -> dict[str, str]:
+    """建立 节点名 -> provider 名 的索引。
+
+    mihomo 的 /proxies 顶层映射不包含 proxy-provider 里的节点，
+    因此 /proxies/<node>/delay 对 provider 节点一律返回 404。
+    provider 节点必须走 /providers/proxies/<provider>/<node>/healthcheck。
+    """
+    global _PROVIDER_NODE_INDEX, _PROVIDER_INDEX_TS
+    index: dict[str, str] = {}
+    try:
+        resp = requests.get(
+            f"{cfg.auth.clash_api}/providers/proxies",
+            headers=clash_headers(),
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            payload = resp.json() or {}
+            for provider_name, provider in (payload.get("providers") or {}).items():
+                if not isinstance(provider, dict):
+                    continue
+                # Compatible provider 是 mihomo 为代理组自动生成的虚拟 provider，跳过
+                if str(provider.get("vehicleType") or "") == "Compatible":
+                    continue
+                for entry in provider.get("proxies") or []:
+                    if isinstance(entry, dict) and entry.get("name"):
+                        index.setdefault(str(entry["name"]), str(provider_name))
+    except Exception as exc:  # pragma: no cover - 网络异常降级
+        emit_log(f"refresh provider node index failed: {exc}", "warn")
+        return _PROVIDER_NODE_INDEX
+
+    with _PROVIDER_INDEX_LOCK:
+        _PROVIDER_NODE_INDEX = index
+        _PROVIDER_INDEX_TS = time.time()
+    return index
+
+
+def find_provider_for_node(node_name: str, force: bool = False) -> str | None:
+    if force or not _PROVIDER_NODE_INDEX or (time.time() - _PROVIDER_INDEX_TS) > _PROVIDER_INDEX_TTL:
+        _refresh_provider_node_index()
+    return _PROVIDER_NODE_INDEX.get(node_name)
 
 
 @app.route("/api/clash/proxies/delay", methods=["GET", "POST"])
@@ -1776,6 +1924,18 @@ def clash_proxy_delay():
 
     encoded = quote(proxy_name, safe="")
     request_timeout = max(3.0, timeout_ms / 1000.0 + 2.0)
+
+    def timeout_result():
+        return jsonify(
+            {
+                "success": True,
+                "name": proxy_name,
+                "delay": -1,
+                "url": test_url,
+                "timeout": timeout_ms,
+            }
+        )
+
     try:
         resp = requests.get(
             f"{cfg.auth.clash_api}/proxies/{encoded}/delay",
@@ -1783,6 +1943,24 @@ def clash_proxy_delay():
             params={"url": test_url, "timeout": timeout_ms},
             timeout=request_timeout,
         )
+        if resp.status_code == 404:
+            # provider 节点不在 /proxies 顶层映射里，回退到 provider healthcheck
+            provider_name = find_provider_for_node(proxy_name)
+            if not provider_name:
+                provider_name = find_provider_for_node(proxy_name, force=True)
+            if not provider_name:
+                return json_error(f"proxy not found: {proxy_name}", 404)
+            resp = requests.get(
+                f"{cfg.auth.clash_api}/providers/proxies/"
+                f"{quote(provider_name, safe='')}/{encoded}/healthcheck",
+                headers=clash_headers(),
+                params={"url": test_url, "timeout": timeout_ms},
+                timeout=request_timeout,
+            )
+
+        # 503 = 节点不可用，504 = 测速超时，都是正常的测速结果而非接口故障
+        if resp.status_code in (503, 504):
+            return timeout_result()
         if resp.status_code != 200:
             return json_error(f"clash api error: {resp.status_code}", 502)
 

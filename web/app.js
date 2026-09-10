@@ -20,6 +20,31 @@ let activeGroupIndex = 0;
 let activeGroupName = "";
 let autoSelectGroupDone = false;
 let nodeLatencies = new Map(); // 节点延迟缓存
+
+// 已测节点延迟持久化：刷新页面后仍直接显示，不自动重测
+const LATENCY_CACHE_KEY = "clash2web.nodeLatencies.v1";
+function loadLatencyCache() {
+  try {
+    const raw = localStorage.getItem(LATENCY_CACHE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object") {
+      for (const [name, val] of Object.entries(obj)) {
+        if (typeof val === "number") nodeLatencies.set(name, val); // 仅恢复已完成测量值（-1 超时也算已测）
+      }
+    }
+  } catch (e) { /* 忽略损坏的缓存 */ }
+}
+function saveLatencyCache() {
+  try {
+    const obj = {};
+    for (const [name, val] of nodeLatencies.entries()) {
+      if (typeof val === "number") obj[name] = val;
+    }
+    localStorage.setItem(LATENCY_CACHE_KEY, JSON.stringify(obj));
+  } catch (e) { /* 忽略写入失败（如隐私模式） */ }
+}
+loadLatencyCache();
 let nodeProviderMap = new Map(); // 节点 -> provider 名称
 let currentNodes = []; // 当前显示的节点列表
 let currentNodeEntries = []; // 当前显示节点及其切换目标
@@ -414,12 +439,15 @@ function expandUsAutoNodes(group, groups = proxyGroups) {
   return names;
 }
 
-function getDisplayNodesForGroup(group, groups = proxyGroups) {
+// includeSystem=true 时保留 DIRECT/REJECT 等系统节点（用于界面渲染，用户要求可见可切换）
+// includeSystem=false 时剔除系统节点（用于延迟测试、优先级下拉等只关心真实节点的场景）
+function getDisplayNodesForGroup(group, groups = proxyGroups, includeSystem = false) {
   if (!group) return [];
+  const keep = (name) => Boolean(name) && (includeSystem || !isSystemNodeName(name));
   if (Array.isArray(group.nodes) && group.nodes.length) {
     return group.nodes
       .map((item) => String(item || "").trim())
-      .filter((name) => name && !isSystemNodeName(name));
+      .filter(keep);
   }
   if (isUsAutoFallbackGroup(group)) {
     const expanded = expandUsAutoNodes(group, groups);
@@ -429,7 +457,7 @@ function getDisplayNodesForGroup(group, groups = proxyGroups) {
   const all = Array.isArray(group?.all) ? group.all : [];
   return all
     .map((item) => String(item || "").trim())
-    .filter((name) => name && !isSystemNodeName(name));
+    .filter(keep);
 }
 
 function resolveUsAutoChildGroupForNode(group, nodeName, groups = proxyGroups) {
@@ -517,7 +545,7 @@ function shouldShowGroupAsLeafOptions(group, groups = proxyGroups) {
 }
 
 function getRenderableNodesForGroup(group, groups = proxyGroups) {
-  const displayNodes = getDisplayNodesForGroup(group, groups);
+  const displayNodes = getDisplayNodesForGroup(group, groups, true);
   if (displayNodes.length) {
     return displayNodes.map((nodeName) => ({
       name: nodeName,
@@ -532,7 +560,7 @@ function getRenderableNodesForGroup(group, groups = proxyGroups) {
   const all = Array.isArray(group?.all) ? group.all : [];
   return all
     .map((item) => String(item || "").trim())
-    .filter((name) => name && !isSystemNodeName(name))
+    .filter(Boolean)
     .map((nodeName) => ({
       name: nodeName,
       target: getSwitchTargetForNode(group, nodeName, groups),
@@ -674,6 +702,14 @@ function createSetRowElement(setKey, item = {}) {
   tdUrl.appendChild(urlInput);
 
   const tdOp = document.createElement("td");
+
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.dataset.action = "refresh";
+  refreshBtn.textContent = "刷新";
+  refreshBtn.onclick = () => refreshSetRow(setKey, tr, refreshBtn);
+  tdOp.appendChild(refreshBtn);
+
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.dataset.action = "delete";
@@ -724,6 +760,35 @@ function collectSetRows(setKey, fallbackPrefix) {
     counter += 1;
   });
   return result;
+}
+
+function resolveSetRowProviderName(setKey, tr) {
+  const prefix = setKey === "set1" ? "Paid" : "Free";
+  const tbody = document.getElementById(`${setKey}-table`);
+  const rows = tbody ? Array.from(tbody.querySelectorAll("tr")) : [];
+  const index = rows.indexOf(tr) + 1 || 1;
+  const nameInput = tr.querySelector('input[data-field="name"]');
+  const rawName = String(nameInput?.value || "").trim();
+  return normalizeProviderName(rawName, `${prefix}_${index}`);
+}
+
+async function refreshSetRow(setKey, tr, btn) {
+  const providerName = resolveSetRowProviderName(setKey, tr);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "刷新中";
+  try {
+    const res = await api(`/providers/${encodeURIComponent(providerName)}/refresh`, {
+      method: "POST",
+    });
+    showToast(res?.message || `${providerName} 已刷新`);
+    await loadProviderStatus();
+  } catch (err) {
+    showToast(`刷新失败: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 function parseBulkSetRows(text, fallbackPrefix) {
@@ -2333,8 +2398,8 @@ async function loadProviderStatus() {
 
 async function saveSubscriptionSetsPayload(payload, successTip, errorPrefix) {
   try {
-    await api("/subscription-sets", { method: "PUT", body: payload });
-    showToast(successTip);
+    const res = await api("/subscription-sets", { method: "PUT", body: payload });
+    showToast(res?.message || successTip);
     if (activeTab === "override-script") {
       await loadEditor();
     }
@@ -2626,7 +2691,11 @@ function compareProxyGroups(a, b) {
 }
 
 // 获取节点旗帜
+const SYSTEM_NODE_ICONS = { DIRECT: "🏠", REJECT: "⛔", "REJECT-DROP": "⛔", PASS: "➡️", COMPATIBLE: "🧩" };
+
 function getNodeFlag(nodeName) {
+  const upper = String(nodeName || "").trim().toUpperCase();
+  if (SYSTEM_NODE_ICONS[upper]) return SYSTEM_NODE_ICONS[upper];
   for (const [key, flag] of Object.entries(FLAG_MAP)) {
     if (nodeName.toLowerCase().includes(key.toLowerCase())) {
       return flag;
@@ -2734,7 +2803,11 @@ function renderNodesGrid() {
   // 更新信息栏
   if (infoText) {
     const selectedDisplayNode = getSelectedDisplayNode(group, proxyGroups) || String(group.now || '-');
-    let text = `${group.name} · ${currentNodes.length} 个节点 · 当前选择: ${selectedDisplayNode}`;
+    const systemCount = currentNodes.filter((name) => isSystemNodeName(name)).length;
+    const countText = systemCount
+      ? `${currentNodes.length} 个选项（含 ${systemCount} 个内置）`
+      : `${currentNodes.length} 个节点`;
+    let text = `${group.name} · ${countText} · 当前选择: ${selectedDisplayNode}`;
     if (
       String(group.name || "").toLowerCase() === "free-auto" &&
       currentNodes.length === 1 &&
@@ -2754,13 +2827,17 @@ function createNodeCard(nodeEntry, group) {
   const selectedDisplayNode = getSelectedDisplayNode(group, proxyGroups);
   const isSelected = nodeName === selectedDisplayNode;
 
-  card.className = `node-card ${isSelected ? 'selected' : ''}`;
+  const isSystemNode = isSystemNodeName(nodeName);
+  card.className = `node-card ${isSelected ? 'selected' : ''}${isSystemNode ? ' system-node' : ''}`;
 
   const flag = getNodeFlag(nodeName);
-  const protocol = getProtocolType(nodeName);
+  const protocol = isSystemNode ? "内置" : getProtocolType(nodeName);
   const latency = nodeLatencies.get(nodeName);
-  const latencyClass = getLatencyClass(latency);
-  const providerName = String(nodeProviderMap.get(nodeName) || "").trim() || "-";
+  const latencyClass = isSystemNode ? "" : getLatencyClass(latency);
+  const latencyText = isSystemNode ? "—" : formatLatency(latency);
+  const providerName = isSystemNode
+    ? "系统"
+    : (String(nodeProviderMap.get(nodeName) || "").trim() || "-");
 
   card.innerHTML = `
     <div class="node-header">
@@ -2772,7 +2849,7 @@ function createNodeCard(nodeEntry, group) {
     </div>
     <div class="node-meta-row">
       <div class="node-latency ${latencyClass}" data-node="${nodeName}">
-        ${formatLatency(latency)}
+        ${latencyText}
       </div>
       <span class="node-provider" title="Provider: ${providerName}">${providerName}</span>
     </div>
@@ -2832,7 +2909,8 @@ async function testSingleNodeLatency(nodeName) {
 }
 
 // 批量测试节点延迟
-async function testAllNodeLatencies() {
+// forceAll=true 时强制重测全部节点（手动点击“测延时”）；否则跳过“已经测过”的节点，直接显示其缓存延时
+async function testAllNodeLatencies(forceAll = false) {
   if (isLatencyTesting) {
     return;
   }
@@ -2849,44 +2927,66 @@ async function testAllNodeLatencies() {
   const nodes = getDisplayNodesForGroup(group, proxyGroups);
   const infoText = document.getElementById('node-info-text');
 
-  try {
-    if (infoText) {
-      infoText.textContent = `${group.name} · 正在测试延迟...`;
-    }
+  // 仅在未强制重测时，跳过已有测量值的节点（null/undefined 视为待测）
+  const toTest = forceAll
+    ? nodes
+    : nodes.filter(n => {
+        const v = nodeLatencies.get(n);
+        return v === null || v === undefined;
+      });
 
-    // 显示加载状态
-    nodes.forEach(nodeName => {
+  try {
+    // 仅对需要测试的节点显示“加载中”
+    toTest.forEach(nodeName => {
       nodeLatencies.set(nodeName, null); // null 表示加载中
     });
     renderNodesGrid();
 
-    // 并行测试所有节点（限制并发数）
-    const batchSize = LATENCY_TEST_CONCURRENCY;
-    for (let i = 0; i < nodes.length; i += batchSize) {
-      const batch = nodes.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(async (nodeName) => {
-          const delay = await testSingleNodeLatency(nodeName);
-          nodeLatencies.set(nodeName, delay);
-          updateNodeLatencyDisplay(nodeName, delay);
-          // 记录测速结果
-          const providerName = nodeProviderMap.get(nodeName) || "";
-          recordProxyTest(nodeName, delay, {
-            provider: providerName,
-            success: delay > 0,
-          });
-        })
-      );
-    }
+    if (toTest.length === 0) {
+      // 没有需要重测的节点：直接展示已缓存延时，不再发起请求
+      if (infoText) {
+        const validLatencies = nodes
+          .map(n => nodeLatencies.get(n))
+          .filter(d => d !== null && d !== undefined && d !== -1);
+        const avgLatency = validLatencies.length > 0
+          ? Math.round(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length)
+          : 0;
+        infoText.textContent = `${group.name} · ${nodes.length} 个节点 · 已测延时直接显示（平均 ${avgLatency}ms）`;
+      }
+    } else {
+      if (infoText) {
+        infoText.textContent = `${group.name} · 正在测试 ${toTest.length} 个节点延迟...`;
+      }
 
-    if (infoText) {
-      const validLatencies = nodes
-        .map(n => nodeLatencies.get(n))
-        .filter(d => d !== null && d !== -1);
-      const avgLatency = validLatencies.length > 0
-        ? Math.round(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length)
-        : 0;
-      infoText.textContent = `${group.name} · ${nodes.length} 个节点 · 平均延迟: ${avgLatency}ms`;
+      // 并行测试待测节点（限制并发数）
+      const batchSize = LATENCY_TEST_CONCURRENCY;
+      for (let i = 0; i < toTest.length; i += batchSize) {
+        const batch = toTest.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (nodeName) => {
+            const delay = await testSingleNodeLatency(nodeName);
+            nodeLatencies.set(nodeName, delay);
+            updateNodeLatencyDisplay(nodeName, delay);
+            // 记录测速结果
+            const providerName = nodeProviderMap.get(nodeName) || "";
+            recordProxyTest(nodeName, delay, {
+              provider: providerName,
+              success: delay > 0,
+            });
+          })
+        );
+      }
+      saveLatencyCache(); // 持久化本次测量结果
+
+      if (infoText) {
+        const validLatencies = nodes
+          .map(n => nodeLatencies.get(n))
+          .filter(d => d !== null && d !== -1);
+        const avgLatency = validLatencies.length > 0
+          ? Math.round(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length)
+          : 0;
+        infoText.textContent = `${group.name} · ${nodes.length} 个节点 · 平均延迟: ${avgLatency}ms`;
+      }
     }
   } finally {
     isLatencyTesting = false;
@@ -3106,7 +3206,7 @@ function bindEvents() {
   document.getElementById("reload-providers").onclick = loadProviderStatus;
   document.getElementById("reload-groups").onclick = loadGroups;
   document.getElementById("btn-test-latency").onclick = () => {
-    testAllNodeLatencies();
+    testAllNodeLatencies(true); // 手动点击：强制重测全部节点
   };
   document.getElementById("btn-load-editor").onclick = loadEditor;
   document.getElementById("btn-save-editor").onclick = saveEditor;

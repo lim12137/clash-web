@@ -1,0 +1,25 @@
+# 增量构建：基于现有运行镜像固化 scripts/ 与 web/ 改动
+# 用途：避免重新下载 mihomo 内核与 geoip 数据，保持内核版本不变（v1.19.29）
+# 构建上下文应为服务器 /fs/1000/ftp/docker/clash2web/_build/
+#   scripts/ 与 web/ 由运行中的容器导出，已剔除 __pycache__ 与 *.bak.*
+#
+# 构建示例：
+#   docker build -f Dockerfile.incremental -t clash2web:20260807 .
+ARG BASE_IMAGE=ghcr.io/lim12137/clash2web:latest
+FROM ${BASE_IMAGE}
+
+COPY scripts/ /scripts/
+COPY scripts/ /opt/nexent-seed/scripts/
+COPY web/ /web/
+COPY web/ /opt/nexent-seed/web/
+COPY entrypoint.sh /entrypoint.sh
+
+# nginx worker 需读取静态资源，属主/权限错误会导致 403
+RUN chown -R root:root /scripts /web /opt/nexent-seed \
+    && find /web /opt/nexent-seed/web -type f -exec chmod 644 {} \; \
+    && find /scripts /opt/nexent-seed/scripts -type f -exec chmod 644 {} \; \
+    && find /scripts /web /opt/nexent-seed -type d -exec chmod 755 {} \; \
+    && chmod +x /entrypoint.sh
+
+LABEL org.opencontainers.image.description="clash2web with connections-page proxy group fixes" \
+      org.opencontainers.image.revision="20260807-proxy-group-fix"

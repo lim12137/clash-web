@@ -34,6 +34,10 @@ sync_seed_runtime_files() {
   if [ -f "${SEED_SCRIPTS_DIR}/connection_recorder.py" ]; then
     cp -f "${SEED_SCRIPTS_DIR}/connection_recorder.py" /scripts/connection_recorder.py
   fi
+  # merge.py 属代码而非数据（subscriptions.json/override.js 等是数据，不能覆盖）
+  if [ -f "${SEED_SCRIPTS_DIR}/merge.py" ]; then
+    cp -f "${SEED_SCRIPTS_DIR}/merge.py" /scripts/merge.py
+  fi
   if [ -d "${SEED_SCRIPTS_DIR}/api" ]; then
     rm -rf /scripts/api
     cp -R "${SEED_SCRIPTS_DIR}/api" /scripts/api
