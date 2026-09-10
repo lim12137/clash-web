@@ -1136,9 +1136,14 @@ tr.provider-row-unmatched td {
   font-size: 13px;
 }
 
-.mini-table input {
+.mini-table input,
+.mini-table select {
   padding: 6px 10px;
   font-size: 13px;
+}
+
+.mini-table select {
+  min-width: 72px;
 }
 
 /* History Filters */

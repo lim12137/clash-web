@@ -713,6 +713,27 @@ function createSetRowElement(setKey, item = {}) {
   urlInput.value = String(item.url || "");
   tdUrl.appendChild(urlInput);
 
+  const tdInterval = document.createElement("td");
+  const intervalSelect = document.createElement("select");
+  intervalSelect.dataset.field = "interval";
+  intervalSelect.title = "刷新间隔（小时），留空用默认 24h";
+  const defaultOpt = document.createElement("option");
+  defaultOpt.value = "";
+  defaultOpt.textContent = "默认";
+  intervalSelect.appendChild(defaultOpt);
+  for (let h = 1; h <= 24; h += 1) {
+    const opt = document.createElement("option");
+    opt.value = String(h);
+    opt.textContent = `${h}h`;
+    intervalSelect.appendChild(opt);
+  }
+  const currentHours = Number(item.interval_hours);
+  intervalSelect.value =
+    Number.isFinite(currentHours) && currentHours >= 1 && currentHours <= 24
+      ? String(currentHours)
+      : "";
+  tdInterval.appendChild(intervalSelect);
+
   const tdOp = document.createElement("td");
   const delBtn = document.createElement("button");
   delBtn.type = "button";
@@ -727,6 +748,7 @@ function createSetRowElement(setKey, item = {}) {
   tr.appendChild(tdIdx);
   tr.appendChild(tdName);
   tr.appendChild(tdUrl);
+  tr.appendChild(tdInterval);
   tr.appendChild(tdOp);
   return tr;
 }
@@ -757,10 +779,16 @@ function collectSetRows(setKey, fallbackPrefix) {
     const rawUrl = String(urlInput?.value || "").trim();
     if (!rawUrl) return;
     const rawName = String(nameInput?.value || "").trim();
-    result.push({
+    const intervalSelect = row.querySelector('select[data-field="interval"]');
+    const entry = {
       name: rawName || `${fallbackPrefix}${counter}`,
       url: rawUrl,
-    });
+    };
+    const hours = Number(intervalSelect?.value);
+    if (Number.isFinite(hours) && hours >= 1 && hours <= 24) {
+      entry.interval_hours = hours;
+    }
+    result.push(entry);
     counter += 1;
   });
   return result;

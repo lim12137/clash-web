@@ -363,6 +363,20 @@ def save_subscriptions(subs: list[dict]) -> None:
     save_json(cfg.script_paths.subs_config, {"subscriptions": subs})
 
 
+def normalize_refresh_interval_hours(raw) -> int | None:
+    """订阅刷新间隔（小时，1-24）。空值或非法值返回 None，表示用默认(24h)。"""
+    text = str(raw if raw is not None else "").strip()
+    if not text:
+        return None
+    try:
+        hours = int(float(text))
+    except Exception:
+        return None
+    if hours < 1 or hours > 24:
+        return None
+    return hours
+
+
 def normalize_subscription_set_entries(raw) -> list[dict]:
     if not isinstance(raw, list):
         return []
@@ -371,14 +385,19 @@ def normalize_subscription_set_entries(raw) -> list[dict]:
         if isinstance(item, dict):
             name = str(item.get("name", "")).strip()
             url = str(item.get("url", "")).strip()
+            hours = normalize_refresh_interval_hours(item.get("interval_hours"))
         else:
             name = ""
             url = str(item).strip()
+            hours = None
         if not url:
             continue
         if not name:
             name = f"Sub{idx}"
-        result.append({"name": name, "url": url})
+        entry = {"name": name, "url": url}
+        if hours is not None:
+            entry["interval_hours"] = hours
+        result.append(entry)
     return result
 
 

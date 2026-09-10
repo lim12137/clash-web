@@ -76,6 +76,16 @@ function escapeRegexLiteral(raw) {
   return String(raw || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// 订阅刷新间隔：每个订阅可单独填 1-24 小时（interval_hours），留空时用默认 24h。
+const DEFAULT_PROVIDER_INTERVAL_SECONDS = 86400;
+function resolveProviderIntervalSeconds(item) {
+  const hours = Number(item?.interval_hours);
+  if (Number.isFinite(hours) && hours >= 1 && hours <= 24) {
+    return Math.round(hours * 3600);
+  }
+  return DEFAULT_PROVIDER_INTERVAL_SECONDS;
+}
+
 function upsertGroup(groups, groupObj) {
   const idx = groups.findIndex((g) => g && g.name === groupObj.name);
   if (idx >= 0) groups[idx] = groupObj;
@@ -96,7 +106,7 @@ function buildProvidersFromSet(config, setItems, fallbackPrefix, suffixTag) {
     config["proxy-providers"][providerName] = {
       type: "http",
       url: item.url,
-      interval: 86400,
+      interval: resolveProviderIntervalSeconds(item),
       "health-check": {
         enable: true,
         url: HEALTHCHECK_URL,
