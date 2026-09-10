@@ -1797,11 +1797,19 @@ def clash_groups_meta():
                 ]
                 if non_system_options and all(entry in config_group_defs for entry in non_system_options):
                     # 保留 DIRECT / REJECT 等系统出口，它们同样是可选项
-                    real_nodes = [
+                    proxy_group_nodes = [
                         str(entry or "").strip()
                         for entry in configured_proxies
                         if str(entry or "").strip()
                     ]
+                    if provider_names:
+                        # 组同时引用 provider 与子组（如 Free-Auto = use 免费provider + Low），
+                        # 两者都要保留，否则 provider 节点会被子组名覆盖掉。
+                        for entry in proxy_group_nodes:
+                            if entry not in real_nodes:
+                                real_nodes.append(entry)
+                    else:
+                        real_nodes = proxy_group_nodes
             if not real_nodes:
                 seen_nodes: set[str] = set()
                 for entry in selector_options:
