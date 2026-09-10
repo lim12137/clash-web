@@ -348,7 +348,7 @@ function renderProviderRows() {
 
   if (!providerRows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="7" class="muted">暂无 provider 数据</td>`;
+    tr.innerHTML = `<td colspan="8" class="muted">暂无 provider 数据</td>`;
     tbody.appendChild(tr);
     return;
   }
@@ -378,7 +378,19 @@ function renderProviderRows() {
       <td>${aliveRatio}</td>
       <td>${updateText}</td>
       <td>${subInfo}</td>
+      <td class="row wrap"></td>
     `;
+    const actionCell = tr.lastElementChild;
+    if (isRefreshableProvider(item)) {
+      const refreshBtn = document.createElement("button");
+      refreshBtn.type = "button";
+      refreshBtn.dataset.action = "refresh";
+      refreshBtn.textContent = "刷新";
+      refreshBtn.onclick = () => refreshProvider(item.name, refreshBtn);
+      actionCell.appendChild(refreshBtn);
+    } else {
+      actionCell.innerHTML = `<span class="muted">-</span>`;
+    }
     if (meta.source === "未匹配") {
       tr.classList.add("provider-row-unmatched");
     }
@@ -702,14 +714,6 @@ function createSetRowElement(setKey, item = {}) {
   tdUrl.appendChild(urlInput);
 
   const tdOp = document.createElement("td");
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.dataset.action = "refresh";
-  refreshBtn.textContent = "刷新";
-  refreshBtn.onclick = () => refreshSetRow(setKey, tr, refreshBtn);
-  tdOp.appendChild(refreshBtn);
-
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.dataset.action = "delete";
@@ -762,26 +766,21 @@ function collectSetRows(setKey, fallbackPrefix) {
   return result;
 }
 
-function resolveSetRowProviderName(setKey, tr) {
-  const prefix = setKey === "set1" ? "Paid" : "Free";
-  const tbody = document.getElementById(`${setKey}-table`);
-  const rows = tbody ? Array.from(tbody.querySelectorAll("tr")) : [];
-  const index = rows.indexOf(tr) + 1 || 1;
-  const nameInput = tr.querySelector('input[data-field="name"]');
-  const rawName = String(nameInput?.value || "").trim();
-  return normalizeProviderName(rawName, `${prefix}_${index}`);
+function isRefreshableProvider(item) {
+  return String(item?.vehicle_type || "").toLowerCase() !== "compatible";
 }
 
-async function refreshSetRow(setKey, tr, btn) {
-  const providerName = resolveSetRowProviderName(setKey, tr);
+async function refreshProvider(providerName, btn) {
+  const name = String(providerName || "").trim();
+  if (!name) return;
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = "刷新中";
   try {
-    const res = await api(`/providers/${encodeURIComponent(providerName)}/refresh`, {
+    const res = await api(`/providers/${encodeURIComponent(name)}/refresh`, {
       method: "POST",
     });
-    showToast(res?.message || `${providerName} 已刷新`);
+    showToast(res?.message || `${name} 已刷新`);
     await loadProviderStatus();
   } catch (err) {
     showToast(`刷新失败: ${err.message}`);
